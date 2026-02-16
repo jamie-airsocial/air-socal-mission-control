@@ -1,44 +1,74 @@
-"use client"
+'use client';
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Users, CheckSquare, UsersRound } from 'lucide-react'
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { 
+  LayoutDashboard, 
+  Users, 
+  ListChecks, 
+  UsersRound, 
+  Receipt,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
-const navItems = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Clients', href: '/clients', icon: Users },
-  { name: 'Tasks', href: '/tasks', icon: CheckSquare },
-  { name: 'Teams', href: '/teams', icon: UsersRound },
-]
+const NAV_ITEMS = [
+  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/clients', label: 'Clients', icon: Users },
+  { href: '/tasks', label: 'Tasks', icon: ListChecks },
+  { href: '/teams', label: 'Teams', icon: UsersRound },
+  { href: '/xero', label: 'Xero', icon: Receipt },
+];
 
 export function Sidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="flex h-screen w-64 flex-col border-r border-border/20 bg-card">
-      <div className="flex h-16 items-center border-b border-border/20 px-6">
-        <h1 className="text-xl font-semibold text-foreground">Air Social</h1>
+    <aside 
+      className={`fixed left-0 top-0 h-screen bg-card border-r border-border/20 transition-all duration-300 ${
+        collapsed ? 'w-16' : 'w-56'
+      }`}
+    >
+      {/* Header */}
+      <div className="h-14 flex items-center px-4 border-b border-border/20">
+        {!collapsed && (
+          <h1 className="text-[15px] font-semibold text-foreground">Air Social</h1>
+        )}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="ml-auto p-1.5 rounded-md hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
       </div>
-      <nav className="flex-1 space-y-1 p-4">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href
-          const Icon = item.icon
+
+      {/* Navigation */}
+      <nav className="p-2">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.href;
+
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors duration-150 ${
+              className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors duration-150 ${
                 isActive
-                  ? 'bg-indigo-500/10 text-indigo-400'
+                  ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-              }`}
+              } ${collapsed ? 'justify-center' : ''}`}
             >
-              <Icon className="h-5 w-5" />
-              {item.name}
+              <Icon size={18} className="shrink-0" />
+              {!collapsed && (
+                <span className="text-[13px] font-medium">{item.label}</span>
+              )}
             </Link>
-          )
+          );
         })}
       </nav>
-    </div>
-  )
+    </aside>
+  );
 }

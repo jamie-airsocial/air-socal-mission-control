@@ -1,103 +1,162 @@
-import { User } from 'lucide-react'
+'use client';
 
-const teams = [
-  {
-    name: 'Team Synergy',
-    color: 'bg-blue-500/10 border-blue-500/20',
-    accentColor: 'text-blue-400',
-    clients: 4,
-    activeTasks: 12,
-    completedTasks: 38,
-    members: [
-      { name: 'Sarah Martinez', role: 'Team Lead', avatar: 'SM' },
-      { name: 'David Kim', role: 'Content Strategist', avatar: 'DK' },
-      { name: 'Alex Chen', role: 'Social Media Manager', avatar: 'AC' },
-    ],
-  },
-  {
-    name: 'Team Ignite',
-    color: 'bg-orange-500/10 border-orange-500/20',
-    accentColor: 'text-orange-400',
-    clients: 5,
-    activeTasks: 10,
-    completedTasks: 45,
-    members: [
-      { name: 'Mike Rodriguez', role: 'Team Lead', avatar: 'MR' },
-      { name: 'Emma Lopez', role: 'Creative Director', avatar: 'EL' },
-      { name: 'James Wilson', role: 'Video Producer', avatar: 'JW' },
-    ],
-  },
-  {
-    name: 'Team Alliance',
-    color: 'bg-purple-500/10 border-purple-500/20',
-    accentColor: 'text-purple-400',
-    clients: 3,
-    activeTasks: 6,
-    completedTasks: 29,
-    members: [
-      { name: 'Lisa Parker', role: 'Team Lead', avatar: 'LP' },
-      { name: 'Tom Anderson', role: 'Analytics Specialist', avatar: 'TA' },
-      { name: 'Nina Patel', role: 'Community Manager', avatar: 'NP' },
-    ],
-  },
-]
+import { TEAM_MEMBERS, CLIENTS, TASKS } from '@/lib/data';
+import { TEAM_STYLES } from '@/lib/constants';
+import type { Team } from '@/lib/types';
+import { Users, Briefcase, ListChecks, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
 
 export default function TeamsPage() {
+  const teams: Team[] = ['synergy', 'ignite', 'alliance'];
+
+  const teamData = teams.map(team => {
+    const members = TEAM_MEMBERS.filter(m => m.team === team);
+    const teamClients = CLIENTS.filter(c => c.team === team && c.status === 'active');
+    const teamTasks = TASKS.filter(t => {
+      const client = CLIENTS.find(c => c.id === t.client_id);
+      return client?.team === team;
+    });
+    const activeTaskCount = teamTasks.filter(t => t.status !== 'done').length;
+    const completedTaskCount = teamTasks.filter(t => t.status === 'done').length;
+    const completionRate = teamTasks.length > 0 
+      ? Math.round((completedTaskCount / teamTasks.length) * 100) 
+      : 0;
+
+    return {
+      team,
+      members,
+      clientCount: teamClients.length,
+      activeTaskCount,
+      completedTaskCount,
+      completionRate,
+    };
+  });
+
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-foreground">Teams</h1>
-        <p className="text-[13px] text-muted-foreground mt-1">Manage your team structure and members</p>
+    <div className="animate-in fade-in duration-300">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Teams</h1>
+        <p className="text-sm text-muted-foreground mt-1">Performance and overview of each team</p>
       </div>
 
-      <div className="space-y-8">
-        {teams.map((team, teamIndex) => (
-          <div
-            key={teamIndex}
-            className={`rounded-lg border ${team.color} p-6`}
-          >
-            <div className="mb-6">
-              <h2 className={`text-xl font-semibold ${team.accentColor} mb-4`}>{team.name}</h2>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-lg border border-border/20 bg-card/50 p-4">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">Clients</p>
-                  <p className="text-2xl font-semibold text-foreground">{team.clients}</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {teamData.map(({ team, members, clientCount, activeTaskCount, completedTaskCount, completionRate }) => {
+          const teamStyle = TEAM_STYLES[team];
+
+          return (
+            <div
+              key={team}
+              className="rounded-lg border border-border/20 bg-card p-6"
+            >
+              {/* Team Header */}
+              <div className="flex items-center gap-3 mb-6">
+                <div 
+                  className="w-12 h-12 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${teamStyle.color}20` }}
+                >
+                  <Users size={24} style={{ color: teamStyle.color }} />
                 </div>
-                <div className="rounded-lg border border-border/20 bg-card/50 p-4">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">Active Tasks</p>
-                  <p className="text-2xl font-semibold text-foreground">{team.activeTasks}</p>
-                </div>
-                <div className="rounded-lg border border-border/20 bg-card/50 p-4">
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1">Completed</p>
-                  <p className="text-2xl font-semibold text-foreground">{team.completedTasks}</p>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">{teamStyle.label}</h2>
+                  <p className="text-xs text-muted-foreground">{members.length} members</p>
                 </div>
               </div>
-            </div>
 
-            <div>
-              <h3 className="text-[13px] font-semibold text-foreground mb-4">Team Members</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {team.members.map((member, memberIndex) => (
-                  <div
-                    key={memberIndex}
-                    className="rounded-lg border border-border/20 bg-card p-4 hover:bg-muted/40 transition-colors duration-150"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-full ${team.color}`}>
-                        <span className={`text-sm font-semibold ${team.accentColor}`}>{member.avatar}</span>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="rounded-lg bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Briefcase size={12} className="text-muted-foreground/60" />
+                    <p className="text-xs text-muted-foreground/60">Clients</p>
+                  </div>
+                  <p className="text-lg font-semibold text-foreground">{clientCount}</p>
+                </div>
+
+                <div className="rounded-lg bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <ListChecks size={12} className="text-muted-foreground/60" />
+                    <p className="text-xs text-muted-foreground/60">Active Tasks</p>
+                  </div>
+                  <p className="text-lg font-semibold text-foreground">{activeTaskCount}</p>
+                </div>
+
+                <div className="rounded-lg bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingUp size={12} className="text-emerald-400" />
+                    <p className="text-xs text-muted-foreground/60">Completed</p>
+                  </div>
+                  <p className="text-lg font-semibold text-emerald-400">{completedTaskCount}</p>
+                </div>
+
+                <div className="rounded-lg bg-muted/20 p-3">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingUp size={12} className="text-muted-foreground/60" />
+                    <p className="text-xs text-muted-foreground/60">Rate</p>
+                  </div>
+                  <p className="text-lg font-semibold text-foreground">{completionRate}%</p>
+                </div>
+              </div>
+
+              {/* Completion Bar */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs text-muted-foreground/60">Task Completion</p>
+                  <p className="text-xs font-medium text-foreground">{completionRate}%</p>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div 
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{ 
+                      width: `${completionRate}%`,
+                      backgroundColor: teamStyle.color,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Team Members */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground/60 mb-3">Team Members</p>
+                <div className="space-y-2">
+                  {members.map(member => (
+                    <div key={member.id} className="flex items-center gap-3 py-2">
+                      <div 
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+                        style={{ 
+                          backgroundColor: `${teamStyle.color}20`,
+                          color: teamStyle.color,
+                        }}
+                      >
+                        {member.name.split(' ').map(n => n[0]).join('')}
                       </div>
-                      <div className="flex-1">
-                        <h4 className="text-[13px] font-medium text-foreground">{member.name}</h4>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">{member.role}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-foreground">{member.name}</p>
+                        <p className="text-xs text-muted-foreground/60">{member.role}</p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 pt-4 border-t border-border/20 flex gap-2">
+                <Link
+                  href={`/clients?team=${team}`}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium text-center border border-border/20 hover:bg-muted/40 transition-colors text-foreground"
+                >
+                  View Clients
+                </Link>
+                <Link
+                  href={`/tasks?team=${team}`}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium text-center border border-border/20 hover:bg-muted/40 transition-colors text-foreground"
+                >
+                  View Tasks
+                </Link>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
-  )
+  );
 }
