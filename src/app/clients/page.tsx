@@ -118,6 +118,7 @@ export default function ClientsPage() {
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientTeam, setNewClientTeam] = useState('synergy');
+  const [newClientRetainer, setNewClientRetainer] = useState('');
   const [creating, setCreating] = useState(false);
 
   const createClient = async () => {
@@ -127,7 +128,7 @@ export default function ClientsPage() {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newClientName.trim(), team: newClientTeam, status: 'active', services: [], monthly_retainer: 0, assigned_members: [] }),
+        body: JSON.stringify({ name: newClientName.trim(), team: newClientTeam, status: 'active', services: [], monthly_retainer: newClientRetainer ? parseFloat(newClientRetainer) : 0, assigned_members: [] }),
       });
       if (!res.ok) { toast.error('Failed to create client'); return; }
       toast.success('Client created');
@@ -225,6 +226,17 @@ export default function ClientsPage() {
               <option key={key} value={key}>{style.label}</option>
             ))}
           </select>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+            <input
+              value={newClientRetainer}
+              onChange={e => setNewClientRetainer(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') createClient(); }}
+              placeholder="Retainer"
+              type="number"
+              className="h-8 w-24 pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+            />
+          </div>
           <Button size="sm" onClick={createClient} disabled={creating || !newClientName.trim()}>
             {creating ? 'Creating...' : 'Create'}
           </Button>
