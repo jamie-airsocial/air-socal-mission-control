@@ -1,12 +1,23 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { CLIENTS, TEAM_MEMBERS, TASKS } from '@/lib/data';
+import { useState, useEffect, useCallback } from 'react';
+import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
-import type { Team, Service, ClientStatus } from '@/lib/legacy-types';
 import { Users, Search, ChevronDown, Check, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Link from 'next/link';
+
+interface ClientRow {
+  id: string;
+  name: string;
+  team: string;
+  status: string;
+  services: string[];
+  monthly_retainer: number;
+  assigned_members: string[];
+  color: string | null;
+  created_at: string;
+}
 
 /* ── Reusable filter popover (matches tasks page style) ───────────────── */
 function FilterPopover({
@@ -58,16 +69,28 @@ function FilterPopover({
 }
 
 export default function ClientsPage() {
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTeam, setFilterTeam] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterService, setFilterService] = useState<string>('all');
 
-  const filteredClients = CLIENTS.filter(client => {
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clients');
+      if (res.ok) setClients(await res.json());
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { fetchClients(); }, [fetchClients]);
+
+  const filteredClients = clients.filter(client => {
     if (searchQuery && !client.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterTeam !== 'all' && client.team !== filterTeam) return false;
     if (filterStatus !== 'all' && client.status !== filterStatus) return false;
-    if (filterService !== 'all' && !client.services.includes(filterService as Service)) return false;
+    if (filterService !== 'all' && !client.services?.includes(filterService)) return false;
     return true;
   });
 
@@ -141,80 +164,96 @@ export default function ClientsPage() {
       </div>
 
       {/* Client Grid — compact cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {filteredClients.map((client) => {
-          const teamStyle = TEAM_STYLES[client.team];
-          const clientTasks = TASKS.filter(t => t.client_id === client.id);
-          const activeTasks = clientTasks.filter(t => t.status !== 'done').length;
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="rounded-lg border border-border/20 bg-card p-3 animate-pulse">
+              <div className="h-4 w-2/3 bg-muted/40 rounded mb-2" />
+              <div className="h-3 w-1/2 bg-muted/30 rounded mb-2" />
+              <div className="h-3 w-full bg-muted/20 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {filteredClients.map((client) => {
+            const teamStyle = TEAM_STYLES[client.team as keyof typeof TEAM_STYLES];
 
-          return (
-            <Link
-              key={client.id}
-              href={`/clients/${client.id}`}
-              className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
-                    client.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
-                    client.status === 'paused' ? 'bg-amber-500/10 text-amber-400' :
-                    'bg-red-500/10 text-red-400'
-                  }`}
-                >
-                  {client.status}
-                </span>
-              </div>
+            return (
+              <Link
+                key={client.id}
+                href={`/clients/${client.id}`}
+                className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
+                      client.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
+                      client.status === 'paused' ? 'bg-amber-500/10 text-amber-400' :
+                      'bg-red-500/10 text-red-400'
+                    }`}
+                  >
+                    {client.status}
+                  </span>
+                </div>
 
-              <div className="flex items-center gap-2 mb-2">
-                <span
-                  className="h-1.5 w-1.5 rounded-full shrink-0"
-                  style={{ backgroundColor: teamStyle.color }}
-                />
-                <span className="text-[11px] text-muted-foreground">{teamStyle.label}</span>
-                <span className="text-[11px] text-muted-foreground/40">·</span>
-                <span className="text-[11px] text-muted-foreground">£{client.monthly_retainer.toLocaleString()}/mo</span>
-              </div>
+                <div className="flex items-center gap-2 mb-2">
+                  {teamStyle && (
+                    <>
+                      <span
+                        className="h-1.5 w-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: teamStyle.color }}
+                      />
+                      <span className="text-[11px] text-muted-foreground">{teamStyle.label}</span>
+                      <span className="text-[11px] text-muted-foreground/40">·</span>
+                    </>
+                  )}
+                  <span className="text-[11px] text-muted-foreground">
+                    £{(client.monthly_retainer || 0).toLocaleString()}/mo
+                  </span>
+                </div>
 
-              <div className="flex flex-wrap gap-1 mb-2">
-                {client.services.map((service) => {
-                  const s = SERVICE_STYLES[service];
-                  return (
-                    <span key={service} className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
-                      {s.icon} {s.label}
-                    </span>
-                  );
-                })}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex -space-x-1.5">
-                  {client.assigned_members.slice(0, 3).map((memberId) => {
-                    const member = TEAM_MEMBERS.find(m => m.id === memberId);
-                    if (!member) return null;
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {(client.services || []).map((service) => {
+                    const s = SERVICE_STYLES[service];
+                    if (!s) return null;
                     return (
-                      <div
-                        key={memberId}
-                        className="w-5 h-5 rounded-full bg-primary/20 border-[1.5px] border-card flex items-center justify-center"
-                      >
-                        <span className="text-[8px] leading-none font-medium text-primary">{member.name.charAt(0)}</span>
-                      </div>
+                      <span key={service} className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
+                        {s.icon} {s.label}
+                      </span>
                     );
                   })}
-                  {client.assigned_members.length > 3 && (
-                    <div className="w-5 h-5 rounded-full bg-muted/40 border-[1.5px] border-card flex items-center justify-center">
-                      <span className="text-[8px] leading-none font-medium text-muted-foreground">+{client.assigned_members.length - 3}</span>
-                    </div>
-                  )}
                 </div>
-                <span className="text-[11px] text-muted-foreground">{activeTasks} active</span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
 
-      {filteredClients.length === 0 && (
+                <div className="flex items-center justify-between">
+                  <div className="flex -space-x-1.5">
+                    {(client.assigned_members || []).slice(0, 3).map((memberId) => {
+                      const member = TEAM_MEMBERS.find(m => m.id === memberId);
+                      if (!member) return null;
+                      return (
+                        <div
+                          key={memberId}
+                          className="w-5 h-5 rounded-full bg-primary/20 border-[1.5px] border-card flex items-center justify-center"
+                        >
+                          <span className="text-[8px] leading-none font-medium text-primary">{member.name.charAt(0)}</span>
+                        </div>
+                      );
+                    })}
+                    {(client.assigned_members || []).length > 3 && (
+                      <div className="w-5 h-5 rounded-full bg-muted/40 border-[1.5px] border-card flex items-center justify-center">
+                        <span className="text-[8px] leading-none font-medium text-muted-foreground">+{client.assigned_members.length - 3}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && filteredClients.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Users size={32} className="text-muted-foreground/30 mb-3" />
           <p className="text-[13px] font-medium text-muted-foreground">No clients found</p>
