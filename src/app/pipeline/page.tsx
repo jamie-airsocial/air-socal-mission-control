@@ -48,6 +48,8 @@ export default function PipelinePage() {
   const [lossReasonCustom, setLossReasonCustom] = useState('');
 
   // New prospect form
+  const [filterService, setFilterService] = useState<string[]>([]);
+
   const [formName, setFormName] = useState('');
   const [formCompany, setFormCompany] = useState('');
   const [formContactName, setFormContactName] = useState('');
@@ -70,15 +72,20 @@ export default function PipelinePage() {
   useEffect(() => { fetchProspects(); }, [fetchProspects]);
 
   const filtered = useMemo(() => {
-    if (!searchQuery) return prospects;
-    const q = searchQuery.toLowerCase();
-    return prospects.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.company?.toLowerCase().includes(q) ||
-      p.contact_name?.toLowerCase().includes(q) ||
-      p.contact_email?.toLowerCase().includes(q)
-    );
-  }, [prospects, searchQuery]);
+    return prospects.filter(p => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        if (!p.name.toLowerCase().includes(q) &&
+            !p.company?.toLowerCase().includes(q) &&
+            !p.contact_name?.toLowerCase().includes(q) &&
+            !p.contact_email?.toLowerCase().includes(q)) return false;
+      }
+      if (filterService.length > 0 && (!p.service || !filterService.includes(p.service))) return false;
+      return true;
+    });
+  }, [prospects, searchQuery, filterService]);
+
+  const hasFilters = filterService.length > 0 || searchQuery !== '';
 
   const resetForm = () => {
     setFormName(''); setFormCompany(''); setFormContactName('');
@@ -234,6 +241,51 @@ export default function PipelinePage() {
             className="h-8 w-full sm:w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 placeholder:text-muted-foreground/60"
           />
         </div>
+
+        {/* Service filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg hover:border-primary/50 transition-colors duration-150 flex items-center gap-1.5 ${
+              filterService.length > 0 ? 'border-primary text-primary' : 'border-border/20 text-muted-foreground'
+            }`}>
+              {filterService.length > 0 ? `Service (${filterService.length})` : 'Service'}
+              <ChevronDown size={12} className="text-muted-foreground/40" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-1" align="start">
+            {Object.entries(SERVICE_STYLES).map(([key, s]) => {
+              const isSelected = filterService.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setFilterService(prev => isSelected ? prev.filter(v => v !== key) : [...prev, key])}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                    isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                  }`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                    isSelected ? 'border-primary bg-primary' : 'border-border/40'
+                  }`}>
+                    {isSelected && <Check size={10} className="text-primary-foreground" />}
+                  </div>
+                  <span className="flex-1 text-left">{s.icon} {s.label}</span>
+                </button>
+              );
+            })}
+            {filterService.length > 0 && (
+              <button onClick={() => setFilterService([])} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
+            )}
+          </PopoverContent>
+        </Popover>
+
+        {hasFilters && (
+          <button
+            onClick={() => { setFilterService([]); setSearchQuery(''); }}
+            className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors duration-150 flex items-center gap-1.5"
+          >
+            <X className="h-3 w-3" /> Clear all
+          </button>
+        )}
 
         {/* View toggle */}
         <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
