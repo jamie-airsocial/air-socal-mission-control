@@ -8,6 +8,7 @@ import {
   ListChecks, 
   UsersRound, 
   Receipt,
+  TrendingUp,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import {
 const NAV_ITEMS = [
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/tasks', label: 'Tasks', icon: ListChecks },
+  { href: '/pipeline', label: 'Pipeline', icon: TrendingUp },
   { href: '/teams', label: 'Teams', icon: UsersRound },
   { href: '/xero', label: 'Xero', icon: Receipt },
 ];
