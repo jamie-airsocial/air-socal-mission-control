@@ -7,18 +7,18 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
   const { data, error } = await supabaseAdmin
     .from('tasks')
-    .select('*, projects(name, color)')
+    .select('*, clients(name, color, team)')
     .eq('id', id)
     .single();
 
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const project = data.projects as { name: string; color: string } | null;
+  const client = data.clients as { name: string; color: string; team: string } | null;
   return NextResponse.json({
     ...data,
-    project_name: project?.name || null,
-    project_color: project?.color || null,
-    projects: undefined,
+    client_name: client?.name || null,
+    client_color: client?.color || null,
+    client_team: client?.team || null, clients: undefined,
   });
 }
 
@@ -27,7 +27,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const body = await request.json();
   const updates: Record<string, unknown> = {};
 
-  for (const key of ['title', 'description', 'status', 'priority', 'assignee', 'project_id', 'due_date', 'parent_id', 'labels']) {
+  for (const key of ['title', 'description', 'status', 'priority', 'assignee', 'client_id', 'due_date', 'parent_id', 'labels']) {
     if (key in body) updates[key] = body[key];
   }
 
@@ -87,17 +87,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     .from('tasks')
     .update(updates)
     .eq('id', id)
-    .select('*, projects(name, color)')
+    .select('*, clients(name, color, team)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const project = data.projects as { name: string; color: string } | null;
+  const client = data.clients as { name: string; color: string; team: string } | null;
   const response = {
     ...data,
-    project_name: project?.name || null,
-    project_color: project?.color || null,
-    projects: undefined,
+    client_name: client?.name || null,
+    client_color: client?.color || null,
+    client_team: client?.team || null, clients: undefined,
   };
 
   const agent = (body.agent as string) || response.assignee || existing?.assignee || 'casper';
