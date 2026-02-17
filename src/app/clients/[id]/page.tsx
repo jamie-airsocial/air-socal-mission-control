@@ -33,12 +33,16 @@ export default function ClientDetailPage() {
 
   // Group tasks by service or month
   const groupedTasks = view === 'service'
-    ? Object.groupBy(clientTasks, t => t.service || 'none')
-    : Object.groupBy(clientTasks, t => {
-        if (!t.due_date) return 'No date';
-        const date = new Date(t.due_date);
-        return date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-      });
+    ? clientTasks.reduce<Record<string, typeof clientTasks>>((acc, t) => {
+        const key = t.service || 'none';
+        (acc[key] ??= []).push(t);
+        return acc;
+      }, {})
+    : clientTasks.reduce<Record<string, typeof clientTasks>>((acc, t) => {
+        const key = !t.due_date ? 'No date' : new Date(t.due_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        (acc[key] ??= []).push(t);
+        return acc;
+      }, {});
 
   return (
     <div className="animate-in fade-in duration-300">
