@@ -1,162 +1,114 @@
 'use client';
 
-import { TEAM_MEMBERS, CLIENTS, TASKS } from '@/lib/data';
-import { TEAM_STYLES } from '@/lib/constants';
-import type { Team } from '@/lib/legacy-types';
-import { Users, Briefcase, ListChecks, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { TEAM_MEMBERS } from '@/lib/data';
+import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
+import type { Team } from '@/lib/types';
+import { Users, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 
+interface Client {
+  id: string;
+  name: string;
+  team: string;
+  status: string;
+  services: string[];
+  monthly_retainer: number;
+  assigned_members: string[];
+}
+
 export default function TeamsPage() {
-  const teams: Team[] = ['synergy', 'ignite', 'alliance'];
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const teamData = teams.map(team => {
-    const members = TEAM_MEMBERS.filter(m => m.team === team);
-    const teamClients = CLIENTS.filter(c => c.team === team && c.status === 'active');
-    const teamTasks = TASKS.filter(t => {
-      const client = CLIENTS.find(c => c.id === t.client_id);
-      return client?.team === team;
-    });
-    const activeTaskCount = teamTasks.filter(t => t.status !== 'done').length;
-    const completedTaskCount = teamTasks.filter(t => t.status === 'done').length;
-    const completionRate = teamTasks.length > 0 
-      ? Math.round((completedTaskCount / teamTasks.length) * 100) 
-      : 0;
+  useEffect(() => {
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then(data => setClients(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-    return {
-      team,
-      members,
-      clientCount: teamClients.length,
-      activeTaskCount,
-      completedTaskCount,
-      completionRate,
-    };
+  const teams = (['synergy', 'ignite', 'alliance'] as Team[]).map(teamId => {
+    const style = TEAM_STYLES[teamId];
+    const teamClients = clients.filter(c => c.team === teamId && c.status === 'active');
+    const members = TEAM_MEMBERS.filter(m => m.team === teamId);
+    const revenue = teamClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
+
+    return { id: teamId, style, clients: teamClients, members, revenue };
   });
 
   return (
-    <div className="animate-in fade-in duration-300">
+    <div className="animate-in fade-in duration-200">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Teams</h1>
-        <p className="text-sm text-muted-foreground mt-1">Performance and overview of each team</p>
+        <p className="text-[13px] text-muted-foreground/60 mt-1">{TEAM_MEMBERS.length} members across 3 teams</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {teamData.map(({ team, members, clientCount, activeTaskCount, completedTaskCount, completionRate }) => {
-          const teamStyle = TEAM_STYLES[team];
-
-          return (
-            <div
-              key={team}
-              className="rounded-lg border border-border/20 bg-card p-6"
-            >
-              {/* Team Header */}
-              <div className="flex items-center gap-3 mb-6">
-                <div 
-                  className="w-12 h-12 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: `${teamStyle.color}20` }}
-                >
-                  <Users size={24} style={{ color: teamStyle.color }} />
+      {loading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => <div key={i} className="h-64 bg-muted/20 rounded-lg animate-pulse" />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {teams.map(team => (
+            <div key={team.id} className="rounded-lg border border-border/20 bg-card overflow-hidden">
+              {/* Team header */}
+              <div className="p-4 border-b border-border/10" style={{ borderTopColor: team.style.color, borderTopWidth: 3 }}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: team.style.color }} />
+                    <h2 className="text-[13px] font-semibold">{team.style.label}</h2>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground/60">{team.clients.length} clients</span>
                 </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">{teamStyle.label}</h2>
-                  <p className="text-xs text-muted-foreground">{members.length} members</p>
-                </div>
+                <p className="text-[13px] font-medium">£{team.revenue.toLocaleString()}/mo</p>
               </div>
 
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                <div className="rounded-lg bg-muted/20 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Briefcase size={12} className="text-muted-foreground/60" />
-                    <p className="text-xs text-muted-foreground/60">Clients</p>
-                  </div>
-                  <p className="text-lg font-semibold text-foreground">{clientCount}</p>
-                </div>
-
-                <div className="rounded-lg bg-muted/20 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <ListChecks size={12} className="text-muted-foreground/60" />
-                    <p className="text-xs text-muted-foreground/60">Active Tasks</p>
-                  </div>
-                  <p className="text-lg font-semibold text-foreground">{activeTaskCount}</p>
-                </div>
-
-                <div className="rounded-lg bg-muted/20 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <TrendingUp size={12} className="text-emerald-400" />
-                    <p className="text-xs text-muted-foreground/60">Completed</p>
-                  </div>
-                  <p className="text-lg font-semibold text-emerald-400">{completedTaskCount}</p>
-                </div>
-
-                <div className="rounded-lg bg-muted/20 p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <TrendingUp size={12} className="text-muted-foreground/60" />
-                    <p className="text-xs text-muted-foreground/60">Rate</p>
-                  </div>
-                  <p className="text-lg font-semibold text-foreground">{completionRate}%</p>
-                </div>
-              </div>
-
-              {/* Completion Bar */}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs text-muted-foreground/60">Task Completion</p>
-                  <p className="text-xs font-medium text-foreground">{completionRate}%</p>
-                </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div 
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{ 
-                      width: `${completionRate}%`,
-                      backgroundColor: teamStyle.color,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Team Members */}
-              <div>
-                <p className="text-xs font-medium text-muted-foreground/60 mb-3">Team Members</p>
+              {/* Members */}
+              <div className="p-4 border-b border-border/10">
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Members</p>
                 <div className="space-y-2">
-                  {members.map(member => (
-                    <div key={member.id} className="flex items-center gap-3 py-2">
-                      <div 
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
-                        style={{ 
-                          backgroundColor: `${teamStyle.color}20`,
-                          color: teamStyle.color,
-                        }}
-                      >
-                        {member.name.split(' ').map(n => n[0]).join('')}
+                  {team.members.map(member => (
+                    <div key={member.id} className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] leading-none font-semibold text-primary">{member.name.charAt(0)}</span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-medium text-foreground">{member.name}</p>
-                        <p className="text-xs text-muted-foreground/60">{member.role}</p>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-medium truncate">{member.name}</p>
+                        <p className="text-[11px] text-muted-foreground/60">{member.role}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="mt-6 pt-4 border-t border-border/20 flex gap-2">
-                <Link
-                  href={`/clients?team=${team}`}
-                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium text-center border border-border/20 hover:bg-muted/40 transition-colors text-foreground"
-                >
-                  View Clients
-                </Link>
-                <Link
-                  href={`/tasks?team=${team}`}
-                  className="flex-1 px-3 py-2 rounded-lg text-xs font-medium text-center border border-border/20 hover:bg-muted/40 transition-colors text-foreground"
-                >
-                  View Tasks
-                </Link>
+              {/* Clients */}
+              <div className="p-4">
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Clients</p>
+                {team.clients.length === 0 ? (
+                  <p className="text-[13px] text-muted-foreground/40">No active clients</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {team.clients.map(client => (
+                      <Link
+                        key={client.id}
+                        href={`/clients/${client.id}`}
+                        className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-lg hover:bg-muted/40 transition-colors duration-150"
+                      >
+                        <span className="text-[13px] truncate">{client.name}</span>
+                        <span className="text-[11px] text-muted-foreground/60 shrink-0 ml-2">
+                          £{(client.monthly_retainer || 0).toLocaleString()}/mo
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
