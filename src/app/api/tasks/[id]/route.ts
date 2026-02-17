@@ -27,7 +27,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const body = await request.json();
   const updates: Record<string, unknown> = {};
 
-  for (const key of ['title', 'description', 'status', 'priority', 'assignee', 'client_id', 'due_date', 'parent_id', 'labels']) {
+  for (const key of ['title', 'description', 'status', 'priority', 'assignee', 'client_id', 'service', 'due_date', 'parent_id', 'labels']) {
     if (key in body) updates[key] = body[key];
   }
 

@@ -25,7 +25,7 @@ import { KanbanBoardSkeleton, TableViewSkeleton, CalendarViewSkeleton } from '@/
 import { useBoardData } from '@/hooks/use-board-data';
 import { useTaskFilters, presetToRange } from '@/hooks/use-task-filters';
 
-type TaskWithProject = Task & { project_name?: string; project_color?: string };
+type TaskWithProject = Task & { project_name?: string; project_color?: string; client_name?: string; client_color?: string; client_team?: string };
 
 function BoardContent() {
   const searchParams = useSearchParams();
@@ -209,7 +209,8 @@ function BoardContent() {
                 status: deletedTask.status,
                 priority: deletedTask.priority,
                 assignee: deletedTask.assignee,
-                project_id: deletedTask.project_id,
+                client_id: deletedTask.client_id,
+                service: deletedTask.service,
                 due_date: deletedTask.due_date,
                 description: deletedTask.description,
                 parent_id: deletedTask.parent_id,
@@ -418,7 +419,7 @@ function BoardContent() {
                     onClick={() => { setKanbanGroupBy(option); setKanbanGroupByOpen(false); }}
                     className={`px-3 py-2 text-left text-[13px] rounded-md transition-colors duration-150 capitalize ${kanbanGroupBy === option ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/40 text-muted-foreground'}`}
                   >
-                    {option === 'status' ? 'Status' : option === 'priority' ? 'Priority' : option === 'project' ? 'Project' : 'Assignee'}
+                    {option === 'status' ? 'Status' : option === 'priority' ? 'Priority' : option === 'project' ? 'Client' : 'Assignee'}
                   </button>
                 ))}
               </div>
@@ -486,6 +487,8 @@ function BoardContent() {
                   priority: 'P3' as Task['priority'],
                   assignee: 'casper' as Task['assignee'],
                   project_id: null,
+                  client_id: null,
+                  service: null,
                   parent_id: null,
                   due_date: null,
                   completed_at: null,
@@ -494,8 +497,8 @@ function BoardContent() {
                 };
                 if (kanbanGroupBy === 'status') base.status = columnId as Task['status'];
                 else if (kanbanGroupBy === 'priority') base.priority = columnId as Task['priority'];
-                else if (kanbanGroupBy === 'project') base.project_id = columnId === 'no-project' ? null : columnId;
-                else if (kanbanGroupBy === 'assignee') base.assignee = (columnId === 'unassigned' ? 'casper' : columnId) as Task['assignee'];
+                else if (kanbanGroupBy === 'project') base.client_id = columnId === 'no-client' ? null : columnId;
+                else if (kanbanGroupBy === 'assignee') base.assignee = (columnId === 'unassigned' ? '' : columnId) as Task['assignee'];
                 openNewTask(base);
               }}
             />
@@ -553,6 +556,8 @@ function BoardContent() {
                   priority: 'P3' as Task['priority'],
                   assignee: 'casper' as Task['assignee'],
                   project_id: null,
+                  client_id: null,
+                  service: null,
                   parent_id: null,
                   due_date: defaultDate,
                   completed_at: null,

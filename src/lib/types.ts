@@ -5,6 +5,20 @@ export interface Project {
   created_at: string;
 }
 
+/** Air Social uses clients instead of projects */
+export interface Client {
+  id: string;
+  name: string;
+  team?: string;
+  status?: string;
+  services?: string[];
+  monthly_retainer?: number;
+  assigned_members?: string[];
+  color?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -13,6 +27,8 @@ export interface Task {
   priority: 'P1' | 'P2' | 'P3' | 'P4' | null;
   assignee: string | null;
   project_id: string | null;
+  client_id?: string | null;
+  service?: string | null;
   due_date?: string | null;
   labels?: string[];
   created_at: string;
@@ -22,6 +38,9 @@ export interface Task {
   subtask_count?: number;
   subtasks_done_count?: number;
   project?: Project | null;
+  client_name?: string;
+  client_color?: string;
+  client_team?: string;
 }
 
 export interface Comment {

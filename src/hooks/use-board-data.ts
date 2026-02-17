@@ -7,16 +7,17 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { Task, Project } from '@/lib/types';
+import type { Task, Project, Client } from '@/lib/types';
 import { STATUS_STYLES } from '@/lib/constants';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-type TaskWithProject = Task & { project_name?: string; project_color?: string };
+type TaskWithClient = Task & { client_name?: string; client_color?: string; client_team?: string; project_name?: string; project_color?: string };
 
 export function useBoardData() {
-  const [tasks, setTasks] = useState<TaskWithProject[]>([]);
+  const [tasks, setTasks] = useState<TaskWithClient[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [registeredLabels, setRegisteredLabels] = useState<string[]>([]);
   // C2: Track in-flight optimistic updates so realtime re-fetches don't clobber them
@@ -26,7 +27,14 @@ export function useBoardData() {
     try {
       const res = await fetch('/api/tasks');
       if (res.ok) {
-        setTasks(await res.json());
+        const data = await res.json();
+        // Map client_id → project_id for internal compat (kanban/filters use project_id)
+        setTasks(data.map((t: Record<string, unknown>) => ({
+          ...t,
+          project_id: t.client_id || t.project_id || null,
+          project_name: t.client_name || t.project_name || null,
+          project_color: t.client_color || t.project_color || null,
+        })));
       } else {
         console.error('[Board] Failed to fetch tasks:', res.status);
       }
@@ -39,8 +47,13 @@ export function useBoardData() {
 
   const fetchProjects = useCallback(async () => {
     try {
-      const r = await fetch('/api/projects');
-      if (r.ok) setProjects(await r.json());
+      const r = await fetch('/api/clients');
+      if (r.ok) {
+        const data = await r.json();
+        setClients(data);
+        // Map clients to project shape for backward compat with filters/views
+        setProjects(data.map((c: Client) => ({ id: c.id, name: c.name, color: c.color || '', created_at: c.created_at })));
+      }
     } catch { /* silent */ }
   }, []);
 
@@ -78,7 +91,7 @@ export function useBoardData() {
         }
         fetchTasks();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
         fetchProjects();
       })
       .subscribe();
@@ -157,18 +170,21 @@ export function useBoardData() {
     pendingUpdatesRef.current.add(taskId);
     setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, [field]: value } : t)));
 
+    // Map project_id → client_id for API
+    const apiField = field === 'project_id' ? 'client_id' : field;
+
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify({ [apiField]: value }),
       });
       if (!res.ok) throw new Error('Failed to update task');
       const label =
         field === 'priority'
           ? value || 'none'
           : field === 'project_id'
-          ? (projects.find(p => p.id === value)?.name || 'No project')
+          ? (projects.find(p => p.id === value)?.name || 'No client')
           : (value || 'Unassigned');
       toast.success(`Moved to ${label}`);
     } catch {
@@ -259,6 +275,7 @@ export function useBoardData() {
     tasks,
     setTasks,
     projects,
+    clients,
     loading,
     fetchTasks,
     allLabels,

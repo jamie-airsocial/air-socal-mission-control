@@ -156,9 +156,9 @@ export function KanbanBoard({
         label: p.name,
         dotColor: p.color,
       }));
-      // Only show "No Project" column if at least one task has no project
+      // Only show "No Client" column if at least one task has no project
       if (tasks.some((t) => !t.project_id)) {
-        cols.push({ id: 'no-project', label: 'No Project', dotClass: 'bg-muted-foreground/40' });
+        cols.push({ id: 'no-client', label: 'No Client', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
@@ -207,7 +207,7 @@ export function KanbanBoard({
             : tasks.filter((t) => t.priority === columnId);
       } else if (groupBy === 'project') {
         columnTasks =
-          columnId === 'no-project'
+          columnId === 'no-client'
             ? tasks.filter((t) => !t.project_id)
             : tasks.filter((t) => t.project_id === columnId);
       } else if (groupBy === 'assignee') {
@@ -318,7 +318,7 @@ export function KanbanBoard({
       } else if (groupBy === 'priority') {
         onFieldChange?.(draggableId, 'priority', destColId);
       } else if (groupBy === 'project') {
-        onFieldChange?.(draggableId, 'project_id', destColId === 'no-project' ? null : destColId);
+        onFieldChange?.(draggableId, 'project_id', destColId === 'no-client' ? null : destColId);
       } else if (groupBy === 'assignee') {
         onFieldChange?.(draggableId, 'assignee', destColId === 'unassigned' ? null : destColId);
       }

@@ -259,7 +259,7 @@ export function TaskSheet({
         status: task.status || 'todo',
         priority: task.priority || '',
         assignee: toDisplayName(task.assignee || ''),
-        project_id: task.project_id || '',
+        project_id: task.client_id || task.project_id || '',
         due_date: dueDate,
         due_time: dueTime,
         labels: task.labels || []
@@ -298,7 +298,7 @@ export function TaskSheet({
         status: (task?.status as Task['status']) || 'todo',
         priority: task?.priority || '',
         assignee: task?.assignee ? toDisplayName(task.assignee) : '',
-        project_id: task?.project_id || '',
+        project_id: task?.client_id || task?.project_id || '',
         due_date: newDueDate,
         due_time: newDueTime,
         labels: [],
@@ -514,7 +514,7 @@ export function TaskSheet({
       status: f.status,
       priority: f.priority || null,
       assignee: f.assignee ? toSlug(f.assignee) : null,
-      project_id: f.project_id || null,
+      client_id: f.project_id || null,
       due_date: finalDueDate,
       labels: f.labels || [],
     };
@@ -579,7 +579,7 @@ export function TaskSheet({
       status: form.status,
       priority: form.priority,
       assignee: form.assignee ? toSlug(form.assignee) : null,
-      project_id: form.project_id,
+      client_id: form.project_id,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
       parent_id: task.parent_id, // Preserve parent if it's a subtask
       labels: form.labels,
@@ -1038,7 +1038,7 @@ export function TaskSheet({
               />
             </PropertyRow>
             
-            <PropertyRow icon={<Folder size={13} />} label="Project">
+            <PropertyRow icon={<Folder size={13} />} label="Client">
               <SearchableProjectPopover
                 value={form.project_id ? {
                   id: form.project_id,
@@ -1173,7 +1173,7 @@ export function TaskSheet({
                       status: 'todo' as Task['status'],
                       priority: null,
                       assignee: null as unknown as Task['assignee'],
-                      project_id: form.project_id || null,
+                      client_id: form.project_id || null,
                       parent_id: task?.id || 'pending',
                       description: null,
                       due_date: null,
@@ -1193,7 +1193,7 @@ export function TaskSheet({
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
                             title: 'New sub-task', status: 'todo', priority: null,
-                            assignee: null, project_id: task?.project_id || null,
+                            assignee: null, client_id: task?.client_id || null,
                             parent_id: task!.id, description: null, due_date: null,
                           }),
                         });
@@ -1342,7 +1342,7 @@ export function TaskSheet({
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         title: st.title, status: st.status, priority: st.priority,
-                        assignee: st.assignee, project_id: form.project_id || null,
+                        assignee: st.assignee, client_id: form.project_id || null,
                         parent_id: taskId, description: st.description, due_date: st.due_date,
                       }),
                     }).catch(err => console.error('Failed to create subtask', err));
