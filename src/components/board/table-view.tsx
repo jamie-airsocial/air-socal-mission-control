@@ -11,7 +11,7 @@ import { SearchableStatusPopover } from '@/components/board/searchable-status-po
 import { SearchablePriorityPopover } from '@/components/board/searchable-priority-popover';
 import { SearchableAssigneePopover } from '@/components/board/searchable-assignee-popover';
 import { SearchableProjectPopover } from '@/components/board/searchable-project-popover';
-import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, normalisePriority, toSlug, toDisplayName, getInitials } from '@/lib/constants';
+import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, SERVICE_STYLES, TEAM_STYLES, normalisePriority, toSlug, toDisplayName, getInitials } from '@/lib/constants';
 import { LabelCombobox } from '@/components/board/label-combobox';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -546,6 +546,15 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
         const pStyle = normalised ? PRIORITY_STYLES[normalised] : null;
         label = pStyle ? `${normalised} · ${pStyle.label}` : 'No Priority';
         if (pStyle) metadata.badge = normalised;
+      } else if (groupBy === 'service') {
+        key = task.service || 'no-service';
+        const sStyle = task.service ? SERVICE_STYLES[task.service] : null;
+        label = sStyle ? `${sStyle.icon} ${sStyle.label}` : 'No Service';
+      } else if (groupBy === 'team') {
+        key = task.client_team || 'no-team';
+        const tStyle = task.client_team ? TEAM_STYLES[task.client_team as keyof typeof TEAM_STYLES] : null;
+        label = tStyle ? tStyle.label : 'No Team';
+        if (tStyle) metadata.dot = tStyle.color;
       }
 
       if (!groups.has(key)) {
