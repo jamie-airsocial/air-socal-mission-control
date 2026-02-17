@@ -21,21 +21,24 @@ interface ClientRow {
   created_at: string;
 }
 
-/* ── Reusable filter popover (matches tasks page style) ───────────────── */
-function FilterPopover({
+/* ── Multi-select filter popover (matches tasks page style) ───────────── */
+function MultiFilterPopover({
   label,
-  value,
+  selected,
   options,
   onChange,
 }: {
   label: string;
-  value: string;
+  selected: string[];
   options: { value: string; label: string; dot?: string }[];
-  onChange: (v: string) => void;
+  onChange: (v: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const active = value !== 'all';
-  const activeLabel = options.find(o => o.value === value)?.label || label;
+  const active = selected.length > 0;
+
+  const toggle = (val: string) => {
+    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -45,26 +48,41 @@ function FilterPopover({
             active ? 'border-primary text-primary' : 'border-border/20 text-muted-foreground'
           }`}
         >
-          {active ? activeLabel : label}
+          {active ? `${label} (${selected.length})` : label}
           <ChevronDown size={12} className="text-muted-foreground/40" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-48 p-1" align="start">
-        {options.map(opt => (
+        {options.map(opt => {
+          const isSelected = selected.includes(opt.value);
+          return (
+            <button
+              key={opt.value}
+              onClick={() => toggle(opt.value)}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+              }`}
+            >
+              <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                isSelected ? 'border-primary bg-primary' : 'border-border/40'
+              }`}>
+                {isSelected && <Check size={10} className="text-primary-foreground" />}
+              </div>
+              {opt.dot && (
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
+              )}
+              <span className="flex-1 text-left">{opt.label}</span>
+            </button>
+          );
+        })}
+        {selected.length > 0 && (
           <button
-            key={opt.value}
-            onClick={() => { onChange(opt.value); setOpen(false); }}
-            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
-              value === opt.value ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-            }`}
+            onClick={() => onChange([])}
+            className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left"
           >
-            {opt.dot && (
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
-            )}
-            <span className="flex-1 text-left">{opt.label}</span>
-            {value === opt.value && <Check size={14} className="text-primary shrink-0" />}
+            Clear
           </button>
-        ))}
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -74,9 +92,9 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTeam, setFilterTeam] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterService, setFilterService] = useState<string>('all');
+  const [filterTeam, setFilterTeam] = useState<string[]>([]);
+  const [filterStatus, setFilterStatus] = useState<string[]>([]);
+  const [filterService, setFilterService] = useState<string[]>([]);
 
   const fetchClients = useCallback(async () => {
     try {
@@ -90,13 +108,13 @@ export default function ClientsPage() {
 
   const filteredClients = clients.filter(client => {
     if (searchQuery && !client.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (filterTeam !== 'all' && client.team !== filterTeam) return false;
-    if (filterStatus !== 'all' && client.status !== filterStatus) return false;
-    if (filterService !== 'all' && !client.services?.includes(filterService)) return false;
+    if (filterTeam.length > 0 && !filterTeam.includes(client.team)) return false;
+    if (filterStatus.length > 0 && !filterStatus.includes(client.status)) return false;
+    if (filterService.length > 0 && !filterService.some(s => client.services?.includes(s))) return false;
     return true;
   });
 
-  const hasFilters = filterTeam !== 'all' || filterStatus !== 'all' || filterService !== 'all' || searchQuery !== '';
+  const hasFilters = filterTeam.length > 0 || filterStatus.length > 0 || filterService.length > 0 || searchQuery !== '';
   const [showNewClient, setShowNewClient] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientTeam, setNewClientTeam] = useState('synergy');
@@ -139,11 +157,10 @@ export default function ClientsPage() {
           />
         </div>
 
-        <FilterPopover
-          label="All teams"
-          value={filterTeam}
+        <MultiFilterPopover
+          label="Team"
+          selected={filterTeam}
           options={[
-            { value: 'all', label: 'All teams' },
             { value: 'synergy', label: 'Synergy', dot: TEAM_STYLES.synergy.color },
             { value: 'ignite', label: 'Ignite', dot: TEAM_STYLES.ignite.color },
             { value: 'alliance', label: 'Alliance', dot: TEAM_STYLES.alliance.color },
@@ -151,11 +168,10 @@ export default function ClientsPage() {
           onChange={setFilterTeam}
         />
 
-        <FilterPopover
-          label="All statuses"
-          value={filterStatus}
+        <MultiFilterPopover
+          label="Status"
+          selected={filterStatus}
           options={[
-            { value: 'all', label: 'All statuses' },
             { value: 'active', label: 'Active' },
             { value: 'paused', label: 'Paused' },
             { value: 'churned', label: 'Churned' },
@@ -163,22 +179,19 @@ export default function ClientsPage() {
           onChange={setFilterStatus}
         />
 
-        <FilterPopover
-          label="All services"
-          value={filterService}
-          options={[
-            { value: 'all', label: 'All services' },
-            ...Object.entries(SERVICE_STYLES).map(([key, style]) => ({
-              value: key,
-              label: `${style.icon} ${style.label}`,
-            })),
-          ]}
+        <MultiFilterPopover
+          label="Service"
+          selected={filterService}
+          options={Object.entries(SERVICE_STYLES).map(([key, style]) => ({
+            value: key,
+            label: `${style.icon} ${style.label}`,
+          }))}
           onChange={setFilterService}
         />
 
         {hasFilters && (
           <button
-            onClick={() => { setFilterTeam('all'); setFilterStatus('all'); setFilterService('all'); setSearchQuery(''); }}
+            onClick={() => { setFilterTeam([]); setFilterStatus([]); setFilterService([]); setSearchQuery(''); }}
             className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors duration-150 flex items-center gap-1.5"
           >
             <X className="h-3 w-3" />

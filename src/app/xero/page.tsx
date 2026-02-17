@@ -1,217 +1,151 @@
 'use client';
 
-import { CLIENTS, TEAM_MEMBERS } from '@/lib/data';
+import { useEffect, useState } from 'react';
 import { TEAM_STYLES } from '@/lib/constants';
-import { DollarSign, TrendingUp, AlertCircle, Calendar } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, AlertCircle } from 'lucide-react';
+
+interface Client {
+  id: string;
+  name: string;
+  team: string;
+  status: string;
+  monthly_retainer: number;
+}
 
 export default function XeroPage() {
-  // Calculate revenue metrics
-  const totalRevenue = CLIENTS.filter(c => c.status === 'active')
-    .reduce((sum, c) => sum + c.monthly_retainer, 0);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then(data => setClients(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const activeClients = clients.filter(c => c.status === 'active');
+  const totalRevenue = activeClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
+  const avgRetainer = activeClients.length > 0 ? Math.round(totalRevenue / activeClients.length) : 0;
 
   const revenueByTeam = (['synergy', 'ignite', 'alliance'] as const).map(team => {
-    const teamClients = CLIENTS.filter(c => c.team === team && c.status === 'active');
-    const revenue = teamClients.reduce((sum, c) => sum + c.monthly_retainer, 0);
-    return {
-      team,
-      revenue,
-      percentage: totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0,
-    };
+    const teamClients = activeClients.filter(c => c.team === team);
+    const revenue = teamClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
+    return { team, revenue, count: teamClients.length };
   });
 
-  // Mock billing data
-  const billingData = CLIENTS.filter(c => c.status === 'active').map(client => ({
-    id: client.id,
-    name: client.name,
-    retainer: client.monthly_retainer,
-    lastInvoice: '1 Feb 2026',
-    status: Math.random() > 0.2 ? 'paid' as const : Math.random() > 0.5 ? 'pending' as const : 'overdue' as const,
-  }));
+  const maxTeamRevenue = Math.max(...revenueByTeam.map(t => t.revenue), 1);
 
-  // Revenue forecast (next 3 months)
-  const forecast = [
-    { month: 'March 2026', revenue: totalRevenue },
-    { month: 'April 2026', revenue: totalRevenue * 1.05 }, // +5% growth
-    { month: 'May 2026', revenue: totalRevenue * 1.1 }, // +10% growth
-  ];
-
-  // Mock trend data for chart (last 6 months)
-  const trendData = [
-    { month: 'Sep', revenue: totalRevenue * 0.75 },
-    { month: 'Oct', revenue: totalRevenue * 0.82 },
-    { month: 'Nov', revenue: totalRevenue * 0.88 },
-    { month: 'Dec', revenue: totalRevenue * 0.92 },
-    { month: 'Jan', revenue: totalRevenue * 0.96 },
-    { month: 'Feb', revenue: totalRevenue },
-  ];
-
-  const maxRevenue = Math.max(...trendData.map(d => d.revenue));
+  if (loading) {
+    return (
+      <div className="animate-in fade-in duration-200">
+        <div className="mb-6">
+          <div className="h-8 w-48 bg-muted/30 rounded animate-pulse" />
+          <div className="h-4 w-64 bg-muted/20 rounded animate-pulse mt-2" />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted/20 rounded-lg animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="animate-in fade-in duration-300">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Xero Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Revenue overview and billing management
-          </p>
-          <p className="text-xs text-amber-400 mt-2 flex items-center gap-1.5">
-            <AlertCircle size={12} />
-            Mock data — Not connected to live Xero API
-          </p>
-        </div>
+    <div className="animate-in fade-in duration-200">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Xero</h1>
+        <p className="text-[13px] text-muted-foreground/60 mt-1">Revenue overview</p>
+        <p className="text-[11px] text-amber-400/60 mt-2 flex items-center gap-1">
+          <AlertCircle size={10} />
+          Not connected to Xero — showing retainer data from clients
+        </p>
       </div>
 
-      {/* Revenue Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="rounded-lg border border-border/20 bg-card px-5 py-4">
-          <div className="flex items-center gap-2 mb-1">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+        <div className="p-4 rounded-lg border border-border/20 bg-card">
+          <div className="flex items-center gap-2 mb-2">
             <DollarSign size={14} className="text-emerald-400" />
-            <p className="text-xs text-muted-foreground">Total Monthly Revenue</p>
+            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Monthly Revenue</span>
           </div>
-          <p className="text-2xl font-semibold text-foreground">
-            £{totalRevenue.toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-emerald-400">£{totalRevenue.toLocaleString()}</p>
         </div>
-
-        <div className="rounded-lg border border-border/20 bg-card px-5 py-4">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp size={14} className="text-blue-400" />
-            <p className="text-xs text-muted-foreground">Active Clients</p>
+        <div className="p-4 rounded-lg border border-border/20 bg-card">
+          <div className="flex items-center gap-2 mb-2">
+            <Users size={14} className="text-blue-400" />
+            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Active Clients</span>
           </div>
-          <p className="text-2xl font-semibold text-foreground">
-            {CLIENTS.filter(c => c.status === 'active').length}
-          </p>
+          <p className="text-2xl font-bold text-blue-400">{activeClients.length}</p>
         </div>
-
-        <div className="rounded-lg border border-border/20 bg-card px-5 py-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Calendar size={14} className="text-purple-400" />
-            <p className="text-xs text-muted-foreground">Avg Retainer</p>
+        <div className="p-4 rounded-lg border border-border/20 bg-card">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp size={14} className="text-purple-400" />
+            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Avg Retainer</span>
           </div>
-          <p className="text-2xl font-semibold text-foreground">
-            £{Math.round(totalRevenue / CLIENTS.filter(c => c.status === 'active').length).toLocaleString()}
-          </p>
+          <p className="text-2xl font-bold text-purple-400">£{avgRetainer.toLocaleString()}</p>
         </div>
       </div>
 
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Chart + Revenue by Team */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Revenue Trend Chart */}
-          <div className="rounded-lg border border-border/20 bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Revenue Trend</h3>
-            <div className="h-64 flex items-end justify-between gap-3">
-              {trendData.map((data, i) => {
-                const height = (data.revenue / maxRevenue) * 100;
-                return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                    <div className="w-full flex items-end justify-center" style={{ height: '220px' }}>
-                      <div
-                        className="w-full rounded-t-md bg-gradient-to-t from-primary/80 to-primary transition-all duration-300 hover:from-primary hover:to-primary/90"
-                        style={{ height: `${height}%` }}
-                        title={`${data.month}: £${Math.round(data.revenue).toLocaleString()}`}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground/60">{data.month}</span>
+      {/* Revenue by Team */}
+      <div className="p-4 rounded-lg border border-border/20 bg-card mb-6">
+        <h3 className="text-[13px] font-semibold mb-4">Revenue by Team</h3>
+        <div className="space-y-3">
+          {revenueByTeam.map(({ team, revenue, count }) => {
+            const style = TEAM_STYLES[team];
+            const pct = Math.max((revenue / maxTeamRevenue) * 100, 4);
+            return (
+              <div key={team}>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
+                    <span className="text-[13px] font-medium">{style.label}</span>
+                    <span className="text-[11px] text-muted-foreground/40">{count} clients</span>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Revenue by Team */}
-          <div className="rounded-lg border border-border/20 bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Revenue by Team</h3>
-            <div className="space-y-3">
-              {revenueByTeam.map(({ team, revenue, percentage }) => {
-                const teamStyle = TEAM_STYLES[team];
-                return (
-                  <div key={team}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span 
-                          className="inline-block h-2 w-2 rounded-full" 
-                          style={{ backgroundColor: teamStyle.color }}
-                        />
-                        <span className="text-[13px] font-medium text-foreground">{teamStyle.label}</span>
-                      </div>
-                      <span className="text-[13px] font-semibold text-foreground">
-                        £{revenue.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-300"
-                        style={{ 
-                          width: `${percentage}%`,
-                          backgroundColor: teamStyle.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Billing Table + Forecast */}
-        <div className="space-y-6">
-          {/* Billing Status */}
-          <div className="rounded-lg border border-border/20 bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Billing Status</h3>
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {billingData.map(bill => (
-                <div 
-                  key={bill.id}
-                  className="flex items-center justify-between py-2 px-3 rounded-lg bg-muted/20 hover:bg-muted/40 transition-colors"
-                >
-                  <div className="flex-1 min-w-0 mr-3">
-                    <p className="text-[13px] font-medium text-foreground truncate">{bill.name}</p>
-                    <p className="text-xs text-muted-foreground/60">£{bill.retainer.toLocaleString()}/mo</p>
-                  </div>
-                  <span 
-                    className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${
-                      bill.status === 'paid' ? 'bg-emerald-500/10 text-emerald-400' :
-                      bill.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
-                      'bg-red-500/10 text-red-400'
-                    }`}
-                  >
-                    {bill.status}
-                  </span>
+                  <span className="text-[13px] font-semibold">£{revenue.toLocaleString()}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Revenue Forecast */}
-          <div className="rounded-lg border border-border/20 bg-card p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Forecast</h3>
-            <p className="text-xs text-muted-foreground/60 mb-4">
-              Projected revenue based on active retainers
-            </p>
-            <div className="space-y-3">
-              {forecast.map((item, i) => (
-                <div key={i} className="flex items-center justify-between py-2">
-                  <span className="text-[13px] text-muted-foreground">{item.month}</span>
-                  <span className="text-[13px] font-semibold text-foreground">
-                    £{Math.round(item.revenue).toLocaleString()}
-                  </span>
+                <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: style.color, opacity: 0.7 }} />
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t border-border/20">
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-medium text-muted-foreground">Q1 Total</span>
-                <span className="text-lg font-semibold text-emerald-400">
-                  £{Math.round(forecast.reduce((sum, f) => sum + f.revenue, 0)).toLocaleString()}
-                </span>
               </div>
-            </div>
-          </div>
+            );
+          })}
         </div>
+      </div>
+
+      {/* Client Revenue Table */}
+      <div className="rounded-lg border border-border/20 overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border/20 bg-muted/30">
+              {['Client', 'Team', 'Monthly Retainer'].map(h => (
+                <th key={h} className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {activeClients.length === 0 ? (
+              <tr><td colSpan={3} className="text-center py-8 text-[13px] text-muted-foreground/40">No active clients</td></tr>
+            ) : activeClients.map(c => {
+              const style = c.team && TEAM_STYLES[c.team as keyof typeof TEAM_STYLES];
+              return (
+                <tr key={c.id} className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150">
+                  <td className="px-3 py-2.5 text-[13px] font-medium">{c.name}</td>
+                  <td className="px-3 py-2.5">
+                    {style ? (
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${style.bg} ${style.text}`}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.color }} />
+                        {style.label}
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td className="px-3 py-2.5 text-[13px] font-medium">
+                    {c.monthly_retainer ? `£${c.monthly_retainer.toLocaleString()}/mo` : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
