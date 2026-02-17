@@ -2,7 +2,7 @@
 
 import { TEAM_MEMBERS, CLIENTS, TASKS } from '@/lib/data';
 import { TEAM_STYLES } from '@/lib/constants';
-import type { Team } from '@/lib/types';
+import type { Team } from '@/lib/legacy-types';
 import { Users, Briefcase, ListChecks, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 

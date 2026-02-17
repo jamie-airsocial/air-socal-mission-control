@@ -1,6 +1,108 @@
-// Air Social Mission Control - Style Constants
+/** Shared style constants — single source of truth for status/priority styling */
 
-import type { Team, Service, TaskStatus, TaskPriority } from './types';
+export const STATUS_STYLES: Record<string, { dot: string; bg: string; text: string; label: string }> = {
+  // backlog mapped to todo styles for graceful fallback
+  backlog: { dot: 'var(--status-warning)', bg: 'bg-status-warning/10', text: 'text-amber-400', label: 'To Do' },
+  todo: { dot: 'var(--status-warning)', bg: 'bg-status-warning/10', text: 'text-amber-400', label: 'To Do' },
+  doing: { dot: 'var(--status-doing)', bg: 'bg-purple-500/10', text: 'text-purple-400', label: 'In Progress' },
+  done: { dot: 'var(--status-success)', bg: 'bg-status-success/10', text: 'text-status-success', label: 'Done' },
+};
+
+export const PRIORITY_STYLES: Record<string, { bg: string; text: string; label: string; border: string }> = {
+  P1: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'Critical', border: 'border-destructive/20' },
+  P2: { bg: 'bg-orange-500/15', text: 'text-orange-400', label: 'High', border: 'border-orange-500/20' },
+  P3: { bg: 'bg-blue-500/15', text: 'text-blue-400', label: 'Medium', border: 'border-blue-500/20' },
+  P4: { bg: 'bg-status-success/15', text: 'text-status-success', label: 'Low', border: 'border-status-success/20' },
+};
+
+export const PRIORITY_BADGE: Record<string, { label: string; className: string }> = {
+  P1: { label: 'CRITICAL', className: 'bg-destructive/20 text-destructive border-destructive/20' },
+  P2: { label: 'HIGH', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  P3: { label: 'MEDIUM', className: 'bg-blue-500/20 text-blue-400 border-primary/20' },
+  P4: { label: 'LOW', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
+};
+
+export const ASSIGNEE_COLORS: Record<string, string> = {
+  // Display names
+  'Jamie Ludlow': 'bg-green-500/20 text-green-400',
+  'Jamie': 'bg-green-500/20 text-green-400',
+  'Casper': 'bg-primary/20 text-primary',
+  'Developer': 'bg-blue-500/20 text-blue-400',
+  'UI/UX Designer': 'bg-purple-500/20 text-purple-400',
+  'QA Tester': 'bg-destructive/20 text-destructive',
+  'Copywriter': 'bg-amber-500/20 text-amber-400',
+  'Analyst': 'bg-cyan-500/20 text-cyan-400',
+  'Manager': 'bg-muted-foreground/20 text-slate-400',
+  'Trainer': 'bg-orange-500/20 text-orange-400',
+  'Heartbeat': 'bg-pink-500/20 text-pink-400',
+  // DB slugs (same colours)
+  'jamie': 'bg-green-500/20 text-green-400',
+  'casper': 'bg-primary/20 text-primary',
+  'developer': 'bg-blue-500/20 text-blue-400',
+  'ui-designer': 'bg-purple-500/20 text-purple-400',
+  'qa-tester': 'bg-destructive/20 text-destructive',
+  'copywriter': 'bg-amber-500/20 text-amber-400',
+  'analyst': 'bg-cyan-500/20 text-cyan-400',
+  'manager': 'bg-muted-foreground/20 text-slate-400',
+  'trainer': 'bg-orange-500/20 text-orange-400',
+  'heartbeat': 'bg-pink-500/20 text-pink-400',
+};
+
+/** Assignee name ↔ slug mappings — single source of truth */
+export const NAME_TO_SLUG: Record<string, string> = {
+  'Jamie Ludlow': 'jamie',
+  'Casper': 'casper',
+  'Developer': 'developer',
+  'UI/UX Designer': 'ui-designer',
+  'QA Tester': 'qa-tester',
+  'Copywriter': 'copywriter',
+  'Analyst': 'analyst',
+  'Manager': 'manager',
+  'Trainer': 'trainer',
+  'Heartbeat': 'heartbeat',
+};
+
+export const SLUG_TO_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(NAME_TO_SLUG).map(([name, slug]) => [slug, name])
+);
+
+export function toSlug(nameOrSlug: string): string {
+  if (NAME_TO_SLUG[nameOrSlug]) return NAME_TO_SLUG[nameOrSlug];
+  if (SLUG_TO_NAME[nameOrSlug]) return nameOrSlug; // already a slug
+  return nameOrSlug.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
+
+export function toDisplayName(slugOrName: string): string {
+  return SLUG_TO_NAME[slugOrName] || slugOrName;
+}
+
+/** Get 2-character initials from a display name or slug */
+export function getInitials(nameOrSlug: string): string {
+  const name = toDisplayName(nameOrSlug);
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 1);
+}
+
+/** Normalise priority values — DB may have mixed formats like "HIGH", "CRITICAL" etc. */
+export function normalisePriority(raw: string): 'P1' | 'P2' | 'P3' | 'P4' {
+  if (!raw) return 'P3';
+  const upper = raw.toUpperCase().trim();
+  if (upper === 'P1' || upper === 'P2' || upper === 'P3' || upper === 'P4') return upper;
+  const map: Record<string, 'P1' | 'P2' | 'P3' | 'P4'> = {
+    CRITICAL: 'P1', URGENT: 'P1',
+    HIGH: 'P2',
+    MEDIUM: 'P3', NORMAL: 'P3', DEFAULT: 'P3',
+    LOW: 'P4', MINOR: 'P4',
+  };
+  return map[upper] || 'P3';
+}
+
+// ── Air Social-specific constants ────────────────────────────────────────────
+import type { Team, Service } from './types';
 
 export const TEAM_STYLES: Record<Team, { color: string; bg: string; text: string; label: string }> = {
   synergy: { color: '#3b82f6', bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Synergy' },
@@ -15,35 +117,11 @@ export const SERVICE_STYLES: Record<Service, { icon: string; bg: string; text: s
   'account-management': { icon: '👤', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management' },
 };
 
-export const STATUS_STYLES: Record<TaskStatus, { dot: string; bg: string; text: string; label: string }> = {
-  todo: { dot: '#f59e0b', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'To Do' },
-  doing: { dot: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', label: 'In Progress' },
-  review: { dot: '#3b82f6', bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Review' },
-  done: { dot: '#22c55e', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'Done' },
-};
-
-export const PRIORITY_STYLES: Record<TaskPriority, { bg: string; text: string; label: string; border: string }> = {
-  P1: { bg: 'bg-red-500/10', text: 'text-red-400', label: 'Urgent', border: 'border-red-500/20' },
-  P2: { bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'High', border: 'border-orange-500/20' },
-  P3: { bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Medium', border: 'border-blue-500/20' },
-  P4: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'Low', border: 'border-emerald-500/20' },
-};
-
-export const PRIORITY_BORDER_COLORS: Record<TaskPriority, string> = {
-  P1: '#ef4444',
-  P2: '#f97316',
-  P3: '#3b82f6',
-  P4: '#22c55e',
-};
-
 export const MEMBER_COLORS: Record<string, string> = {
-  'Sarah Chen': 'bg-blue-500/20 text-blue-400',
-  'Marcus Johnson': 'bg-green-500/20 text-green-400',
-  'Emily Rodriguez': 'bg-purple-500/20 text-purple-400',
-  'David Kim': 'bg-orange-500/20 text-orange-400',
-  'Rachel Foster': 'bg-pink-500/20 text-pink-400',
-  'James Taylor': 'bg-cyan-500/20 text-cyan-400',
-  'Olivia Brown': 'bg-indigo-500/20 text-indigo-400',
-  'Tom Wilson': 'bg-amber-500/20 text-amber-400',
-  'Sophie Davies': 'bg-red-500/20 text-red-400',
+  'Jamie Ludlow': 'bg-green-500/20 text-green-400',
+  'Alex Vinall': 'bg-blue-500/20 text-blue-400',
+  'Sarah Mitchell': 'bg-purple-500/20 text-purple-400',
+  'Tom Carter': 'bg-amber-500/20 text-amber-400',
+  'Emily Chen': 'bg-pink-500/20 text-pink-400',
+  'David Park': 'bg-cyan-500/20 text-cyan-400',
 };

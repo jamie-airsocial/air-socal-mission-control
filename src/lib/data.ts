@@ -1,6 +1,6 @@
 // Air Social Mission Control - Sample Data
 
-import type { Client, TeamMember, Task, TaskTemplate } from './types';
+import type { Client, TeamMember, Task, TaskTemplate } from './legacy-types';
 
 export const TEAM_MEMBERS: TeamMember[] = [
   // Synergy Team (Blue)

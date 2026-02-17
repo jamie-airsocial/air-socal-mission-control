@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { CLIENTS, TEAM_MEMBERS, TASKS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
-import type { Team, Service, ClientStatus } from '@/lib/types';
+import type { Team, Service, ClientStatus } from '@/lib/legacy-types';
 import { Users, Search, Filter } from 'lucide-react';
 import Link from 'next/link';
 
