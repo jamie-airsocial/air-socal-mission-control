@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  LayoutDashboard, 
   Users, 
   ListChecks, 
   UsersRound, 
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/clients', label: 'Clients', icon: Users },
   { href: '/tasks', label: 'Tasks', icon: ListChecks },
   { href: '/teams', label: 'Teams', icon: UsersRound },
