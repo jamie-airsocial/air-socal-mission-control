@@ -109,7 +109,7 @@ export function SearchableAssigneePopover({
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${ASSIGNEE_COLORS[a] || 'bg-muted/40 text-muted-foreground'}`}>
                   {a.charAt(0)}
                 </span>
-                <span className="flex-1">{a}</span>
+                <span className="flex-1 text-left">{a}</span>
                 {value === a && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
               </button>
             </PopoverClose>
