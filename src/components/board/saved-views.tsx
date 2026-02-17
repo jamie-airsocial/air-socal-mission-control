@@ -14,7 +14,7 @@ export interface ViewFilters {
   filterLabel?: string;
   filterDate: string;
   hideDone: boolean;
-  groupBy: 'none' | 'project' | 'assignee' | 'status' | 'priority';
+  groupBy: 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service';
   view: 'kanban' | 'table' | 'calendar';
   /** Which view mode this saved view belongs to */
   forView?: 'kanban' | 'table' | 'calendar';

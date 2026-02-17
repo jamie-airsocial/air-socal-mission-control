@@ -4,11 +4,11 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DragStart, type DragUpdate } from '@hello-pangea/dnd';
 import type { Task, Project } from '@/lib/types';
 import { STATUSES, PRIORITIES } from '@/lib/types';
-import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME } from '@/lib/constants';
+import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES } from '@/lib/constants';
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee';
+export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service';
 
 interface KanbanColumn {
   id: string;
@@ -23,7 +23,7 @@ interface KanbanBoardProps {
   tasks: (Task & { project_name?: string; project_color?: string })[];
   onTaskClick: (task: Task & { project_name?: string; project_color?: string }) => void;
   onStatusChange: (taskId: string, newStatus: string) => void;
-  onFieldChange?: (taskId: string, field: 'priority' | 'project_id' | 'assignee', value: string | null) => void;
+  onFieldChange?: (taskId: string, field: 'priority' | 'project_id' | 'assignee' | 'service', value: string | null) => void;
   onAddTask?: (columnId: string) => void;
   onViewCompleted?: () => void;
   groupBy?: KanbanGroupBy;
@@ -188,6 +188,18 @@ export function KanbanBoard({
       return cols;
     }
 
+    if (groupBy === 'service') {
+      const cols: KanbanColumn[] = Object.entries(SERVICE_STYLES).map(([key, style]) => ({
+        id: key,
+        label: `${style.icon} ${style.label}`,
+        dotClass: '',
+      }));
+      if (tasks.some((t) => !t.service)) {
+        cols.push({ id: 'no-service', label: 'No Service', dotClass: 'bg-muted-foreground/40' });
+      }
+      return cols;
+    }
+
     // Default: status
     return STATUSES.map((status) => ({
       id: status,
@@ -215,6 +227,11 @@ export function KanbanBoard({
           columnId === 'unassigned'
             ? tasks.filter((t) => !t.assignee)
             : tasks.filter((t) => t.assignee === columnId);
+      } else if (groupBy === 'service') {
+        columnTasks =
+          columnId === 'no-service'
+            ? tasks.filter((t) => !t.service)
+            : tasks.filter((t) => t.service === columnId);
       } else {
         // Status grouping — merge backlog into todo
         columnTasks =
@@ -321,6 +338,8 @@ export function KanbanBoard({
         onFieldChange?.(draggableId, 'project_id', destColId === 'no-client' ? null : destColId);
       } else if (groupBy === 'assignee') {
         onFieldChange?.(draggableId, 'assignee', destColId === 'unassigned' ? null : destColId);
+      } else if (groupBy === 'service') {
+        onFieldChange?.(draggableId, 'service', destColId === 'no-service' ? null : destColId);
       }
     }
   };

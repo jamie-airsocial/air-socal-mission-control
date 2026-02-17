@@ -161,7 +161,7 @@ export function useBoardData() {
 
   const handleFieldChange = useCallback(async (
     taskId: string,
-    field: 'priority' | 'project_id' | 'assignee',
+    field: 'priority' | 'project_id' | 'assignee' | 'service',
     value: string | null
   ) => {
     // C9: Capture only the original field value for this task — avoids stale closure on full array
@@ -170,7 +170,7 @@ export function useBoardData() {
     pendingUpdatesRef.current.add(taskId);
     setTasks(prev => prev.map(t => (t.id === taskId ? { ...t, [field]: value } : t)));
 
-    // Map project_id → client_id for API
+    // Map project_id → client_id for API; service stays as-is
     const apiField = field === 'project_id' ? 'client_id' : field;
 
     try {
@@ -185,6 +185,8 @@ export function useBoardData() {
           ? value || 'none'
           : field === 'project_id'
           ? (projects.find(p => p.id === value)?.name || 'No client')
+          : field === 'service'
+          ? (value || 'No service')
           : (value || 'Unassigned');
       toast.success(`Moved to ${label}`);
     } catch {

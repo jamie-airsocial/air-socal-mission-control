@@ -398,20 +398,23 @@ function BoardContent() {
             <PopoverTrigger asChild>
               <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${groupBy !== 'none' ? 'border-primary text-primary' : 'border-border/20 hover:border-primary/50 text-muted-foreground'}`}>
                 <span>Group by:</span>
-                <span className="font-medium capitalize">{groupBy === 'none' ? 'None' : groupBy}</span>
+                <span className="font-medium">{{ none: 'None', project: 'Client', assignee: 'Assignee', status: 'Status', priority: 'Priority', service: 'Service' }[groupBy] || groupBy}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-1 bg-card border border-border/20 rounded-lg shadow-lg" align="start">
               <div className="flex flex-col">
-                {(['none', 'project', 'assignee', 'status', 'priority'] as const).map(option => (
-                  <button
-                    key={option}
-                    onClick={() => { setGroupBy(option); setGroupByOpen(false); }}
-                    className={`px-3 py-2 text-left text-[13px] rounded-md transition-colors duration-150 capitalize ${groupBy === option ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/40 text-muted-foreground'}`}
-                  >
-                    {option === 'none' ? 'None' : option}
-                  </button>
-                ))}
+                {(['none', 'project', 'assignee', 'status', 'priority', 'service'] as const).map(option => {
+                  const labels: Record<string, string> = { none: 'None', project: 'Client', assignee: 'Assignee', status: 'Status', priority: 'Priority', service: 'Service' };
+                  return (
+                    <button
+                      key={option}
+                      onClick={() => { setGroupBy(option); setGroupByOpen(false); }}
+                      className={`px-3 py-2 text-left text-[13px] rounded-md transition-colors duration-150 ${groupBy === option ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/40 text-muted-foreground'}`}
+                    >
+                      {labels[option]}
+                    </button>
+                  );
+                })}
               </div>
             </PopoverContent>
           </Popover>
@@ -422,20 +425,23 @@ function BoardContent() {
             <PopoverTrigger asChild>
               <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${kanbanGroupBy !== 'status' ? 'border-primary text-primary' : 'border-border/20 hover:border-primary/50 text-muted-foreground'}`}>
                 <span>Group by:</span>
-                <span className="font-medium capitalize">{kanbanGroupBy}</span>
+                <span className="font-medium">{{ status: 'Status', priority: 'Priority', project: 'Client', assignee: 'Assignee', service: 'Service' }[kanbanGroupBy] || kanbanGroupBy}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-1 bg-card border border-border/20 rounded-lg shadow-lg" align="start">
               <div className="flex flex-col">
-                {(['status', 'priority', 'project', 'assignee'] as const).map(option => (
+                {(['status', 'priority', 'project', 'assignee', 'service'] as const).map(option => {
+                  const labels: Record<string, string> = { status: 'Status', priority: 'Priority', project: 'Client', assignee: 'Assignee', service: 'Service' };
+                  return (
                   <button
                     key={option}
                     onClick={() => { setKanbanGroupBy(option); setKanbanGroupByOpen(false); }}
-                    className={`px-3 py-2 text-left text-[13px] rounded-md transition-colors duration-150 capitalize ${kanbanGroupBy === option ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/40 text-muted-foreground'}`}
+                    className={`px-3 py-2 text-left text-[13px] rounded-md transition-colors duration-150 ${kanbanGroupBy === option ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted/40 text-muted-foreground'}`}
                   >
-                    {option === 'status' ? 'Status' : option === 'priority' ? 'Priority' : option === 'project' ? 'Client' : 'Assignee'}
+                    {labels[option]}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </PopoverContent>
           </Popover>
