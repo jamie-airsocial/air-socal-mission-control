@@ -398,13 +398,13 @@ function BoardContent() {
             <PopoverTrigger asChild>
               <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${groupBy !== 'none' ? 'border-primary text-primary' : 'border-border/20 hover:border-primary/50 text-muted-foreground'}`}>
                 <span>Group by:</span>
-                <span className="font-medium">{{ none: 'None', project: 'Client', assignee: 'Assignee', status: 'Status', priority: 'Priority', service: 'Service' }[groupBy] || groupBy}</span>
+                <span className="font-medium">{{ none: 'None', project: 'Client', assignee: 'Assignee', status: 'Status', priority: 'Priority', service: 'Service', team: 'Team' }[groupBy] || groupBy}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-1 bg-card border border-border/20 rounded-lg shadow-lg" align="start">
               <div className="flex flex-col">
-                {(['none', 'project', 'assignee', 'status', 'priority', 'service'] as const).map(option => {
-                  const labels: Record<string, string> = { none: 'None', project: 'Client', assignee: 'Assignee', status: 'Status', priority: 'Priority', service: 'Service' };
+                {(['none', 'project', 'assignee', 'status', 'priority', 'service', 'team'] as const).map(option => {
+                  const labels: Record<string, string> = { none: 'None', project: 'Client', assignee: 'Assignee', status: 'Status', priority: 'Priority', service: 'Service', team: 'Team' };
                   return (
                     <button
                       key={option}
@@ -425,13 +425,13 @@ function BoardContent() {
             <PopoverTrigger asChild>
               <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${kanbanGroupBy !== 'status' ? 'border-primary text-primary' : 'border-border/20 hover:border-primary/50 text-muted-foreground'}`}>
                 <span>Group by:</span>
-                <span className="font-medium">{{ status: 'Status', priority: 'Priority', project: 'Client', assignee: 'Assignee', service: 'Service' }[kanbanGroupBy] || kanbanGroupBy}</span>
+                <span className="font-medium">{{ status: 'Status', priority: 'Priority', project: 'Client', assignee: 'Assignee', service: 'Service', team: 'Team' }[kanbanGroupBy] || kanbanGroupBy}</span>
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-48 p-1 bg-card border border-border/20 rounded-lg shadow-lg" align="start">
               <div className="flex flex-col">
-                {(['status', 'priority', 'project', 'assignee', 'service'] as const).map(option => {
-                  const labels: Record<string, string> = { status: 'Status', priority: 'Priority', project: 'Client', assignee: 'Assignee', service: 'Service' };
+                {(['status', 'priority', 'project', 'assignee', 'service', 'team'] as const).map(option => {
+                  const labels: Record<string, string> = { status: 'Status', priority: 'Priority', project: 'Client', assignee: 'Assignee', service: 'Service', team: 'Team' };
                   return (
                   <button
                     key={option}

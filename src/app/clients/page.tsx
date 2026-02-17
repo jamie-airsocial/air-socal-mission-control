@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
-import { Users, Search, ChevronDown, Check, X } from 'lucide-react';
+import { Users, Search, ChevronDown, Check, X, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import Link from 'next/link';
 
@@ -95,6 +97,28 @@ export default function ClientsPage() {
   });
 
   const hasFilters = filterTeam !== 'all' || filterStatus !== 'all' || filterService !== 'all' || searchQuery !== '';
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientTeam, setNewClientTeam] = useState('synergy');
+  const [creating, setCreating] = useState(false);
+
+  const createClient = async () => {
+    if (!newClientName.trim()) return;
+    setCreating(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newClientName.trim(), team: newClientTeam, status: 'active', services: [], monthly_retainer: 0, assigned_members: [] }),
+      });
+      if (!res.ok) { toast.error('Failed to create client'); return; }
+      toast.success('Client created');
+      setNewClientName('');
+      setShowNewClient(false);
+      fetchClients();
+    } catch { toast.error('Failed to create client'); }
+    finally { setCreating(false); }
+  };
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -161,7 +185,41 @@ export default function ClientsPage() {
             Clear all
           </button>
         )}
+
+        <div className="flex-1" />
+        <Button size="sm" onClick={() => setShowNewClient(true)}>
+          <Plus className="h-4 w-4 mr-1" /> New Client
+        </Button>
       </div>
+
+      {/* New client inline form */}
+      {showNewClient && (
+        <div className="mb-4 p-3 rounded-lg border border-primary/30 bg-card flex items-center gap-3">
+          <input
+            autoFocus
+            value={newClientName}
+            onChange={e => setNewClientName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') createClient(); if (e.key === 'Escape') setShowNewClient(false); }}
+            placeholder="Client name..."
+            className="flex-1 h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+          />
+          <select
+            value={newClientTeam}
+            onChange={e => setNewClientTeam(e.target.value)}
+            className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none"
+          >
+            {Object.entries(TEAM_STYLES).map(([key, style]) => (
+              <option key={key} value={key}>{style.label}</option>
+            ))}
+          </select>
+          <Button size="sm" onClick={createClient} disabled={creating || !newClientName.trim()}>
+            {creating ? 'Creating...' : 'Create'}
+          </Button>
+          <button onClick={() => setShowNewClient(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Client Grid — compact cards */}
       {loading ? (

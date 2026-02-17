@@ -23,7 +23,7 @@ const CELL_BASE = 'rounded-md px-1.5 py-0.5 -mx-1.5 -my-0.5 border border-transp
 const CELL_HOVER = 'hover:border-border/20 hover:bg-muted/40';
 const CELL_ACTIVE = 'border-primary/30 bg-muted/40';
 
-type GroupBy = 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service';
+type GroupBy = 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service' | 'team';
 
 type ExtTask = Task & { project_name?: string; project_color?: string };
 

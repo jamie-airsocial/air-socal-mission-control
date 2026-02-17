@@ -34,6 +34,7 @@ export function useBoardData() {
           project_id: t.client_id || t.project_id || null,
           project_name: t.client_name || t.project_name || null,
           project_color: t.client_color || t.project_color || null,
+          client_team: t.client_team || null,
         })));
       } else {
         console.error('[Board] Failed to fetch tasks:', res.status);

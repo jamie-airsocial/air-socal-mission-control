@@ -4,11 +4,11 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DragStart, type DragUpdate } from '@hello-pangea/dnd';
 import type { Task, Project } from '@/lib/types';
 import { STATUSES, PRIORITIES } from '@/lib/types';
-import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES } from '@/lib/constants';
+import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYLES } from '@/lib/constants';
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 
-export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service';
+export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service' | 'team';
 
 interface KanbanColumn {
   id: string;
@@ -200,6 +200,18 @@ export function KanbanBoard({
       return cols;
     }
 
+    if (groupBy === 'team') {
+      const cols: KanbanColumn[] = Object.entries(TEAM_STYLES).map(([key, style]) => ({
+        id: key,
+        label: style.label,
+        dotColor: style.color,
+      }));
+      if (tasks.some((t) => !t.client_team)) {
+        cols.push({ id: 'no-team', label: 'No Team', dotClass: 'bg-muted-foreground/40' });
+      }
+      return cols;
+    }
+
     // Default: status
     return STATUSES.map((status) => ({
       id: status,
@@ -232,6 +244,11 @@ export function KanbanBoard({
           columnId === 'no-service'
             ? tasks.filter((t) => !t.service)
             : tasks.filter((t) => t.service === columnId);
+      } else if (groupBy === 'team') {
+        columnTasks =
+          columnId === 'no-team'
+            ? tasks.filter((t) => !t.client_team)
+            : tasks.filter((t) => t.client_team === columnId);
       } else {
         // Status grouping — merge backlog into todo
         columnTasks =

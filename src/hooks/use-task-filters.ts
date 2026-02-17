@@ -16,7 +16,7 @@ import type { KanbanGroupBy } from '@/components/board/kanban-board';
 import type { ViewFilters } from '@/components/board/saved-views';
 
 type ViewType = 'kanban' | 'table' | 'calendar';
-type GroupByType = 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service';
+type GroupByType = 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service' | 'team';
 type TaskWithProject = Task & { project_name?: string; project_color?: string };
 
 export type { ViewFilters };
