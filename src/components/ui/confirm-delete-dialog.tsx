@@ -38,13 +38,13 @@ export function ConfirmDeleteDialog({
         <AlertDialogFooter>
           <AlertDialogCancel
             onClick={onCancel}
-            className="border-border/20 bg-card text-foreground hover:bg-muted/40 transition-colors"
+            className="border-border/20 bg-card text-foreground hover:bg-muted/40 transition-colors duration-150"
           >
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-destructive text-white hover:bg-destructive/80 dark:bg-destructive dark:hover:bg-destructive/80 transition-colors"
+            className="bg-destructive text-white hover:bg-destructive/80 dark:bg-destructive dark:hover:bg-destructive/80 transition-colors duration-150"
           >
             Delete
           </AlertDialogAction>

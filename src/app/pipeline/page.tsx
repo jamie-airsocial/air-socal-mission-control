@@ -264,7 +264,7 @@ export default function PipelinePage() {
         <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-card">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-[13px] font-semibold">New Prospect</h3>
-            <button onClick={() => { setShowNewForm(false); resetForm(); }} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => { setShowNewForm(false); resetForm(); }} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
               <X size={16} />
             </button>
           </div>
@@ -672,7 +672,7 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete }: {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border/10">
           <h2 className="text-lg font-semibold truncate">{prospect.name}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
             <X size={18} />
           </button>
         </div>

@@ -167,7 +167,7 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
             )}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="text-[11px] text-primary/50 hover:text-primary transition-colors"
+              className="text-[11px] text-primary/50 hover:text-primary transition-colors duration-150"
             >
               + Add
             </button>
@@ -209,7 +209,7 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
               <div className="flex items-center gap-2 py-1 px-1.5 mb-1 -mx-1">
                 <button
                   onClick={handleSelectAll}
-                  className="w-4 h-4 rounded border border-border/20 flex items-center justify-center bg-primary border-primary hover:bg-primary/80 transition-colors"
+                  className="w-4 h-4 rounded border border-border/20 flex items-center justify-center bg-primary border-primary hover:bg-primary/80 transition-colors duration-150"
                 >
                   <Check size={12} className="text-primary-foreground" />
                 </button>
@@ -268,18 +268,18 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
 
                   <div className={`flex items-center gap-0.5 transition-opacity flex-shrink-0 ${selectedFiles.size > 0 ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
                     <Tooltip><TooltipTrigger asChild>
-                      <button onClick={() => startRename(file)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors"><Pencil size={12} /></button>
+                      <button onClick={() => startRename(file)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Pencil size={12} /></button>
                     </TooltipTrigger><TooltipContent side="top">Rename</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger asChild>
                       {/* TODO: Implement file preview — alert() removed, use a proper viewer */}
-                      <button onClick={() => console.info('[collapsible-attachments] Preview not yet implemented for', file.name)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors"><Eye size={12} /></button>
+                      <button onClick={() => console.info('[collapsible-attachments] Preview not yet implemented for', file.name)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Eye size={12} /></button>
                     </TooltipTrigger><TooltipContent side="top">View</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger asChild>
                       {/* TODO: Implement individual file download — alert() removed */}
-                      <button onClick={() => console.info('[collapsible-attachments] Download not yet implemented for', file.name)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors"><Download size={12} /></button>
+                      <button onClick={() => console.info('[collapsible-attachments] Download not yet implemented for', file.name)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Download size={12} /></button>
                     </TooltipTrigger><TooltipContent side="top">Download</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger asChild>
-                      <button onClick={() => setDeleteConfirmId(file.id)} className="p-1 rounded text-destructive/40 hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 size={12} /></button>
+                      <button onClick={() => setDeleteConfirmId(file.id)} className="p-1 rounded text-destructive/40 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"><Trash2 size={12} /></button>
                     </TooltipTrigger><TooltipContent side="top">Delete</TooltipContent></Tooltip>
                   </div>
                 </div>
@@ -317,7 +317,7 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
                 </button>
                 <button
                   onClick={() => { setSelectedFiles(new Set()); setLastSelectedId(null); }}
-                  className="text-[12px] text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                  className="text-[12px] text-muted-foreground/60 hover:text-muted-foreground transition-colors duration-150"
                 >
                   <X size={14} />
                 </button>

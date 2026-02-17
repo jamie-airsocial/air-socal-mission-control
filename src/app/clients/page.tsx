@@ -228,7 +228,7 @@ export default function ClientsPage() {
           <Button size="sm" onClick={createClient} disabled={creating || !newClientName.trim()}>
             {creating ? 'Creating...' : 'Create'}
           </Button>
-          <button onClick={() => setShowNewClient(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={() => setShowNewClient(false)} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
             <X size={16} />
           </button>
         </div>

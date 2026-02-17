@@ -190,7 +190,7 @@ export function CompactEmojiPicker({ onSelect }: EmojiPickerProps) {
             <button
               key={i}
               onClick={() => onSelect(emoji)}
-              className="w-7 h-7 flex items-center justify-center text-[16px] rounded hover:bg-muted/60 transition-colors"
+              className="w-7 h-7 flex items-center justify-center text-[16px] rounded hover:bg-muted/60 transition-colors duration-150"
             >
               {emoji}
             </button>
