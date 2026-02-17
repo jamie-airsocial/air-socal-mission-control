@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, DollarSign, Percent, Clock, AlertTriangle, Trophy, PartyPopper } from 'lucide-react';
+import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, DollarSign, Percent, Trophy } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS } from '@/lib/constants';
