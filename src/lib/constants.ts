@@ -110,9 +110,9 @@ export const TEAM_STYLES: Record<Team, { color: string; bg: string; text: string
   alliance: { color: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', label: 'Alliance' },
 };
 
-export const SERVICE_STYLES: Record<Service, { icon: string; bg: string; text: string; label: string }> = {
+export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: string; label: string }> = {
   seo: { icon: '🔍', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SEO' },
-  'paid-ads': { icon: '💰', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Ads' },
+  'paid-advertising': { icon: '💰', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Advertising' },
   'social-media': { icon: '📱', bg: 'bg-pink-500/10', text: 'text-pink-400', label: 'Social Media' },
   'account-management': { icon: '👤', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management' },
 };

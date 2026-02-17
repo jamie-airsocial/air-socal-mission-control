@@ -2,7 +2,7 @@
 
 export type Team = 'synergy' | 'ignite' | 'alliance';
 export type ClientStatus = 'active' | 'paused' | 'churned';
-export type Service = 'seo' | 'paid-ads' | 'social-media' | 'account-management';
+export type Service = 'seo' | 'paid-advertising' | 'social-media' | 'account-management';
 export type TaskStatus = 'todo' | 'doing' | 'review' | 'done';
 export type TaskPriority = 'P1' | 'P2' | 'P3' | 'P4';
 
@@ -78,5 +78,5 @@ export interface Activity {
 
 export const STATUSES: TaskStatus[] = ['todo', 'doing', 'review', 'done'];
 export const PRIORITIES: TaskPriority[] = ['P1', 'P2', 'P3', 'P4'];
-export const SERVICES: Service[] = ['seo', 'paid-ads', 'social-media', 'account-management'];
+export const SERVICES: Service[] = ['seo', 'paid-advertising', 'social-media', 'account-management'];
 export const TEAMS: Team[] = ['synergy', 'ignite', 'alliance'];

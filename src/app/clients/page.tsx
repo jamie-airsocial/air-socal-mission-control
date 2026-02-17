@@ -71,7 +71,7 @@ export default function ClientsPage() {
         >
           <option value="all">All Services</option>
           <option value="seo">SEO</option>
-          <option value="paid-ads">Paid Ads</option>
+          <option value="paid-ads">Paid Advertising</option>
           <option value="social-media">Social Media</option>
           <option value="account-management">Account Management</option>
         </select>
