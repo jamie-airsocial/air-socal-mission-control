@@ -117,6 +117,26 @@ export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: st
   'account-management': { icon: '👤', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management' },
 };
 
+export const LOSS_REASONS = [
+  { id: 'budget', label: 'Budget constraints' },
+  { id: 'competitor', label: 'Went with competitor' },
+  { id: 'timing', label: 'Bad timing / not ready' },
+  { id: 'no-response', label: 'No response / ghosted' },
+  { id: 'scope', label: 'Scope mismatch' },
+  { id: 'internal', label: 'Handling internally' },
+  { id: 'relationship', label: 'Existing agency relationship' },
+  { id: 'other', label: 'Other' },
+] as const;
+
+export const PIPELINE_STAGES = [
+  { id: 'lead', label: 'Lead', color: 'var(--status-warning)', dotClass: 'bg-amber-400' },
+  { id: 'contacted', label: 'Contacted', color: '#60a5fa', dotClass: 'bg-blue-400' },
+  { id: 'proposal', label: 'Proposal', color: '#a78bfa', dotClass: 'bg-purple-400' },
+  { id: 'negotiation', label: 'Negotiation', color: '#f97316', dotClass: 'bg-orange-400' },
+  { id: 'won', label: 'Won', color: 'var(--status-success)', dotClass: 'bg-emerald-400' },
+  { id: 'lost', label: 'Lost', color: '#ef4444', dotClass: 'bg-red-400' },
+] as const;
+
 export const MEMBER_COLORS: Record<string, string> = {
   'Jamie Ludlow': 'bg-green-500/20 text-green-400',
   'Alex Vinall': 'bg-blue-500/20 text-blue-400',
