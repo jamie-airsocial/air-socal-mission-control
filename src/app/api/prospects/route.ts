@@ -13,7 +13,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, company, email, phone, stage, value, notes, service, assignee, source } = body;
+  const { name, company, email, phone, stage, value, notes, service, assignee, source, contact_name, contact_email, contact_phone } = body;
 
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
       service: service || null,
       assignee: assignee || null,
       source: source || null,
+      contact_name: contact_name || null,
+      contact_email: contact_email || null,
+      contact_phone: contact_phone || null,
     })
     .select()
     .single();
