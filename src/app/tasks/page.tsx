@@ -13,6 +13,7 @@ import { FilterAssigneePopover } from '@/components/board/filter-assignee-popove
 import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
 import { FilterStatusPopover } from '@/components/board/filter-status-popover';
 import { FilterLabelPopover } from '@/components/board/filter-label-popover';
+import { FilterServicePopover } from '@/components/board/filter-service-popover';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -42,6 +43,7 @@ function BoardContent() {
   });
   const [groupByOpen, setGroupByOpen] = useState(false);
   const [kanbanGroupByOpen, setKanbanGroupByOpen] = useState(false);
+  const [filterService, setFilterService] = useState<string[]>([]);
 
   // Persist kanban group-by
   useEffect(() => {
@@ -80,6 +82,10 @@ function BoardContent() {
 
   // Controlled state for the date filter popover so "Clear range" can close it (#32)
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+
+  // Augment hasFilters/clearAll with service filter
+  const hasAnyFilters = hasFilters || filterService.length > 0;
+  const clearAll = useCallback(() => { clearAllFilters(); setFilterService([]); }, [clearAllFilters]);
 
   // ── View switching ────────────────────────────────────────────────────────
   const handleViewChange = useCallback((newView: string) => {
@@ -235,7 +241,13 @@ function BoardContent() {
     setSheetOpen(true);
   }, []);
 
-  const totalTasks = filteredTasks.length;
+  // Apply service filter on top of useTaskFilters results
+  const serviceFilteredTasks = useMemo(() => {
+    if (filterService.length === 0) return filteredTasks;
+    return filteredTasks.filter(t => t.service && filterService.includes(t.service));
+  }, [filteredTasks, filterService]);
+
+  const totalTasks = serviceFilteredTasks.length;
 
   // Memoised label → task count map for the FilterLabelPopover
   const taskCounts = useMemo(() => {
@@ -308,6 +320,8 @@ function BoardContent() {
           onDeleteLabel={handleLabelDelete}
           onCreateLabel={handleLabelCreate}
         />
+
+        <FilterServicePopover value={filterService} onChange={setFilterService} />
 
         {view !== 'calendar' && (
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
@@ -434,9 +448,9 @@ function BoardContent() {
           currentView={view}
         />
 
-        {hasFilters && (
+        {hasAnyFilters && (
           <button
-            onClick={clearAllFilters}
+            onClick={clearAll}
             aria-label="Clear all filters"
             className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none"
           >
@@ -466,7 +480,7 @@ function BoardContent() {
         <div className="animate-in fade-in duration-200">
           <ErrorBoundary fallbackTitle="Board failed to load" fallbackSubtitle="The kanban board encountered an error. Try again.">
             <KanbanBoard
-              tasks={filteredTasks}
+              tasks={serviceFilteredTasks}
               onTaskClick={handleTaskClick}
               onStatusChange={handleStatusChange}
               onFieldChange={handleFieldChange}
@@ -508,7 +522,7 @@ function BoardContent() {
         <div className="animate-in fade-in duration-200">
           <ErrorBoundary fallbackTitle="Table failed to load" fallbackSubtitle="The table view encountered an error. Try again.">
             <TableView
-              tasks={filteredTasks}
+              tasks={serviceFilteredTasks}
               allTasks={tasks}
               projects={projects}
               allLabels={allLabels}
@@ -528,8 +542,8 @@ function BoardContent() {
         <div className="animate-in fade-in duration-200">
           <ErrorBoundary fallbackTitle="Calendar failed to load" fallbackSubtitle="The calendar view encountered an error. Try again.">
             <CalendarView
-              tasks={filteredTasks}
-              hasFilters={hasFilters}
+              tasks={serviceFilteredTasks}
+              hasFilters={hasAnyFilters}
               onTaskClick={handleTaskClick}
               onDateChange={(taskId, newDate) => {
                 const task = tasks.find(t => t.id === taskId);

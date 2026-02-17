@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import type { Task, Project, Comment } from '@/lib/types';
-import { STATUS_STYLES, toSlug, toDisplayName, getInitials } from '@/lib/constants';
+import { STATUS_STYLES, SERVICE_STYLES, toSlug, toDisplayName, getInitials } from '@/lib/constants';
 // Note: ASSIGNEE_COLORS / NAME_TO_SLUG are used in subtask-list.tsx, not here.
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -12,7 +12,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Trash2, X, Send, Paperclip,
-  Activity, Flag, User, Folder, Calendar as CalendarIcon, Tag,
+  Activity, Flag, User, Folder, Briefcase, Calendar as CalendarIcon, Tag,
   Zap, Link2, Copy, Pencil, Check,
   ChevronLeft, ArrowRight, Plus, MessageSquare,
 } from 'lucide-react';
@@ -112,6 +112,7 @@ export function TaskSheet({
     priority: '' as string,
     assignee: '' as string,
     project_id: '' as string,
+    service: '' as string,
     due_date: null as Date | null,
     due_time: '' as string,
     labels: [] as string[],
@@ -260,6 +261,7 @@ export function TaskSheet({
         priority: task.priority || '',
         assignee: toDisplayName(task.assignee || ''),
         project_id: task.client_id || task.project_id || '',
+        service: task.service || '',
         due_date: dueDate,
         due_time: dueTime,
         labels: task.labels || []
@@ -299,6 +301,7 @@ export function TaskSheet({
         priority: task?.priority || '',
         assignee: task?.assignee ? toDisplayName(task.assignee) : '',
         project_id: task?.client_id || task?.project_id || '',
+        service: task?.service || '',
         due_date: newDueDate,
         due_time: newDueTime,
         labels: [],
@@ -515,6 +518,7 @@ export function TaskSheet({
       priority: f.priority || null,
       assignee: f.assignee ? toSlug(f.assignee) : null,
       client_id: f.project_id || null,
+      service: f.service || null,
       due_date: finalDueDate,
       labels: f.labels || [],
     };
@@ -547,7 +551,7 @@ export function TaskSheet({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveNow(task.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.status, form.priority, form.assignee, form.project_id, form.due_date, form.due_time, form.labels]);
+  }, [form.status, form.priority, form.assignee, form.project_id, form.service, form.due_date, form.due_time, form.labels]);
 
   // Debounced save for text fields (title, description)
   useEffect(() => {
@@ -1050,6 +1054,43 @@ export function TaskSheet({
                 open={projectOpen}
                 onOpenChange={setProjectOpen}
               />
+            </PropertyRow>
+
+            <PropertyRow icon={<Briefcase size={13} />} label="Service">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
+                    {form.service && SERVICE_STYLES[form.service] ? (
+                      <>
+                        <span>{SERVICE_STYLES[form.service].icon}</span>
+                        <span className={`text-[13px] ${SERVICE_STYLES[form.service].text}`}>{SERVICE_STYLES[form.service].label}</span>
+                      </>
+                    ) : (
+                      <span className="text-[13px] text-muted-foreground/30">No service</span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="start">
+                  <button
+                    onClick={() => setForm({ ...form, service: '' })}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${!form.service ? 'bg-muted/50' : ''}`}
+                  >
+                    <span className="w-4 h-4 rounded-full border border-dashed border-muted-foreground/20 flex-shrink-0" />
+                    <span className="text-muted-foreground/60">No service</span>
+                  </button>
+                  <div className="border-t border-border/20 my-1" />
+                  {Object.entries(SERVICE_STYLES).map(([key, style]) => (
+                    <button
+                      key={key}
+                      onClick={() => setForm({ ...form, service: key })}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${form.service === key ? 'bg-primary/10 text-primary' : ''}`}
+                    >
+                      <span>{style.icon}</span>
+                      <span className="flex-1 text-left">{style.label}</span>
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
             </PropertyRow>
             
             <PropertyRow icon={<CalendarIcon size={13} />} label="Due date">
