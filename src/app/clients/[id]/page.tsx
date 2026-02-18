@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
-import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2, User, Phone, Globe, MapPin, Mail, ChevronRight, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2, User, Phone, Globe, MapPin, Mail, ChevronRight, ChevronDown, Search, Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NAME_TO_SLUG } from '@/lib/constants';
 import Link from 'next/link';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { TableView } from '@/components/board/table-view';
+import { FilterPopover } from '@/components/ui/filter-popover';
 import dynamic from 'next/dynamic';
 import type { Task, Project } from '@/lib/types';
 
@@ -416,6 +417,12 @@ export default function ClientDetailPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'service' | 'month'>('service');
+  const [taskSearch, setTaskSearch] = useState('');
+  const [taskGroupBy, setTaskGroupBy] = useState<'none' | 'service' | 'status' | 'priority' | 'assignee'>('service');
+  const [taskFilterStatus, setTaskFilterStatus] = useState<string[]>([]);
+  const [taskFilterPriority, setTaskFilterPriority] = useState<string[]>([]);
+  const [taskFilterAssignee, setTaskFilterAssignee] = useState<string[]>([]);
+  const [taskFilterService, setTaskFilterService] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'billing' | 'sale' | 'notes'>('overview');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -801,10 +808,79 @@ export default function ClientDetailPage() {
       )}
 
       {/* Tab: Tasks */}
-      {activeTab === 'tasks' && (
+      {activeTab === 'tasks' && (() => {
+        const filteredTasks = tasks.filter(t => {
+          if (taskSearch && !t.title.toLowerCase().includes(taskSearch.toLowerCase())) return false;
+          if (taskFilterStatus.length > 0 && !taskFilterStatus.includes(t.status)) return false;
+          if (taskFilterPriority.length > 0 && !taskFilterPriority.includes(t.priority || '')) return false;
+          if (taskFilterAssignee.length > 0 && !taskFilterAssignee.includes(t.assignee || '')) return false;
+          if (taskFilterService.length > 0 && !taskFilterService.includes(t.service || '')) return false;
+          return true;
+        });
+        const hasTaskFilters = taskSearch || taskFilterStatus.length > 0 || taskFilterPriority.length > 0 || taskFilterAssignee.length > 0 || taskFilterService.length > 0;
+        const statusOptions = [...new Set(tasks.map(t => t.status))].map(s => {
+          const st = STATUS_STYLES[s]; return { value: s, label: st?.label || s, dot: st?.dot };
+        });
+        const priorityOptions = [...new Set(tasks.map(t => t.priority).filter(Boolean))].map(p => {
+          const ps = PRIORITY_STYLES[p!]; return { value: p!, label: ps ? `${p} · ${ps.label}` : p! };
+        });
+        const assigneeOptions = [...new Set(tasks.map(t => t.assignee).filter(Boolean))].map(a => ({ value: a!, label: toDisplayName(a!) }));
+        const serviceOptions = [...new Set(tasks.map(t => t.service).filter(Boolean))].map(s => {
+          const ss = SERVICE_STYLES[s!]; return { value: s!, label: ss?.label || s! };
+        });
+        const groupByOptions = [
+          { value: 'none', label: 'No grouping' },
+          { value: 'service', label: 'Service' },
+          { value: 'status', label: 'Status' },
+          { value: 'priority', label: 'Priority' },
+          { value: 'assignee', label: 'Assignee' },
+        ];
+        return (
         <div className="rounded-lg border border-border/20 bg-card">
+          {/* Filter bar */}
+          <div className="flex items-center gap-2 px-5 py-3 border-b border-border/20 flex-wrap">
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
+              <input
+                value={taskSearch}
+                onChange={e => setTaskSearch(e.target.value)}
+                placeholder="Search tasks..."
+                className="h-7 pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/50 transition-colors w-48"
+              />
+            </div>
+            <FilterPopover label="Status" options={statusOptions} selected={taskFilterStatus} onSelectionChange={setTaskFilterStatus} />
+            <FilterPopover label="Priority" options={priorityOptions} selected={taskFilterPriority} onSelectionChange={setTaskFilterPriority} />
+            <FilterPopover label="Service" options={serviceOptions} selected={taskFilterService} onSelectionChange={setTaskFilterService} />
+            <FilterPopover label="Assignee" options={assigneeOptions} selected={taskFilterAssignee} onSelectionChange={setTaskFilterAssignee} />
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="h-7 px-2.5 text-[13px] rounded-md border border-border/20 bg-secondary hover:bg-muted/60 transition-colors flex items-center gap-1.5 text-muted-foreground">
+                  <Layers size={12} /> {groupByOptions.find(g => g.value === taskGroupBy)?.label || 'Group'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-40 p-1 bg-card border-border/20">
+                {groupByOptions.map(g => (
+                  <button
+                    key={g.value}
+                    onClick={() => setTaskGroupBy(g.value as typeof taskGroupBy)}
+                    className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${taskGroupBy === g.value ? 'bg-muted/40 font-medium' : ''}`}
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+            {hasTaskFilters && (
+              <button
+                onClick={() => { setTaskSearch(''); setTaskFilterStatus([]); setTaskFilterPriority([]); setTaskFilterAssignee([]); setTaskFilterService([]); }}
+                className="h-7 px-2.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
           <TableView
-            tasks={tasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
+            tasks={filteredTasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
             allTasks={tasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
             projects={projects}
             onTaskClick={(t) => handleTaskClick(t as Task)}
@@ -822,9 +898,11 @@ export default function ClientDetailPage() {
               } catch { /* ignore */ }
             }}
             hiddenColumns={['project_name']}
+            groupBy={taskGroupBy}
           />
         </div>
-      )}
+        );
+      })()}
 
       {/* Tab: Contract */}
       {/* Tab: Billing (Contract Line Items + Contract Details) */}
