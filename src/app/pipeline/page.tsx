@@ -1077,63 +1077,147 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
   onDelete: (id: string) => Promise<void>;
   onEdit: (p: Prospect) => void;
 }) {
+  const [sortField, setSortField] = useState<string>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [filterStage, setFilterStage] = useState<string[]>([]);
+  const [filterService, setFilterService] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+
+  const toggleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const SortIcon = ({ field }: { field: string }) => (
+    <span className="ml-1 text-[9px]">
+      {sortField === field ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+    </span>
+  );
+
+  const filtered = prospects.filter(p => {
+    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !(p.contact_name || '').toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterStage.length > 0 && !filterStage.includes(p.stage)) return false;
+    if (filterService.length > 0 && !filterService.includes(p.service || '')) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    switch (sortField) {
+      case 'name': return dir * (a.name || '').localeCompare(b.name || '');
+      case 'value': return dir * ((a.value || 0) - (b.value || 0));
+      case 'stage': return dir * (a.stage || '').localeCompare(b.stage || '');
+      case 'created_at': return dir * (new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      case 'assignee': return dir * (a.assignee || '').localeCompare(b.assignee || '');
+      default: return 0;
+    }
+  });
+
+  const hasFilters = filterStage.length > 0 || filterService.length > 0 || search !== '';
+  const stageOptions = PIPELINE_STAGES.map(s => ({ value: s.id, label: s.label }));
+  const serviceOptions = Object.entries(SERVICE_STYLES).map(([key, s]) => ({ value: key, label: s.label }));
+
+  const columns: { key: string; label: string; sortable?: boolean }[] = [
+    { key: 'name', label: 'Name', sortable: true },
+    { key: 'contact', label: 'Contact' },
+    { key: 'stage', label: 'Stage', sortable: true },
+    { key: 'value', label: 'Value', sortable: true },
+    { key: 'service', label: 'Service' },
+    { key: 'source', label: 'Source' },
+    { key: 'assignee', label: 'Assignee', sortable: true },
+    { key: 'created_at', label: 'Created', sortable: true },
+  ];
+
   return (
-    <div className="rounded-lg border border-border/20 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border/20 bg-muted/30">
-              {['Name', 'Contact', 'Stage', 'Value', 'Service', 'Source', 'Assignee', 'Created'].map(h => (
-                <th key={h} className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {prospects.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">No prospects yet</td>
+    <div className="space-y-3">
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search..."
+            className="h-8 w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+          />
+        </div>
+        <FilterPopover label="Stage" options={stageOptions} selected={filterStage} onSelectionChange={setFilterStage} />
+        <FilterPopover label="Service" options={serviceOptions} selected={filterService} onSelectionChange={setFilterService} />
+        {hasFilters && (
+          <button onClick={() => { setFilterStage([]); setFilterService([]); setSearch(''); }}
+            className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1.5">
+            <X className="h-3 w-3" /> Clear all
+          </button>
+        )}
+        <span className="text-[11px] text-muted-foreground/60 ml-auto">{sorted.length} prospects</span>
+      </div>
+
+      <div className="rounded-lg border border-border/20 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-border/20 bg-muted/30">
+                {columns.map(col => (
+                  <th
+                    key={col.key}
+                    onClick={col.sortable ? () => toggleSort(col.key) : undefined}
+                    className={`text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2 ${col.sortable ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
+                  >
+                    {col.label}
+                    {col.sortable && <SortIcon field={col.key} />}
+                  </th>
+                ))}
               </tr>
-            ) : prospects.map(p => {
-              const stage = PIPELINE_STAGES.find(s => s.id === p.stage);
-              return (
-                <tr
-                  key={p.id}
-                  onClick={() => onEdit(p)}
-                  className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer"
-                >
-                  <td className="px-3 py-2.5 text-[13px] font-medium">{p.name}</td>
-                  <td className="px-3 py-2.5">
-                    <div className="text-[13px]">{p.contact_name || '—'}</div>
-                    {p.contact_email && <div className="text-[11px] text-muted-foreground/60">{p.contact_email}</div>}
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${
-                      p.stage === 'won' ? 'bg-emerald-500/10 text-emerald-400' :
-                      p.stage === 'lost' ? 'bg-red-500/10 text-red-400' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${stage?.dotClass || 'bg-muted-foreground'}`} />
-                      {stage?.label || p.stage}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-[13px] font-medium">{p.value ? `£${p.value.toLocaleString()}` : '—'}</td>
-                  <td className="px-3 py-2.5">
-                    {p.service && SERVICE_STYLES[p.service] ? (
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SERVICE_STYLES[p.service].bg} ${SERVICE_STYLES[p.service].text}`}>
-                        {SERVICE_STYLES[p.service].label}
-                      </span>
-                    ) : '—'}
-                  </td>
-                  <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.source || '—'}</td>
-                  <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.assignee || '—'}</td>
-                  <td className="px-3 py-2.5 text-[11px] text-muted-foreground/40">
-                    {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </thead>
+            <tbody>
+              {sorted.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">
+                    {hasFilters ? 'No prospects match filters' : 'No prospects yet'}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ) : sorted.map(p => {
+                const stage = PIPELINE_STAGES.find(s => s.id === p.stage);
+                return (
+                  <tr
+                    key={p.id}
+                    onClick={() => onEdit(p)}
+                    className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer"
+                  >
+                    <td className="px-3 py-2.5 text-[13px] font-medium">{p.name}</td>
+                    <td className="px-3 py-2.5">
+                      <div className="text-[13px]">{p.contact_name || '—'}</div>
+                      {p.contact_email && <div className="text-[11px] text-muted-foreground/60">{p.contact_email}</div>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                        p.stage === 'won' ? 'bg-emerald-500/10 text-emerald-400' :
+                        p.stage === 'lost' ? 'bg-red-500/10 text-red-400' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${stage?.dotClass || 'bg-muted-foreground'}`} />
+                        {stage?.label || p.stage}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-[13px] font-medium">{p.value ? `£${p.value.toLocaleString()}` : '—'}</td>
+                    <td className="px-3 py-2.5">
+                      {p.service && SERVICE_STYLES[p.service] ? (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SERVICE_STYLES[p.service].bg} ${SERVICE_STYLES[p.service].text}`}>
+                          {SERVICE_STYLES[p.service].label}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.source || '—'}</td>
+                    <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.assignee || '—'}</td>
+                    <td className="px-3 py-2.5 text-[11px] text-muted-foreground/40">
+                      {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
