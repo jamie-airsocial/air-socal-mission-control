@@ -166,23 +166,21 @@ export default function XeroPage() {
         {/* Team Billing */}
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <h3 className="text-[13px] font-semibold mb-4">Team Billing</h3>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {revenueByTeam.map(({ team, revenue, count }) => {
               const style = TEAM_STYLES[team];
               const pct = Math.max((revenue / maxTeamRevenue) * 100, 3);
               return (
-                <div key={team}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
-                      <span className="text-[13px] font-medium">{style.label}</span>
-                      <span className="text-[11px] text-muted-foreground/40">{count} clients</span>
-                    </div>
-                    <span className="text-[13px] font-semibold">£{revenue.toLocaleString()}<span className="text-[11px] font-normal text-muted-foreground/40">/mo</span></span>
+                <div key={team} className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 w-20 shrink-0">
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
+                    <span className="text-[13px] font-medium">{style.label}</span>
                   </div>
-                  <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+                  <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: style.color, opacity: 0.7 }} />
                   </div>
+                  <span className="text-[13px] font-semibold w-24 text-right">£{revenue.toLocaleString()}<span className="text-[11px] font-normal text-muted-foreground/40">/mo</span></span>
+                  <span className="text-[11px] text-muted-foreground/40 w-16 text-right">{count} clients</span>
                 </div>
               );
             })}
