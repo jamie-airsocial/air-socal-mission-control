@@ -23,7 +23,7 @@ const CELL_BASE = 'rounded-md px-1.5 py-0.5 -mx-1.5 -my-0.5 border border-transp
 const CELL_HOVER = 'hover:border-border/20 hover:bg-muted/40';
 const CELL_ACTIVE = 'border-primary/30 bg-muted/40';
 
-type GroupBy = 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service' | 'team';
+type GroupBy = 'none' | 'project' | 'assignee' | 'status' | 'priority' | 'service' | 'team' | 'month';
 
 type ExtTask = Task & { project_name?: string; project_color?: string };
 
@@ -567,6 +567,15 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
         const tStyle = task.client_team ? getTeamStyle(task.client_team) : null;
         label = tStyle ? tStyle.label : 'No Team';
         if (tStyle) metadata.dot = tStyle.color;
+      } else if (groupBy === 'month') {
+        if (task.due_date) {
+          const d = new Date(task.due_date);
+          key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+        } else {
+          key = 'no-date';
+          label = 'No Due Date';
+        }
       }
 
       if (!groups.has(key)) {

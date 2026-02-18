@@ -418,7 +418,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'service' | 'month'>('service');
   const [taskSearch, setTaskSearch] = useState('');
-  const [taskGroupBy, setTaskGroupBy] = useState<'none' | 'service' | 'status' | 'priority' | 'assignee'>('service');
+  const [taskGroupBy, setTaskGroupBy] = useState<'none' | 'service' | 'status' | 'priority' | 'assignee' | 'month'>('service');
   const [taskFilterStatus, setTaskFilterStatus] = useState<string[]>([]);
   const [taskFilterPriority, setTaskFilterPriority] = useState<string[]>([]);
   const [taskFilterAssignee, setTaskFilterAssignee] = useState<string[]>([]);
@@ -834,6 +834,7 @@ export default function ClientDetailPage() {
           { value: 'status', label: 'Status' },
           { value: 'priority', label: 'Priority' },
           { value: 'assignee', label: 'Assignee' },
+          { value: 'month', label: 'Month' },
         ];
         return (
         <div className="rounded-lg border border-border/20 bg-card">
