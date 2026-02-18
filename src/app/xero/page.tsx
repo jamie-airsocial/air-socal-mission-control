@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { TEAM_STYLES } from '@/lib/constants';
 import { PoundSterling, TrendingUp, Users, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, TrendingDown } from 'lucide-react';
 import { usePersistedState } from '@/hooks/use-persisted-state';
@@ -36,6 +37,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 export default function XeroPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>('retainer');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [tableTeamFilter, setTableTeamFilter] = usePersistedState<string>('xero-teamFilter', '');
@@ -300,7 +302,7 @@ export default function XeroPage() {
                 const style = c.team && TEAM_STYLES[c.team as keyof typeof TEAM_STYLES];
                 const tenure = monthsBetween(c.signup_date || c.created_at, c.churned_at);
                 return (
-                  <tr key={c.id} className={`border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 ${c.status === 'churned' ? 'opacity-60' : ''}`}>
+                  <tr key={c.id} onClick={() => router.push(`/clients/${c.id}`)} className={`border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer ${c.status === 'churned' ? 'opacity-60' : ''}`}>
                     <td className="px-3 py-2.5 text-[13px] font-medium">{c.name}</td>
                     <td className="px-3 py-2.5">
                       {style ? (
