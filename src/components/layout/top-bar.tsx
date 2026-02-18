@@ -78,7 +78,7 @@ export function TopBar() {
         {/* Notifications */}
         <button
           aria-label="Notifications"
-          onClick={() => { setShowNotifications(!showNotifications); toast('You\'re all caught up — no new notifications', { icon: '🔔' }); }}
+          onClick={() => { setShowNotifications(!showNotifications); toast('You\'re all caught up — no new notifications'); }}
           className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-150"
         >
           <Bell size={15} />

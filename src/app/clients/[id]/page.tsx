@@ -693,7 +693,7 @@ export default function ClientDetailPage() {
                     {view === 'service' && group !== 'none' ? (
                       <ServiceIcon serviceKey={group} size={14} />
                     ) : (
-                      <span className="text-sm">{view === 'service' ? '📋' : '📅'}</span>
+                      <span className="text-muted-foreground/60">{view === 'service' ? <Tag size={14} /> : <Calendar size={14} />}</span>
                     )}
                     <h3 className="text-[13px] font-semibold">{groupLabel}</h3>
                     <span className="text-[11px] text-muted-foreground/60">({groupTasks.length})</span>

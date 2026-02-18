@@ -217,7 +217,7 @@ function ProspectSheet({
         // Handle stage transitions
         if (payload.stage === 'won' && editProspect.stage !== 'won') {
           setTimeout(() => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } }), 200);
-          toast.success('🎉 Deal won!');
+          toast.success('Deal won!');
         } else {
           toast.success(`${form.name} updated`);
         }
@@ -255,7 +255,7 @@ function ProspectSheet({
             <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[13px] font-semibold text-emerald-400">🎉 Deal Won!</p>
+                  <p className="text-[13px] font-semibold text-emerald-400">Deal Won!</p>
                   <p className="text-[12px] text-muted-foreground/60 mt-0.5">Ready to onboard this client?</p>
                 </div>
                 <Button
@@ -701,7 +701,7 @@ export default function PipelinePage() {
       setTimeout(() => {
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
       }, 200);
-      toast.success('🎉 Deal won!');
+      toast.success('Deal won!');
     }
 
     if (updates.stage === 'lost' && prev?.stage !== 'lost') {
@@ -962,7 +962,7 @@ export default function PipelinePage() {
           onConverted={() => {
             setConvertProspect(null);
             fetchProspects();
-            toast.success('🎉 Client created!', { description: `${convertProspect.name} is now a client.` });
+            toast.success('Client created!', { description: `${convertProspect.name} is now a client.` });
           }}
         />
       )}
