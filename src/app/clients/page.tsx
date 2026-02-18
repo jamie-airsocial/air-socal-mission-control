@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 
 interface ClientRow {
@@ -226,10 +227,10 @@ function ServicesMultiSelect({
 export default function ClientsPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterTeam, setFilterTeam] = useState<string[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string[]>([]);
-  const [filterService, setFilterService] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = usePersistedState('clients-search', '');
+  const [filterTeam, setFilterTeam] = usePersistedState<string[]>('clients-filterTeam', []);
+  const [filterStatus, setFilterStatus] = usePersistedState<string[]>('clients-filterStatus', []);
+  const [filterService, setFilterService] = usePersistedState<string[]>('clients-filterService', []);
 
   const fetchClients = useCallback(async () => {
     try {

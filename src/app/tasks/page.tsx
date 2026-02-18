@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { LayoutGrid, Table2, Plus, Search, Eye, EyeOff, CalendarDays, X, ChevronDown, Check } from 'lucide-react';
 import { TEAM_STYLES } from '@/lib/constants';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SavedViews } from '@/components/board/saved-views';
 import { toast } from 'sonner';
@@ -44,8 +45,8 @@ function BoardContent() {
   });
   const [groupByOpen, setGroupByOpen] = useState(false);
   const [kanbanGroupByOpen, setKanbanGroupByOpen] = useState(false);
-  const [filterService, setFilterService] = useState<string[]>([]);
-  const [filterTeam, setFilterTeam] = useState<string[]>([]);
+  const [filterService, setFilterService] = usePersistedState<string[]>('tasks-filterService', []);
+  const [filterTeam, setFilterTeam] = usePersistedState<string[]>('tasks-filterTeam', []);
 
   // Persist kanban group-by
   useEffect(() => {

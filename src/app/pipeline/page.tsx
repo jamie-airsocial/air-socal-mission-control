@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Prospect {
@@ -43,7 +44,7 @@ type ViewMode = 'pipeline' | 'table' | 'stats';
 export default function PipelinePage() {
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = usePersistedState('pipeline-search', '');
   const [viewMode, setViewMode] = useState<ViewMode>('pipeline');
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
@@ -52,7 +53,7 @@ export default function PipelinePage() {
   const [lossReasonCustom, setLossReasonCustom] = useState('');
 
   // Filters
-  const [filterService, setFilterService] = useState<string[]>([]);
+  const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
 
   const [formName, setFormName] = useState('');
   const [formCompany, setFormCompany] = useState('');

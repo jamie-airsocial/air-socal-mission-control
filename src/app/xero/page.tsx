@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { TEAM_STYLES } from '@/lib/constants';
 import { PoundSterling, TrendingUp, Users, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, TrendingDown } from 'lucide-react';
+import { usePersistedState } from '@/hooks/use-persisted-state';
 
 interface Client {
   id: string;
@@ -37,7 +38,7 @@ export default function XeroPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('retainer');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [tableTeamFilter, setTableTeamFilter] = useState<string>('');
+  const [tableTeamFilter, setTableTeamFilter] = usePersistedState<string>('xero-teamFilter', '');
   // No date picker — churn is always based on last 12 months
 
   useEffect(() => {
