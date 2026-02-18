@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Filter, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export interface FilterOption {
@@ -48,7 +48,6 @@ export function FilterPopover({
               : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
           }`}
         >
-          <Filter size={12} />
           {label}
           {hasActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
         </button>
