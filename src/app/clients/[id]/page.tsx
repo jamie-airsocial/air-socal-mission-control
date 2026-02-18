@@ -8,6 +8,7 @@ import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { ServiceIcon } from '@/components/ui/service-icon';
 
 interface Client {
   id: string;
@@ -48,7 +49,7 @@ interface Task {
 /** Services available for selection (account-management always included) */
 const ALL_SERVICES = Object.entries(SERVICE_STYLES).map(([key, style]) => ({
   value: key,
-  label: `${style.icon} ${style.label}`,
+  label: style.label,
 }));
 
 function monthsActive(from: string, to?: string): number {
@@ -263,7 +264,7 @@ export default function ClientDetailPage() {
                 if (!s) return null;
                 return (
                   <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
-                    {s.icon} {s.label}
+                    <ServiceIcon serviceKey={service} size={12} /> {s.label}
                   </span>
                 );
               })}

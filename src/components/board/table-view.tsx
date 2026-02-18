@@ -549,7 +549,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
       } else if (groupBy === 'service') {
         key = task.service || 'no-service';
         const sStyle = task.service ? SERVICE_STYLES[task.service] : null;
-        label = sStyle ? `${sStyle.icon} ${sStyle.label}` : 'No Service';
+        label = sStyle ? sStyle.label : 'No Service';
       } else if (groupBy === 'team') {
         key = task.client_team || 'no-team';
         const tStyle = task.client_team ? TEAM_STYLES[task.client_team as keyof typeof TEAM_STYLES] : null;

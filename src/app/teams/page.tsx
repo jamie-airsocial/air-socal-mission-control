@@ -6,6 +6,7 @@ import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
 import type { Team } from '@/lib/types';
 import { Mail, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
+import { ServiceIcon } from '@/components/ui/service-icon';
 
 interface Client {
   id: string;
@@ -101,7 +102,7 @@ export default function TeamsPage() {
                           <div key={service}>
                             <div className="flex items-center justify-between mb-0.5">
                               <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                                {s.icon} {s.label}
+                                <ServiceIcon serviceKey={service} size={10} /> {s.label}
                               </span>
                               <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
                             </div>

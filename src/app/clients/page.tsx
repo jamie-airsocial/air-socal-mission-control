@@ -7,6 +7,8 @@ import { Users, Search, ChevronDown, Check, X, Plus, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
 
 interface ClientRow {
@@ -24,7 +26,7 @@ interface ClientRow {
 /** Services to exclude from revenue/filter contexts */
 const REVENUE_SERVICES = Object.entries(SERVICE_STYLES)
   .filter(([key]) => key !== 'account-management')
-  .map(([key, style]) => ({ value: key, label: `${style.icon} ${style.label}` }));
+  .map(([key, style]) => ({ value: key, label: style.label }));
 
 function monthsActive(createdAt: string): number {
   const start = new Date(createdAt);
@@ -388,25 +390,34 @@ export default function ClientsPage() {
                       const s = SERVICE_STYLES[service];
                       if (!s) return null;
                       return (
-                        <span key={service} className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
-                          {s.icon} {s.label}
+                        <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
+                          <ServiceIcon serviceKey={service} size={10} />
+                          {s.label}
                         </span>
                       );
                     })}
                 </div>
 
                 <div className="flex items-center justify-between">
+                  <TooltipProvider delayDuration={200}>
                   <div className="flex -space-x-1.5">
                     {(client.assigned_members || []).slice(0, 3).map((memberId) => {
                       const member = TEAM_MEMBERS.find(m => m.id === memberId);
                       if (!member) return null;
                       return (
-                        <div
-                          key={memberId}
-                          className="w-5 h-5 rounded-full bg-primary/20 border-[1.5px] border-card flex items-center justify-center"
-                        >
-                          <span className="text-[8px] leading-none font-medium text-primary">{member.name.charAt(0)}</span>
-                        </div>
+                        <Tooltip key={memberId}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="w-5 h-5 rounded-full bg-primary/20 border-[1.5px] border-card flex items-center justify-center"
+                            >
+                              <span className="text-[8px] leading-none font-medium text-primary">{member.name.charAt(0)}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="text-xs">
+                            <p>{member.name}</p>
+                            <p className="text-muted-foreground">{member.role}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       );
                     })}
                     {(client.assigned_members || []).length > 3 && (
@@ -415,6 +426,7 @@ export default function ClientsPage() {
                       </div>
                     )}
                   </div>
+                  </TooltipProvider>
                   {/* Tenure badge */}
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
                     <Clock size={10} />
