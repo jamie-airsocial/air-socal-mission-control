@@ -54,7 +54,7 @@ interface TableViewProps {
   allLabels?: string[];
 }
 
-type SortField = 'title' | 'status' | 'priority' | 'assignee' | 'project_name' | 'due_date';
+type SortField = 'title' | 'status' | 'priority' | 'assignee' | 'project_name' | 'due_date' | 'service';
 type SortOrder = 'asc' | 'desc';
 
 function InlineStatusCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
@@ -405,6 +405,17 @@ function InlineLabelCell({ task, allLabels, onUpdate }: { task: Task; allLabels:
   );
 }
 
+function ServiceCell({ service }: { service?: string | null }) {
+  if (!service) return <span className="text-[11px] text-muted-foreground/30">—</span>;
+  const style = SERVICE_STYLES[service];
+  if (!style) return <span className="text-[13px]">{service}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${style.bg} ${style.text}`}>
+      {style.label}
+    </span>
+  );
+}
+
 function SortHeader({ field, sortField, sortOrder, onSort, children, className = '' }: { field: SortField; sortField: SortField; sortOrder: SortOrder; onSort: (field: SortField) => void; children: React.ReactNode; className?: string }) {
   const isActive = sortField === field;
   return (
@@ -716,7 +727,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                 <SortHeader field="priority" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Priority</SortHeader>
                 <SortHeader field="project_name" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Project</SortHeader>
                 <SortHeader field="due_date" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Due Date</SortHeader>
-                <th className="py-3 px-5 text-left text-[11px] uppercase tracking-widest font-medium text-muted-foreground/30 w-[140px]">Labels</th>
+                <SortHeader field="service" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Service</SortHeader>
                 <SortHeader field="assignee" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Assignee</SortHeader>
               </tr>
             </thead>
@@ -844,7 +855,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                             <InlineDueDateCell task={task} onUpdate={onUpdate} />
                           </td>
                           <td className="py-2.5 px-5">
-                            <InlineLabelCell task={task} allLabels={allLabels} onUpdate={onUpdate} />
+                            <ServiceCell service={task.service} />
                           </td>
                           <td className="py-2.5 px-5">
                             <InlineAssigneeCell task={task} onUpdate={onUpdate} />
@@ -884,7 +895,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               <InlineDueDateCell task={sub} onUpdate={onUpdate} />
                             </td>
                             <td className="py-2.5 px-5">
-                              <InlineLabelCell task={sub} allLabels={allLabels} onUpdate={onUpdate} />
+                              <ServiceCell service={sub.service} />
                             </td>
                             <td className="py-2.5 px-5">
                               <InlineAssigneeCell task={sub} onUpdate={onUpdate} />
