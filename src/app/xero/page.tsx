@@ -37,6 +37,7 @@ export default function XeroPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('retainer');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [tableTeamFilter, setTableTeamFilter] = useState<string>('');
   // No date picker — churn is always based on last 12 months
 
   useEffect(() => {
@@ -98,8 +99,9 @@ export default function XeroPage() {
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
+    if (tableTeamFilter) return sorted.filter(c => c.team === tableTeamFilter);
     return sorted;
-  }, [allClients, sortKey, sortDir]);
+  }, [allClients, sortKey, sortDir, tableTeamFilter]);
 
   if (loading) {
     return (
@@ -185,16 +187,6 @@ export default function XeroPage() {
               );
             })}
           </div>
-          <div className="mt-4 pt-4 border-t border-border/10">
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-muted-foreground/60">Total monthly</span>
-              <span className="font-bold">£{totalRevenue.toLocaleString()}</span>
-            </div>
-            <div className="flex items-center justify-between text-[13px] mt-1">
-              <span className="text-muted-foreground/60">Annual run rate</span>
-              <span className="font-bold text-emerald-400">£{(totalRevenue * 12).toLocaleString()}</span>
-            </div>
-          </div>
         </div>
 
         {/* Churn by Team */}
@@ -252,9 +244,31 @@ export default function XeroPage() {
 
       {/* Sortable Client Table */}
       <div className="rounded-lg border border-border/20 overflow-hidden">
-        <div className="px-4 py-3 border-b border-border/10 bg-muted/20">
-          <h3 className="text-[13px] font-semibold">All Clients</h3>
-          <p className="text-[11px] text-muted-foreground/40 mt-0.5">Click column headers to sort</p>
+        <div className="px-4 py-3 border-b border-border/10 bg-muted/20 flex items-center justify-between">
+          <div>
+            <h3 className="text-[13px] font-semibold">All Clients</h3>
+            <p className="text-[11px] text-muted-foreground/40 mt-0.5">Click column headers to sort</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setTableTeamFilter('')}
+              className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 ${
+                !tableTeamFilter ? 'border-primary bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/30'
+              }`}
+            >All</button>
+            {Object.entries(TEAM_STYLES).map(([key, style]) => (
+              <button
+                key={key}
+                onClick={() => setTableTeamFilter(tableTeamFilter === key ? '' : key)}
+                className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 flex items-center gap-1.5 ${
+                  tableTeamFilter === key ? 'border-primary bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/30'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.color }} />
+                {style.label}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
