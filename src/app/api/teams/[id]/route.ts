@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+/** Convert a team display name to the slug stored in app_users.team */
+function nameToSlug(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -9,7 +14,7 @@ export async function PATCH(
   const body = await request.json();
   const { name, members } = body;
 
-  // Fetch current team name BEFORE any changes (needed for membership slug migration)
+  // Fetch current team BEFORE any changes
   const { data: currentTeam, error: fetchErr } = await supabaseAdmin
     .from('teams')
     .select('name')
@@ -20,40 +25,40 @@ export async function PATCH(
     return NextResponse.json({ error: 'Team not found' }, { status: 404 });
   }
 
-  const oldSlug = currentTeam.name.toLowerCase();
-
-  // Update team name if provided
+  const oldSlug = nameToSlug(currentTeam.name);
   let newSlug = oldSlug;
+
+  // ── 1. Rename team if name provided ──────────────────────────────────────
   if (name !== undefined) {
     const trimmed = name.trim();
+    newSlug = nameToSlug(trimmed);
+
     const { error } = await supabaseAdmin
       .from('teams')
       .update({ name: trimmed, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    newSlug = trimmed.toLowerCase();
 
-    // If the team was renamed, migrate app_users from old slug → new slug
+    // Migrate all app_users from oldSlug → newSlug (handles rename)
     if (newSlug !== oldSlug) {
       await supabaseAdmin
         .from('app_users')
-        .update({ team: newSlug })
+        .update({ team: newSlug, updated_at: new Date().toISOString() })
         .eq('team', oldSlug);
     }
   }
 
-  // Update team membership if members array provided
-  // members = array of app_user IDs that should be in this team
+  // ── 2. Update membership if members array provided ────────────────────────
   if (members !== undefined) {
-    // Clear ALL current members of this team (use newSlug in case of rename)
-    // Also clear oldSlug in case migration above missed anything
-    await supabaseAdmin.from('app_users').update({ team: null }).eq('team', newSlug);
-    if (newSlug !== oldSlug) {
-      await supabaseAdmin.from('app_users').update({ team: null }).eq('team', oldSlug);
+    // Find ALL users currently on this team (by either old or new slug)
+    // so we don't accidentally leave stale assignments
+    const slugsToCheck = Array.from(new Set([oldSlug, newSlug]));
+    for (const slug of slugsToCheck) {
+      await supabaseAdmin.from('app_users').update({ team: null }).eq('team', slug);
     }
 
-    // Assign selected members to this team
+    // Assign the selected member IDs to the new team slug
     if (members.length > 0) {
       await supabaseAdmin
         .from('app_users')
@@ -85,7 +90,7 @@ export async function DELETE(
     .single();
 
   if (team) {
-    const teamSlug = team.name.toLowerCase();
+    const teamSlug = nameToSlug(team.name);
     const { data: members } = await supabaseAdmin
       .from('app_users')
       .select('id')

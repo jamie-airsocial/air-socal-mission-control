@@ -34,7 +34,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Check, ChevronDown } from 'lucide-react';
-import { ASSIGNEE_COLORS, TEAM_STYLES } from '@/lib/constants';
+import { ASSIGNEE_COLORS, TEAM_STYLES, getTeamStyle } from '@/lib/constants';
 import type { AppUser, Role } from '@/lib/auth-types';
 
 // ── Relative time helper ─────────────────────────────────────────────────────
@@ -69,33 +69,36 @@ function isOnline(isoString: string | null | undefined): boolean {
 }
 
 // ── Sub-components ───────────────────────────────────────────────────────────
-const TEAMS = [
-  { value: 'synergy', label: 'Synergy' },
-  { value: 'ignite', label: 'Ignite' },
-  { value: 'alliance', label: 'Alliance' },
-];
+interface TeamOption { value: string; label: string; }
 
-function TeamSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function TeamSelect({ value, onChange, teams }: { value: string; onChange: (v: string) => void; teams: TeamOption[] }) {
   const [open, setOpen] = useState(false);
-  const selected = TEAMS.find(t => t.value === value);
+  const selected = teams.find(t => t.value === value);
+  const style = value ? getTeamStyle(value) : null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
-          {selected
-            ? <span className={TEAM_STYLES[value as keyof typeof TEAM_STYLES]?.text}>{selected.label}</span>
+          {selected && style
+            ? <span className={style.text}>{selected.label}</span>
             : <span className="text-muted-foreground/40">Select team…</span>}
           <ChevronDown size={14} className="text-muted-foreground/60" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-48 p-1" align="start">
-        {TEAMS.map(t => (
-          <button key={t.value} onClick={() => { onChange(t.value); setOpen(false); }}
-            className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${value === t.value ? 'bg-muted/40' : ''}`}>
-            <span className={TEAM_STYLES[t.value as keyof typeof TEAM_STYLES]?.text}>{t.label}</span>
-            {value === t.value && <Check size={14} className="text-primary" />}
-          </button>
-        ))}
+        {teams.map(t => {
+          const ts = getTeamStyle(t.value);
+          return (
+            <button key={t.value} onClick={() => { onChange(t.value); setOpen(false); }}
+              className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${value === t.value ? 'bg-muted/40' : ''}`}>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: ts.color }} />
+                <span className={ts.text}>{t.label}</span>
+              </div>
+              {value === t.value && <Check size={14} className="text-primary" />}
+            </button>
+          );
+        })}
       </PopoverContent>
     </Popover>
   );
@@ -142,6 +145,7 @@ const emptyForm: UserFormData = { email: '', full_name: '', role_id: '', team: '
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [teamOptions, setTeamOptions] = useState<TeamOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Add/Edit dialog
@@ -162,13 +166,20 @@ export default function AdminUsersPage() {
   const [deleting, setDeleting] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [usersRes, rolesRes] = await Promise.all([
+    const [usersRes, rolesRes, teamsRes] = await Promise.all([
       fetch('/api/users', { cache: 'no-store' }),
       fetch('/api/roles'),
+      fetch('/api/teams'),
     ]);
-    const [usersData, rolesData] = await Promise.all([usersRes.json(), rolesRes.json()]);
+    const [usersData, rolesData, teamsData] = await Promise.all([
+      usersRes.json(), rolesRes.json(), teamsRes.json(),
+    ]);
     setUsers(usersData || []);
     setRoles(rolesData || []);
+    setTeamOptions((teamsData || []).map((t: { name: string }) => ({
+      value: t.name.toLowerCase(),
+      label: t.name,
+    })));
     setLoading(false);
   }, []);
 
@@ -338,7 +349,7 @@ export default function AdminUsersPage() {
                   </TableCell>
                 </TableRow>
               ) : users.map(user => {
-                const ts = TEAM_STYLES[user.team as keyof typeof TEAM_STYLES];
+                const ts = user.team ? getTeamStyle(user.team) : null;
                 const colorClass = ASSIGNEE_COLORS[user.full_name] || 'bg-primary/20 text-primary';
                 const isInactive = !user.is_active;
                 return (
@@ -359,7 +370,10 @@ export default function AdminUsersPage() {
                     <TableCell className="text-[13px] text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
                       {user.team && ts ? (
-                        <span className={`px-2 py-0.5 rounded text-[12px] font-medium ${ts.bg} ${ts.text}`}>{ts.label}</span>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[12px] font-medium ${ts.bg} ${ts.text}`}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ts.color }} />
+                          {teamOptions.find(t => t.value === user.team)?.label || user.team}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground/40 text-[13px]">—</span>
                       )}
@@ -495,7 +509,7 @@ export default function AdminUsersPage() {
               )}
               <div className="space-y-1.5">
                 <Label className="text-[13px] text-muted-foreground">Team *</Label>
-                <TeamSelect value={form.team} onChange={v => setForm(f => ({ ...f, team: v }))} />
+                <TeamSelect value={form.team} onChange={v => setForm(f => ({ ...f, team: v }))} teams={teamOptions} />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[13px] text-muted-foreground">Role</Label>

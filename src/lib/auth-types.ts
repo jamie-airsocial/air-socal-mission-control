@@ -4,7 +4,7 @@ export interface AppUser {
   email: string;
   full_name: string;
   role_id: string | null;
-  team: 'synergy' | 'ignite' | 'alliance' | null;
+  team: string | null;
   avatar_url: string | null;
   is_active: boolean;
   created_at: string;

@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { TEAM_MEMBERS } from '@/lib/data';
-import { TEAM_STYLES, SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES } from '@/lib/constants';
+import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -491,8 +490,7 @@ export default function ClientDetailPage() {
     );
   }
 
-  const teamStyle = TEAM_STYLES[client.team as keyof typeof TEAM_STYLES];
-  const members = TEAM_MEMBERS.filter(m => (client.assigned_members || []).includes(m.id));
+  const teamStyle = getTeamStyle(client.team);
   const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
 
   const groupedTasks = view === 'service'
@@ -584,24 +582,7 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {members.length > 0 && (
-          <div>
-            <p className="text-[11px] text-muted-foreground/60 mb-2">Team</p>
-            <div className="flex items-center gap-3 flex-wrap">
-              {members.map((member) => (
-                <div key={member.id} className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-[10px] leading-none font-semibold text-primary">{member.name.charAt(0)}</span>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium">{member.name}</p>
-                    <p className="text-[11px] text-muted-foreground/60">{member.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Team is shown via the team badge above */}
       </div>
 
       {/* Detail tabs */}

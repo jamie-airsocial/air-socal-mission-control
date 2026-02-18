@@ -18,7 +18,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { LayoutGrid, Table2, Plus, Search, Eye, EyeOff, CalendarDays, X, ChevronDown, Check } from 'lucide-react';
-import { TEAM_STYLES } from '@/lib/constants';
+import { getTeamStyle } from '@/lib/constants';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SavedViews } from '@/components/board/saved-views';
@@ -47,6 +47,16 @@ function BoardContent() {
   const [kanbanGroupByOpen, setKanbanGroupByOpen] = useState(false);
   const [filterService, setFilterService] = usePersistedState<string[]>('tasks-filterService', []);
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('tasks-filterTeam', []);
+  const [availableTeams, setAvailableTeams] = useState<{ slug: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/teams').then(r => r.json()).then(data => {
+      setAvailableTeams((data || []).map((t: { name: string }) => ({
+        slug: t.name.toLowerCase(),
+        name: t.name,
+      })));
+    }).catch(() => {});
+  }, []);
 
   // Persist kanban group-by
   useEffect(() => {
@@ -343,12 +353,13 @@ function BoardContent() {
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-48 p-1" align="start">
-            {Object.entries(TEAM_STYLES).map(([key, style]) => {
-              const isSelected = filterTeam.includes(key);
+            {availableTeams.map(team => {
+              const style = getTeamStyle(team.slug);
+              const isSelected = filterTeam.includes(team.slug);
               return (
                 <button
-                  key={key}
-                  onClick={() => setFilterTeam(prev => isSelected ? prev.filter(v => v !== key) : [...prev, key])}
+                  key={team.slug}
+                  onClick={() => setFilterTeam(prev => isSelected ? prev.filter(v => v !== team.slug) : [...prev, team.slug])}
                   className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
                     isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
                   }`}
@@ -359,7 +370,7 @@ function BoardContent() {
                     {isSelected && <Check size={10} className="text-primary-foreground" />}
                   </div>
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
-                  <span className="flex-1 text-left">{style.label}</span>
+                  <span className="flex-1 text-left">{team.name}</span>
                 </button>
               );
             })}

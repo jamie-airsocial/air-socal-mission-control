@@ -150,7 +150,8 @@ export interface TokenUsageResponse {
 }
 
 // ── Air Social-specific types ────────────────────────────────────────────────
-export type Team = 'synergy' | 'ignite' | 'alliance';
+/** Team is now a free-form string (slug from the teams table, e.g. 'synergy'). */
+export type Team = string;
 export type ClientStatus = 'active' | 'paused' | 'churned';
 export type Service = 'seo' | 'paid-ads' | 'social-media' | 'account-management';
 

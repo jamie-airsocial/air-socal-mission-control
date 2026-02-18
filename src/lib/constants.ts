@@ -112,13 +112,37 @@ export function normalisePriority(raw: string): 'P1' | 'P2' | 'P3' | 'P4' {
 }
 
 // ── Air Social-specific constants ────────────────────────────────────────────
-import type { Team, Service } from './types';
+import type { Service } from './types';
 
-export const TEAM_STYLES: Record<Team, { color: string; bg: string; text: string; label: string }> = {
-  synergy: { color: '#3b82f6', bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Synergy' },
-  ignite: { color: '#f97316', bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'Ignite' },
+export type TeamStyle = { color: string; bg: string; text: string; label: string };
+
+/** Palette for well-known team slugs. Index by `team.name.toLowerCase()`. */
+export const TEAM_STYLES: Record<string, TeamStyle> = {
+  synergy:  { color: '#3b82f6', bg: 'bg-blue-500/10',   text: 'text-blue-400',   label: 'Synergy'  },
+  ignite:   { color: '#f97316', bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'Ignite'   },
   alliance: { color: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', label: 'Alliance' },
 };
+
+/** Fallback colours for unknown teams — cycles through a palette */
+const TEAM_FALLBACK_PALETTE: TeamStyle[] = [
+  { color: '#10b981', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: '' },
+  { color: '#ec4899', bg: 'bg-pink-500/10',    text: 'text-pink-400',    label: '' },
+  { color: '#f59e0b', bg: 'bg-amber-500/10',   text: 'text-amber-400',   label: '' },
+  { color: '#06b6d4', bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    label: '' },
+  { color: '#6366f1', bg: 'bg-indigo-500/10',  text: 'text-indigo-400',  label: '' },
+];
+
+/** Get style for any team slug, with a stable fallback for unknown names. */
+export function getTeamStyle(slug: string | null | undefined): TeamStyle {
+  if (!slug) return { color: 'var(--border)', bg: 'bg-muted/20', text: 'text-muted-foreground', label: '—' };
+  const s = slug.toLowerCase();
+  if (TEAM_STYLES[s]) return { ...TEAM_STYLES[s], label: TEAM_STYLES[s].label || slug };
+  // Deterministic fallback based on slug hash
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) & 0xffffffff;
+  const fb = TEAM_FALLBACK_PALETTE[Math.abs(hash) % TEAM_FALLBACK_PALETTE.length];
+  return { ...fb, label: slug.charAt(0).toUpperCase() + slug.slice(1) };
+}
 
 export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: string; label: string }> = {
   seo: { icon: 'Search', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SEO' },

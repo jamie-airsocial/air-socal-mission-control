@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TEAM_MEMBERS } from '@/lib/data';
-import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
-import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon } from 'lucide-react';
+import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle } from '@/lib/constants';
+import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,6 +14,16 @@ import Link from 'next/link';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
+import { useUsers } from '@/hooks/use-users';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface ClientRow {
   id: string;
@@ -26,6 +35,13 @@ interface ClientRow {
   assigned_members: string[];
   color: string | null;
   created_at: string;
+  signup_date?: string;
+  notes?: string;
+}
+
+interface TeamOption {
+  id: string;
+  name: string;
 }
 
 /** Services to exclude from revenue/filter contexts */
@@ -42,7 +58,7 @@ function monthsActive(createdAt: string): number {
   );
 }
 
-/* ── Multi-select filter popover ───────────────────────────────────────── */
+/* ── Multi-select filter popover ───────────────────────────────────────────── */
 function MultiFilterPopover({
   label,
   selected,
@@ -109,7 +125,7 @@ function MultiFilterPopover({
   );
 }
 
-/* ── Services multi-select for the new client form ─────────────────────── */
+/* ── Services multi-select ─────────────────────────────────────────────────── */
 function ServicesMultiSelect({
   selected,
   onChange,
@@ -130,7 +146,6 @@ function ServicesMultiSelect({
         const apiServices = data
           .filter((s) => s.id !== 'account-management')
           .map((s) => ({ value: s.id, label: s.label }));
-        // Merge: keep hardcoded order, append new ones not in hardcoded list
         const hardcodedIds = new Set(REVENUE_SERVICES.map(s => s.value));
         const extras = apiServices.filter(s => !hardcodedIds.has(s.value));
         setServices([...REVENUE_SERVICES, ...extras]);
@@ -219,18 +234,375 @@ function ServicesMultiSelect({
           <Plus size={10} /> Add Service
         </button>
       )}
-
     </div>
   );
 }
 
+/* ── Members multi-select ──────────────────────────────────────────────────── */
+function MembersMultiSelect({
+  selected,
+  onChange,
+  users,
+}: {
+  selected: string[];
+  onChange: (v: string[]) => void;
+  users: Array<{ id: string; full_name: string; team?: string | null }>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const toggle = (id: string) => {
+    onChange(selected.includes(id) ? selected.filter(v => v !== id) : [...selected, id]);
+  };
+
+  const selectedUsers = users.filter(u => selected.includes(u.id));
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors text-left"
+        >
+          {selectedUsers.length === 0 ? (
+            <span className="text-muted-foreground/40">Select members…</span>
+          ) : (
+            <span className="truncate">{selectedUsers.map(u => u.full_name).join(', ')}</span>
+          )}
+          <ChevronDown size={14} className="text-muted-foreground/60 shrink-0 ml-2" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-1 max-h-64 overflow-y-auto" align="start">
+        {users.map(u => {
+          const isSelected = selected.includes(u.id);
+          return (
+            <button
+              key={u.id}
+              onClick={() => toggle(u.id)}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+              }`}
+            >
+              <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                isSelected ? 'border-primary bg-primary' : 'border-border/40'
+              }`}>
+                {isSelected && <Check size={10} className="text-primary-foreground" />}
+              </div>
+              <span>{u.full_name}</span>
+            </button>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* ── Client Sheet (new / edit) ─────────────────────────────────────────────── */
+interface ClientFormState {
+  name: string;
+  team: string;
+  services: string[];
+  assigned_members: string[];
+  status: string;
+  signup_date: string;
+  notes: string;
+  monthly_retainer: string;
+}
+
+const emptyClientForm: ClientFormState = {
+  name: '',
+  team: '',
+  services: [],
+  assigned_members: [],
+  status: 'active',
+  signup_date: '',
+  notes: '',
+  monthly_retainer: '',
+};
+
+function ClientSheet({
+  open,
+  onOpenChange,
+  editClient,
+  teams,
+  users,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editClient: ClientRow | null;
+  teams: TeamOption[];
+  users: Array<{ id: string; full_name: string; team?: string | null }>;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState<ClientFormState>(emptyClientForm);
+  const [saving, setSaving] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [dateOpen, setDateOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (editClient) {
+        setForm({
+          name: editClient.name,
+          team: editClient.team || '',
+          services: editClient.services || [],
+          assigned_members: editClient.assigned_members || [],
+          status: editClient.status || 'active',
+          signup_date: editClient.signup_date || '',
+          notes: editClient.notes || '',
+          monthly_retainer: String(editClient.monthly_retainer || ''),
+        });
+      } else {
+        setForm(emptyClientForm);
+      }
+    }
+  }, [open, editClient]);
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { toast.error('Company name is required'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        team: form.team || null,
+        services: form.services,
+        assigned_members: form.assigned_members,
+        status: form.status,
+        signup_date: form.signup_date || null,
+        notes: form.notes || null,
+        monthly_retainer: form.monthly_retainer ? parseFloat(form.monthly_retainer) : 0,
+      };
+
+      if (editClient) {
+        const res = await fetch(`/api/clients/${editClient.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { toast.error('Failed to update client'); return; }
+        toast.success(`${form.name} updated`);
+      } else {
+        const res = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { toast.error('Failed to create client'); return; }
+        toast.success(`${form.name} added to clients`);
+      }
+      onOpenChange(false);
+      onSaved();
+    } catch { toast.error('Something went wrong'); }
+    finally { setSaving(false); }
+  };
+
+  const selectedTeam = teams.find(t => t.name.toLowerCase() === form.team.toLowerCase());
+  const teamStyle = form.team ? getTeamStyle(form.team) : null;
+
+  const STATUS_OPTIONS = [
+    { value: 'active', label: 'Active' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'churned', label: 'Churned' },
+  ];
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+        <SheetHeader className="px-6 py-5 border-b border-border/20">
+          <div className="flex items-center justify-between">
+            <SheetTitle className="text-[15px]">
+              {editClient ? 'Edit Client' : 'New Client'}
+            </SheetTitle>
+            {editClient && (
+              <Link
+                href={`/clients/${editClient.id}`}
+                className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => onOpenChange(false)}
+              >
+                <ExternalLink size={12} /> View full profile
+              </Link>
+            )}
+          </div>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {/* Company Name */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Company Name *</Label>
+            <Input
+              autoFocus={!editClient}
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Acme Ltd"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Team */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Team</Label>
+            <Popover open={teamOpen} onOpenChange={setTeamOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                  {selectedTeam ? (
+                    <span className={teamStyle?.text || ''}>{selectedTeam.name}</span>
+                  ) : (
+                    <span className="text-muted-foreground/40">Select team…</span>
+                  )}
+                  <ChevronDown size={14} className="text-muted-foreground/60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-1" align="start">
+                {teams.map(t => {
+                  const ts = getTeamStyle(t.name.toLowerCase());
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => { setForm(f => ({ ...f, team: t.name.toLowerCase() })); setTeamOpen(false); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.team === t.name.toLowerCase() ? 'bg-muted/40' : ''}`}
+                    >
+                      <span className={ts?.text || ''}>{t.name}</span>
+                      {form.team === t.name.toLowerCase() && <Check size={14} className="text-primary" />}
+                    </button>
+                  );
+                })}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Status</Label>
+            <Popover open={statusOpen} onOpenChange={setStatusOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                  <span className={
+                    form.status === 'active' ? 'text-emerald-400' :
+                    form.status === 'paused' ? 'text-amber-400' :
+                    'text-red-400'
+                  }>{STATUS_OPTIONS.find(s => s.value === form.status)?.label || 'Select status…'}</span>
+                  <ChevronDown size={14} className="text-muted-foreground/60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-1" align="start">
+                {STATUS_OPTIONS.map(s => (
+                  <button
+                    key={s.value}
+                    onClick={() => { setForm(f => ({ ...f, status: s.value })); setStatusOpen(false); }}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.status === s.value ? 'bg-muted/40' : ''}`}
+                  >
+                    <span className={
+                      s.value === 'active' ? 'text-emerald-400' :
+                      s.value === 'paused' ? 'text-amber-400' :
+                      'text-red-400'
+                    }>{s.label}</span>
+                    {form.status === s.value && <Check size={14} className="text-primary" />}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Services */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Services</Label>
+            <ServicesMultiSelect selected={form.services} onChange={v => setForm(f => ({ ...f, services: v }))} />
+          </div>
+
+          {/* Assigned Members */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assigned Members</Label>
+            <MembersMultiSelect
+              selected={form.assigned_members}
+              onChange={v => setForm(f => ({ ...f, assigned_members: v }))}
+              users={users}
+            />
+          </div>
+
+          {/* Monthly Retainer */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Monthly Retainer (£)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+              <Input
+                type="number"
+                value={form.monthly_retainer}
+                onChange={e => setForm(f => ({ ...f, monthly_retainer: e.target.value }))}
+                placeholder="0"
+                className="pl-7 text-[13px] h-9"
+              />
+            </div>
+          </div>
+
+          {/* Start Date */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Start Date</Label>
+            <Popover open={dateOpen} onOpenChange={setDateOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                  <span className={form.signup_date ? 'text-foreground' : 'text-muted-foreground/40'}>
+                    {form.signup_date ? format(new Date(form.signup_date), 'dd/MM/yyyy') : 'Select date…'}
+                  </span>
+                  <CalendarIcon size={14} className="text-muted-foreground/60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={form.signup_date ? new Date(form.signup_date) : undefined}
+                  onSelect={date => {
+                    if (date) { setForm(f => ({ ...f, signup_date: date.toISOString().split('T')[0] })); setDateOpen(false); }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Notes</Label>
+            <Textarea
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Any notes about this client…"
+              className="text-[13px] min-h-[80px] resize-none"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border/20 flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !form.name.trim()} className="text-[13px] h-8">
+            {saving ? 'Saving…' : editClient ? 'Save changes' : 'Create Client'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/* ── Main page ─────────────────────────────────────────────────────────────── */
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
   const [searchQuery, setSearchQuery] = usePersistedState('clients-search', '');
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('clients-filterTeam', []);
   const [filterStatus, setFilterStatus] = usePersistedState<string[]>('clients-filterStatus', []);
   const [filterService, setFilterService] = usePersistedState<string[]>('clients-filterService', []);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Sheet state
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
+
+  const { users } = useUsers();
 
   const fetchClients = useCallback(async () => {
     try {
@@ -242,6 +614,13 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
+  useEffect(() => {
+    fetch('/api/teams')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setTeams(data))
+      .catch(() => {});
+  }, []);
+
   const filteredClients = clients.filter(client => {
     if (searchQuery && !client.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterTeam.length > 0 && !filterTeam.includes(client.team)) return false;
@@ -252,69 +631,32 @@ export default function ClientsPage() {
 
   const hasFilters = filterTeam.length > 0 || filterStatus.length > 0 || filterService.length > 0 || searchQuery !== '';
 
-  // New client form state
-  const [showNewClient, setShowNewClient] = useState(false);
-  const [newClientName, setNewClientName] = useState('');
-  const [newClientTeam, setNewClientTeam] = useState('synergy');
-  const [newClientRetainer, setNewClientRetainer] = useState('');
-  const [newClientServices, setNewClientServices] = useState<string[]>([]);
-  const [newClientSignupDate, setNewClientSignupDate] = useState('');
-  const [newClientContactName, setNewClientContactName] = useState('');
-  const [newClientContactEmail, setNewClientContactEmail] = useState('');
-  const [newClientContactPhone, setNewClientContactPhone] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-
-  const resetForm = () => {
-    setNewClientName('');
-    setNewClientTeam('synergy');
-    setNewClientRetainer('');
-    setNewClientServices([]);
-    setNewClientSignupDate('');
-    setNewClientContactName('');
-    setNewClientContactEmail('');
-    setNewClientContactPhone('');
-    setShowNewClient(false);
+  const openNewClient = () => {
+    setEditingClient(null);
+    setSheetOpen(true);
   };
 
-  const createClient = async () => {
-    if (!newClientName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newClientName.trim(),
-          team: newClientTeam,
-          status: 'active',
-          services: newClientServices,
-          monthly_retainer: newClientRetainer ? parseFloat(newClientRetainer) : 0,
-          assigned_members: [],
-          signup_date: newClientSignupDate || new Date().toISOString().split('T')[0],
-          contact_name: newClientContactName.trim() || null,
-          contact_email: newClientContactEmail.trim() || null,
-          contact_phone: newClientContactPhone.trim() || null,
-        }),
-      });
-      if (!res.ok) { toast.error('Failed to create client'); return; }
-      toast.success(newClientName + ' added to clients');
-      resetForm();
-      fetchClients();
-    } catch { toast.error('Failed to create client'); }
-    finally { setCreating(false); }
+  const openEditClient = (client: ClientRow) => {
+    setEditingClient(client);
+    setSheetOpen(true);
   };
+
+  // Dynamic team filter options
+  const teamFilterOptions = teams.map(t => {
+    const ts = getTeamStyle(t.name.toLowerCase());
+    return { value: t.name.toLowerCase(), label: t.name, dot: ts?.color };
+  });
 
   // Keyboard shortcuts
   const PAGE_SHORTCUTS = [
     { key: 'N', description: 'New client' },
-    { key: 'Esc', description: 'Close form' },
+    { key: 'Esc', description: 'Close sheet' },
     { key: '?', description: 'Show shortcuts' },
   ];
 
   useKeyboardShortcuts([
-    { key: 'n', description: 'New client', action: () => { if (!showNewClient) setShowNewClient(true); } },
-    { key: 'Escape', description: 'Close form', action: () => { if (showNewClient) resetForm(); setShowShortcuts(false); }, skipInInput: false },
+    { key: 'n', description: 'New client', action: () => { if (!sheetOpen) openNewClient(); } },
+    { key: 'Escape', description: 'Close sheet', action: () => { setSheetOpen(false); setShowShortcuts(false); }, skipInInput: false },
     { key: '?', description: 'Show shortcuts', action: () => setShowShortcuts(v => !v) },
   ]);
 
@@ -340,11 +682,7 @@ export default function ClientsPage() {
         <MultiFilterPopover
           label="Team"
           selected={filterTeam}
-          options={[
-            { value: 'synergy', label: 'Synergy', dot: TEAM_STYLES.synergy.color },
-            { value: 'ignite', label: 'Ignite', dot: TEAM_STYLES.ignite.color },
-            { value: 'alliance', label: 'Alliance', dot: TEAM_STYLES.alliance.color },
-          ]}
+          options={teamFilterOptions}
           onChange={setFilterTeam}
         />
 
@@ -377,138 +715,10 @@ export default function ClientsPage() {
         )}
 
         <div className="flex-1" />
-        <Button size="sm" onClick={() => setShowNewClient(true)}>
+        <Button size="sm" onClick={openNewClient}>
           <Plus className="h-4 w-4 mr-1" /> New Client
         </Button>
       </div>
-
-      {/* New client form */}
-      {showNewClient && (
-        <div className="mb-4 p-5 rounded-lg border border-primary/30 bg-card space-y-4">
-          <p className="text-[15px] font-semibold">New Client</p>
-
-          {/* Row 1: Company + Team */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Company Name *</label>
-              <input
-                autoFocus
-                value={newClientName}
-                onChange={e => setNewClientName(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Escape') resetForm(); }}
-                placeholder="e.g. Acme Ltd"
-                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Team</label>
-              <div className="flex gap-1.5">
-                {Object.entries(TEAM_STYLES).map(([key, style]) => (
-                  <button
-                    key={key}
-                    onClick={() => setNewClientTeam(key)}
-                    className={`flex-1 h-8 rounded-lg text-[13px] font-medium border transition-colors duration-150 flex items-center justify-center gap-1.5 ${
-                      newClientTeam === key
-                        ? `${style.bg} ${style.text} border-current`
-                        : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/30'
-                    }`}
-                  >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
-                    {style.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Contact details */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Contact Name</label>
-              <input
-                value={newClientContactName}
-                onChange={e => setNewClientContactName(e.target.value)}
-                placeholder="e.g. John Smith"
-                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Email</label>
-              <input
-                value={newClientContactEmail}
-                onChange={e => setNewClientContactEmail(e.target.value)}
-                placeholder="john@company.com"
-                type="email"
-                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Phone</label>
-              <input
-                value={newClientContactPhone}
-                onChange={e => setNewClientContactPhone(e.target.value)}
-                placeholder="07xxx xxxxxx"
-                type="tel"
-                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-              />
-            </div>
-          </div>
-
-          {/* Row 3: Retainer + Start Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Monthly Retainer</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-                <input
-                  value={newClientRetainer}
-                  onChange={e => setNewClientRetainer(e.target.value)}
-                  placeholder="0"
-                  type="number"
-                  className="w-full h-8 pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Start Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none hover:border-primary/50 transition-colors duration-150 flex items-center justify-between text-left">
-                    <span className={newClientSignupDate ? 'text-foreground' : 'text-muted-foreground/40'}>
-                      {newClientSignupDate ? format(new Date(newClientSignupDate), 'dd/MM/yyyy') : 'Select date...'}
-                    </span>
-                    <CalendarIcon size={14} className="text-muted-foreground/40" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={newClientSignupDate ? new Date(newClientSignupDate) : undefined}
-                    onSelect={(date) => { if (date) setNewClientSignupDate(date.toISOString().split('T')[0]); }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          {/* Row 4: Services */}
-          <div>
-            <label className="text-[11px] font-medium text-muted-foreground/60 mb-1.5 block">Services</label>
-            <ServicesMultiSelect selected={newClientServices} onChange={setNewClientServices} />
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" onClick={createClient} disabled={creating || !newClientName.trim()}>
-              {creating ? 'Creating...' : 'Create Client'}
-            </Button>
-            <button onClick={resetForm} className="h-8 px-3 text-[13px] text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-1">
-              <X size={14} /> Cancel
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Client Grid — compact cards */}
       {loading ? (
@@ -524,14 +734,14 @@ export default function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filteredClients.map((client) => {
-            const teamStyle = TEAM_STYLES[client.team as keyof typeof TEAM_STYLES];
+            const teamStyle = getTeamStyle(client.team);
             const tenure = monthsActive(client.created_at);
 
             return (
-              <Link
+              <div
                 key={client.id}
-                href={`/clients/${client.id}`}
-                className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150"
+                onClick={() => openEditClient(client)}
+                className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
@@ -549,10 +759,7 @@ export default function ClientsPage() {
                 <div className="flex items-center gap-2 mb-2">
                   {teamStyle && (
                     <>
-                      <span
-                        className="h-1.5 w-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: teamStyle.color }}
-                      />
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} />
                       <span className="text-[11px] text-muted-foreground">{teamStyle.label}</span>
                       <span className="text-[11px] text-muted-foreground/40">·</span>
                     </>
@@ -578,41 +785,20 @@ export default function ClientsPage() {
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <TooltipProvider delayDuration={200}>
-                  <div className="flex -space-x-1.5">
-                    {(client.assigned_members || []).slice(0, 3).map((memberId) => {
-                      const member = TEAM_MEMBERS.find(m => m.id === memberId);
-                      if (!member) return null;
-                      return (
-                        <Tooltip key={memberId}>
-                          <TooltipTrigger asChild>
-                            <div
-                              className="w-5 h-5 rounded-full bg-primary/20 border-[1.5px] border-card flex items-center justify-center"
-                            >
-                              <span className="text-[8px] leading-none font-medium text-primary">{member.name.charAt(0)}</span>
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom" className="text-xs">
-                            <p>{member.name}</p>
-                            <p className="text-muted-foreground">{member.role}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      );
-                    })}
-                    {(client.assigned_members || []).length > 3 && (
-                      <div className="w-5 h-5 rounded-full bg-muted/40 border-[1.5px] border-card flex items-center justify-center">
-                        <span className="text-[8px] leading-none font-medium text-muted-foreground">+{client.assigned_members.length - 3}</span>
-                      </div>
+                  <div className="flex items-center gap-1.5">
+                    {teamStyle && (
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium`}
+                        style={{ backgroundColor: `${teamStyle.color}22`, color: teamStyle.color }}>
+                        {teamStyle.label}
+                      </span>
                     )}
                   </div>
-                  </TooltipProvider>
-                  {/* Tenure badge */}
                   <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
                     <Clock size={10} />
                     {tenure === 1 ? '1 month' : `${tenure} months`}
                   </div>
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>
@@ -625,6 +811,16 @@ export default function ClientsPage() {
           <p className="text-[13px] text-muted-foreground/60 mt-1">Try adjusting your filters</p>
         </div>
       )}
+
+      {/* Client Sheet */}
+      <ClientSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        editClient={editingClient}
+        teams={teams}
+        users={users}
+        onSaved={fetchClients}
+      />
 
       {/* Shortcuts Dialog */}
       <ShortcutsDialog

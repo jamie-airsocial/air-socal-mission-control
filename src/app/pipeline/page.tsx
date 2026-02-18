@@ -5,6 +5,7 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-p
 import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { useUsers } from '@/hooks/use-users';
+// (date-fns format not needed in pipeline)
 import { DatePicker } from '@/components/ui/date-picker';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -66,6 +75,11 @@ export default function PipelinePage() {
   // Filters
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
 
+  // Prospect Sheet state
+  const [prospectSheetOpen, setProspectSheetOpen] = useState(false);
+  const [prospectSheetMode, setProspectSheetMode] = useState<'new' | 'edit'>('new');
+  const { users } = useUsers();
+
   const [formName, setFormName] = useState('');
   const [formContactName, setFormContactName] = useState('');
   const [formContactEmail, setFormContactEmail] = useState('');
@@ -74,6 +88,8 @@ export default function PipelinePage() {
   const [formService, setFormService] = useState('');
   const [formSource, setFormSource] = useState('');
   const [formStage, setFormStage] = useState('lead');
+  const [formAssignee, setFormAssignee] = useState('');
+  const [formNotes, setFormNotes] = useState('');
   const [creating, setCreating] = useState(false);
   const [formServiceOpen, setFormServiceOpen] = useState(false);
   const [formTeamOpen, setFormTeamOpen] = useState(false);
@@ -110,6 +126,15 @@ export default function PipelinePage() {
     setFormName(''); setFormContactName('');
     setFormContactEmail(''); setFormContactPhone(''); setFormValue('');
     setFormService(''); setFormSource(''); setFormStage('lead');
+    setFormAssignee(''); setFormNotes('');
+  };
+
+  const openNewProspect = (stage?: string) => {
+    resetForm();
+    if (stage) setFormStage(stage);
+    setProspectSheetMode('new');
+    setProspectSheetOpen(true);
+    setShowNewForm(false);
   };
 
   const createProspect = async () => {
@@ -128,12 +153,15 @@ export default function PipelinePage() {
           service: formService || null,
           source: formSource.trim() || null,
           stage: formStage,
+          assignee: formAssignee || null,
+          notes: formNotes.trim() || null,
         }),
       });
       if (!res.ok) { toast.error('Failed to create prospect'); return; }
       toast.success('Prospect added to pipeline');
       resetForm();
       setShowNewForm(false);
+      setProspectSheetOpen(false);
       fetchProspects();
     } catch { toast.error('Failed to create prospect'); }
     finally { setCreating(false); }
@@ -252,8 +280,8 @@ export default function PipelinePage() {
   ];
 
   useKeyboardShortcuts([
-    { key: 'n', description: 'New prospect', action: () => { if (!showNewForm) setShowNewForm(true); } },
-    { key: 'Escape', description: 'Close', action: () => { setShowNewForm(false); setEditingProspect(null); setShowShortcuts(false); resetForm(); }, skipInInput: false },
+    { key: 'n', description: 'New prospect', action: () => { if (!prospectSheetOpen) openNewProspect(); } },
+    { key: 'Escape', description: 'Close', action: () => { setShowNewForm(false); setProspectSheetOpen(false); setEditingProspect(null); setShowShortcuts(false); resetForm(); }, skipInInput: false },
     { key: '1', description: 'Pipeline view', action: () => setViewMode('pipeline') },
     { key: '2', description: 'Table view', action: () => setViewMode('table') },
     { key: '3', description: 'Stats view', action: () => setViewMode('stats') },
@@ -347,98 +375,141 @@ export default function PipelinePage() {
         </div>
 
         <div className="flex-1" />
-        <Button size="sm" onClick={() => setShowNewForm(true)}>
+        <Button size="sm" onClick={() => openNewProspect()}>
           <Plus className="h-4 w-4 mr-1" /> New Prospect
         </Button>
       </div>
 
-      {/* New Prospect Form */}
-      {showNewForm && (
-        <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-card">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[13px] font-semibold">New Prospect</h3>
-            <button onClick={() => { setShowNewForm(false); resetForm(); }} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
-              <X size={16} />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="Company name *" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
-            <input value={formContactName} onChange={e => setFormContactName(e.target.value)} placeholder="Contact name" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
-            <input value={formContactEmail} onChange={e => setFormContactEmail(e.target.value)} placeholder="Contact email" type="email" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
-            <input value={formContactPhone} onChange={e => setFormContactPhone(e.target.value)} placeholder="Contact phone" type="tel" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-              <input value={formValue} onChange={e => setFormValue(e.target.value)} placeholder="Deal value" type="number" className="h-8 w-full pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
+      {/* New Prospect Sheet */}
+      <Sheet open={prospectSheetOpen && prospectSheetMode === 'new'} onOpenChange={v => { if (!v) { setProspectSheetOpen(false); resetForm(); } }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+          <SheetHeader className="px-6 py-5 border-b border-border/20">
+            <SheetTitle className="text-[15px]">New Prospect</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            {/* Company Name */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Company Name *</Label>
+              <Input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Acme Ltd" className="text-[13px] h-9" />
             </div>
-            <Popover open={formServiceOpen} onOpenChange={setFormServiceOpen}>
-              <PopoverTrigger asChild>
-                <button className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg flex items-center gap-1.5 hover:border-primary/50 transition-colors duration-150 w-full">
-                  {formService && SERVICE_STYLES[formService] ? (
-                    <>
-                      <ServiceIcon serviceKey={formService} size={12} className="shrink-0" />
-                      <span className="flex-1 text-left">{SERVICE_STYLES[formService].label}</span>
-                    </>
-                  ) : (
-                    <span className="flex-1 text-left text-muted-foreground/60">Service...</span>
-                  )}
-                  <ChevronDown size={12} className="text-muted-foreground/40 shrink-0" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-52 p-1" align="start">
-                {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                  <button
-                    key={key}
-                    onClick={() => { setFormService(key); setFormServiceOpen(false); }}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
-                      formService === key ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-                    }`}
-                  >
-                    <ServiceIcon serviceKey={key} size={12} className="shrink-0" />
-                    <span className="flex-1 text-left">{s.label}</span>
-                    {formService === key && <Check size={12} className="shrink-0" />}
+            {/* Contact Name */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Name</Label>
+              <Input value={formContactName} onChange={e => setFormContactName(e.target.value)} placeholder="Jane Smith" className="text-[13px] h-9" />
+            </div>
+            {/* Contact Email */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Email</Label>
+              <Input type="email" value={formContactEmail} onChange={e => setFormContactEmail(e.target.value)} placeholder="jane@company.com" className="text-[13px] h-9" />
+            </div>
+            {/* Contact Phone */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Phone</Label>
+              <Input type="tel" value={formContactPhone} onChange={e => setFormContactPhone(e.target.value)} placeholder="07xxx xxxxxx" className="text-[13px] h-9" />
+            </div>
+            {/* Value */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+                <Input type="number" value={formValue} onChange={e => setFormValue(e.target.value)} placeholder="0" className="pl-7 text-[13px] h-9" />
+              </div>
+            </div>
+            {/* Service */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Service</Label>
+              <Popover open={formServiceOpen} onOpenChange={setFormServiceOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
+                    {formService && SERVICE_STYLES[formService] ? (
+                      <><ServiceIcon serviceKey={formService} size={12} /><span className="flex-1 text-left">{SERVICE_STYLES[formService].label}</span></>
+                    ) : (<span className="flex-1 text-left text-muted-foreground/40">Select service…</span>)}
+                    <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
                   </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-52 p-1" align="start">
+                  {Object.entries(SERVICE_STYLES).map(([key, s]) => (
+                    <button key={key} onClick={() => { setFormService(key); setFormServiceOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${formService === key ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'}`}>
+                      <ServiceIcon serviceKey={key} size={12} />
+                      <span className="flex-1 text-left">{s.label}</span>
+                      {formService === key && <Check size={12} />}
+                    </button>
                 ))}
                 {formService && (
                   <button onClick={() => { setFormService(''); setFormServiceOpen(false); }} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
                 )}
               </PopoverContent>
             </Popover>
-            <input value={formSource} onChange={e => setFormSource(e.target.value)} placeholder="Source (e.g. Referral, LinkedIn)" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
-          </div>
-          <div className="flex items-center gap-3 mt-3">
-            <Popover open={formStageOpen} onOpenChange={setFormStageOpen}>
-              <PopoverTrigger asChild>
-                <button className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg flex items-center gap-1.5 hover:border-primary/50 transition-colors duration-150">
-                  {(() => { const stage = PIPELINE_STAGES.find(s => s.id === formStage); return stage ? (
-                    <><span className={`w-2 h-2 rounded-full shrink-0 ${stage.dotClass}`} /><span>{stage.label}</span></>
-                  ) : <span className="text-muted-foreground/60">Stage...</span>; })()}
-                  <ChevronDown size={12} className="text-muted-foreground/40 shrink-0" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-44 p-1" align="start">
-                {PIPELINE_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => { setFormStage(s.id); setFormStageOpen(false); }}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
-                      formStage === s.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${s.dotClass}`} />
-                    <span className="flex-1 text-left">{s.label}</span>
-                    {formStage === s.id && <Check size={12} className="shrink-0" />}
+            </div>
+            {/* Source */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Source</Label>
+              <Input value={formSource} onChange={e => setFormSource(e.target.value)} placeholder="e.g. Referral, LinkedIn" className="text-[13px] h-9" />
+            </div>
+            {/* Stage */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Stage</Label>
+              <Popover open={formStageOpen} onOpenChange={setFormStageOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
+                    {(() => { const stage = PIPELINE_STAGES.find(s => s.id === formStage); return stage ? (
+                      <><span className={`w-2 h-2 rounded-full shrink-0 ${stage.dotClass}`} /><span className="flex-1 text-left">{stage.label}</span></>
+                    ) : <span className="flex-1 text-left text-muted-foreground/40">Select stage…</span>; })()}
+                    <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
                   </button>
-                ))}
-              </PopoverContent>
-            </Popover>
-            <div className="flex-1" />
-            <Button size="sm" variant="ghost" onClick={() => { setShowNewForm(false); resetForm(); }}>Cancel</Button>
-            <Button size="sm" onClick={createProspect} disabled={creating || !formName.trim()}>
-              {creating ? 'Adding...' : 'Add Prospect'}
+                </PopoverTrigger>
+                <PopoverContent className="w-44 p-1" align="start">
+                  {PIPELINE_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => (
+                    <button key={s.id} onClick={() => { setFormStage(s.id); setFormStageOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${formStage === s.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'}`}>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${s.dotClass}`} />
+                      <span className="flex-1 text-left">{s.label}</span>
+                      {formStage === s.id && <Check size={12} />}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
+            {/* Assignee */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assignee</Label>
+              <Popover open={formTeamOpen} onOpenChange={setFormTeamOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                    {formAssignee ? <span>{formAssignee}</span> : <span className="text-muted-foreground/40">Select assignee…</span>}
+                    <ChevronDown size={14} className="text-muted-foreground/60" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-1 max-h-56 overflow-y-auto" align="start">
+                  {users.filter(u => u.is_active).map(u => (
+                    <button key={u.id} onClick={() => { setFormAssignee(u.full_name); setFormTeamOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${formAssignee === u.full_name ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'}`}>
+                      <span className="flex-1 text-left">{u.full_name}</span>
+                      {formAssignee === u.full_name && <Check size={12} />}
+                    </button>
+                  ))}
+                  {formAssignee && (
+                    <button onClick={() => setFormAssignee('')} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground text-left">Clear</button>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+            {/* Notes */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Notes</Label>
+              <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Any notes…" className="text-[13px] min-h-[80px] resize-none" />
+            </div>
+          </div>
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-border/20 flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => { setProspectSheetOpen(false); resetForm(); }} className="text-[13px] h-8 border-border/20">Cancel</Button>
+            <Button onClick={createProspect} disabled={creating || !formName.trim()} className="text-[13px] h-8">
+              {creating ? 'Adding…' : 'Add Prospect'}
             </Button>
           </div>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
 
       {/* Loss Reason Modal */}
       {lossModalProspect && (
@@ -486,7 +557,7 @@ export default function PipelinePage() {
           ))}
         </div>
       ) : viewMode === 'pipeline' ? (
-        <PipelineView prospects={filtered} onDragEnd={onDragEnd} onUpdate={updateProspect} onDelete={deleteProspect} setShowNewForm={setShowNewForm} setFormStage={setFormStage} onEdit={setEditingProspect} />
+        <PipelineView prospects={filtered} onDragEnd={onDragEnd} onUpdate={updateProspect} onDelete={deleteProspect} openNewProspect={openNewProspect} onEdit={setEditingProspect} />
       ) : viewMode === 'table' ? (
         <TableView prospects={filtered} onUpdate={updateProspect} onDelete={deleteProspect} onEdit={setEditingProspect} />
       ) : (
@@ -531,13 +602,12 @@ export default function PipelinePage() {
 }
 
 // ── Pipeline (Kanban) View ───────────────────────────────────────────────────
-function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, setShowNewForm, setFormStage, onEdit }: {
+function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspect, onEdit }: {
   prospects: Prospect[];
   onDragEnd: (result: DropResult) => void;
   onUpdate: (id: string, updates: Partial<Prospect>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
-  setShowNewForm: (v: boolean) => void;
-  setFormStage: (s: string) => void;
+  openNewProspect: (stage?: string) => void;
   onEdit: (p: Prospect) => void;
 }) {
   return (
@@ -613,7 +683,7 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, setShowNewForm
                     ))}
                     {provided.placeholder}
                     <button
-                      onClick={() => { setFormStage(stage.id); setShowNewForm(true); }}
+                      onClick={() => openNewProspect(stage.id)}
                       className="w-full mt-1 p-2 rounded-lg border border-dashed border-border/20 text-[13px] text-muted-foreground/40 hover:text-muted-foreground/60 hover:border-primary/30 hover:bg-primary/5 transition-colors duration-150 flex items-center justify-center gap-1"
                     >
                       <Plus size={12} /> Add prospect
@@ -800,22 +870,14 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete, onConvert }: {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/50 animate-in fade-in duration-150" onClick={onClose} />
-
-      {/* Sheet */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-card border-l border-border/20 shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border/10">
-          <h2 className="text-lg font-semibold truncate">{prospect.name}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
-            <X size={18} />
-          </button>
-        </div>
+    <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+        <SheetHeader className="px-6 py-5 border-b border-border/20">
+          <SheetTitle className="text-[15px] truncate">{prospect.name}</SheetTitle>
+        </SheetHeader>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Stage */}
           <div>
             <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1.5 block">Stage</label>
@@ -949,7 +1011,7 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete, onConvert }: {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border/10 flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-border/20 flex items-center justify-between">
           <div className="text-[11px] text-muted-foreground/40">
             Created {new Date(prospect.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
           </div>
@@ -963,8 +1025,8 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete, onConvert }: {
             <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
           )}
         </div>
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }
 
