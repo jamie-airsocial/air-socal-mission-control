@@ -12,7 +12,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { name, members } = body;
+  const { name, members, color } = body;
 
   // Fetch current team BEFORE any changes
   const { data: currentTeam, error: fetchErr } = await supabaseAdmin
@@ -34,9 +34,11 @@ export async function PATCH(
     const trimmed = name.trim();
     newSlug = nameToSlug(trimmed);
 
+    const updateData: Record<string, string> = { name: trimmed, updated_at: now };
+    if (color) updateData.color = color;
     const { error } = await supabaseAdmin
       .from('teams')
-      .update({ name: trimmed, updated_at: now })
+      .update(updateData)
       .eq('id', id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -49,6 +51,11 @@ export async function PATCH(
         supabaseAdmin.from('prospects').update({ team: newSlug, updated_at: now }).eq('team', oldSlug),
       ]);
     }
+  }
+
+  // ── Color-only update (when name isn't changing) ──────────────────────────
+  if (color && name === undefined) {
+    await supabaseAdmin.from('teams').update({ color, updated_at: now }).eq('id', id);
   }
 
   // ── 2. Update membership if members array provided ────────────────────────

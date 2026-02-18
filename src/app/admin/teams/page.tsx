@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ASSIGNEE_COLORS, getTeamStyle } from '@/lib/constants';
+import { ASSIGNEE_COLORS } from '@/lib/constants';
 import type { AppUser } from '@/lib/auth-types';
 
 interface TeamMember {
@@ -37,10 +37,26 @@ interface TeamMember {
 interface Team {
   id: string;
   name: string;
+  color?: string;
   created_at: string;
   updated_at: string;
   members?: TeamMember[];
 }
+
+const PRESET_COLORS = [
+  { name: 'Blue', hex: '#3b82f6' },
+  { name: 'Orange', hex: '#f97316' },
+  { name: 'Purple', hex: '#a855f7' },
+  { name: 'Green', hex: '#22c55e' },
+  { name: 'Rose', hex: '#f43f5e' },
+  { name: 'Cyan', hex: '#06b6d4' },
+  { name: 'Amber', hex: '#f59e0b' },
+  { name: 'Indigo', hex: '#6366f1' },
+  { name: 'Teal', hex: '#14b8a6' },
+  { name: 'Pink', hex: '#ec4899' },
+  { name: 'Lime', hex: '#84cc16' },
+  { name: 'Slate', hex: '#64748b' },
+];
 
 /** Convert team display name to slug used in app_users.team */
 function teamSlug(name: string): string {
@@ -57,6 +73,8 @@ export default function AdminTeamsPage() {
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [teamName, setTeamName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [teamColor, setTeamColor] = useState('#3b82f6');
+  const [showCustomColor, setShowCustomColor] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Delete dialog
@@ -96,13 +114,16 @@ export default function AdminTeamsPage() {
     setEditingTeam(null);
     setTeamName('');
     setSelectedMembers([]);
+    setTeamColor('#3b82f6');
+    setShowCustomColor(false);
     setDialogOpen(true);
   };
 
   const openEdit = (team: Team) => {
     setEditingTeam(team);
     setTeamName(team.name);
-    // Get current member IDs using the enriched data
+    setTeamColor(team.color || '#3b82f6');
+    setShowCustomColor(!PRESET_COLORS.some(p => p.hex === (team.color || '#3b82f6')));
     const members = getMembersForTeam(team).map(u => u.id);
     setSelectedMembers(members);
     setDialogOpen(true);
@@ -122,7 +143,7 @@ export default function AdminTeamsPage() {
         const res = await fetch(`/api/teams/${editingTeam.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: teamName.trim(), members: selectedMembers }),
+          body: JSON.stringify({ name: teamName.trim(), members: selectedMembers, color: teamColor }),
         });
         if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         toast.success('Team updated', { description: `${teamName} has been updated.` });
@@ -130,7 +151,7 @@ export default function AdminTeamsPage() {
         const res = await fetch('/api/teams', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: teamName.trim() }),
+          body: JSON.stringify({ name: teamName.trim(), color: teamColor }),
         });
         if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
         const newTeam = await res.json();
@@ -191,18 +212,18 @@ export default function AdminTeamsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {teams.map(team => {
             const members = getMembersForTeam(team);
-            const slug = teamSlug(team.name);
-            const style = getTeamStyle(slug);
+            const color = team.color || '#3b82f6';
             return (
               <div
                 key={team.id}
                 className="bg-card border border-border/20 rounded-lg p-4 hover:border-border/40 transition-colors"
-                style={style ? { borderTopColor: style.color, borderTopWidth: 2 } : undefined}
+                style={{ borderTopColor: color, borderTopWidth: 2 }}
               >
                 {/* Team header */}
                 <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className={`text-[15px] font-semibold ${style?.text || 'text-foreground'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <h3 className="text-[15px] font-semibold" style={{ color }}>
                       {team.name}
                     </h3>
                     <p className="text-[12px] text-muted-foreground/60 mt-0.5">
@@ -231,7 +252,7 @@ export default function AdminTeamsPage() {
                 {members.length > 0 ? (
                   <div className="space-y-2">
                     {members.map(u => {
-                      const colorClass = ASSIGNEE_COLORS[u.full_name] || (style ? `bg-[${style.color}]/20 text-[${style.color}]` : 'bg-primary/20 text-primary');
+                      const colorClass = ASSIGNEE_COLORS[u.full_name] || 'bg-primary/20 text-primary';
                       const initials = u.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
                       return (
                         <div key={u.id} className="flex items-center gap-2.5 py-1.5 px-2 -mx-2 rounded-md hover:bg-muted/30 transition-colors">
@@ -282,6 +303,45 @@ export default function AdminTeamsPage() {
                 <p className="text-[11px] text-amber-400/80">
                   ⚠ Renaming will update all team members to the new slug.
                 </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Team colour</Label>
+              <div className="flex flex-wrap gap-2">
+                {PRESET_COLORS.map(preset => (
+                  <button
+                    key={preset.hex}
+                    onClick={() => { setTeamColor(preset.hex); setShowCustomColor(false); }}
+                    className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 ${
+                      teamColor === preset.hex && !showCustomColor ? 'border-foreground scale-110' : 'border-transparent'
+                    }`}
+                    style={{ backgroundColor: preset.hex }}
+                    title={preset.name}
+                  />
+                ))}
+                <button
+                  onClick={() => setShowCustomColor(!showCustomColor)}
+                  className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 flex items-center justify-center text-[10px] font-medium ${
+                    showCustomColor ? 'border-foreground' : 'border-border/40'
+                  }`}
+                  style={showCustomColor ? { backgroundColor: teamColor } : undefined}
+                  title="Custom hex colour"
+                >
+                  {!showCustomColor && '#'}
+                </button>
+              </div>
+              {showCustomColor && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-8 h-8 rounded-lg shrink-0 border border-border/20" style={{ backgroundColor: teamColor }} />
+                  <Input
+                    value={teamColor}
+                    onChange={e => setTeamColor(e.target.value)}
+                    placeholder="#3b82f6"
+                    className="h-8 text-[13px] bg-secondary border-border/20 font-mono w-28"
+                    maxLength={7}
+                  />
+                </div>
               )}
             </div>
 

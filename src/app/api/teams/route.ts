@@ -26,15 +26,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name } = body;
+  const { name, color } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Team name is required' }, { status: 400 });
   }
 
+  const insertData: Record<string, string> = { name: name.trim() };
+  if (color) insertData.color = color;
+
   const { data, error } = await supabaseAdmin
     .from('teams')
-    .insert({ name: name.trim() })
+    .insert(insertData)
     .select()
     .single();
 
