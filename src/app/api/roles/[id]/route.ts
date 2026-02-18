@@ -9,9 +9,13 @@ export async function PATCH(
   const body = await request.json();
   const { name, permissions } = body;
 
+  const updates: Record<string, unknown> = {};
+  if (name !== undefined) updates.name = name;
+  if (permissions !== undefined) updates.permissions = permissions;
+
   const { data, error } = await supabaseAdmin
     .from('roles')
-    .update({ name, permissions })
+    .update(updates)
     .eq('id', id)
     .select()
     .single();
