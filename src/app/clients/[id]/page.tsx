@@ -220,6 +220,13 @@ function LineItemDialog({
 }) {
   const [form, setForm] = useState<LineItemFormData>(emptyLineItem);
   const [saving, setSaving] = useState(false);
+  const [services, setServices] = useState<{ id: string; label: string }[]>([]);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const [serviceSearch, setServiceSearch] = useState('');
+
+  useEffect(() => {
+    fetch('/api/services').then(r => r.json()).then(d => { if (Array.isArray(d)) setServices(d); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -232,6 +239,7 @@ function LineItemDialog({
         end_date: toISODateString(initialData.end_date),
         is_active: initialData.is_active,
       } : emptyLineItem);
+      setServiceSearch('');
     }
   }, [open, initialData]);
 
@@ -252,8 +260,60 @@ function LineItemDialog({
         <div className="space-y-4 py-2">
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">Service *</Label>
-            <Input value={form.service} onChange={e => setForm(f => ({ ...f, service: e.target.value }))}
-              placeholder="e.g. SEO, Paid Ads, Social Media" className="h-9 text-[13px] bg-secondary border-border/20" />
+            <Popover open={serviceOpen} onOpenChange={setServiceOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-secondary border border-border/20 rounded-md flex items-center justify-between hover:bg-muted/40 transition-colors">
+                  {form.service ? (services.find(s => s.id === form.service)?.label || form.service) : <span className="text-muted-foreground/40">Select service…</span>}
+                  <ChevronDown size={14} className="text-muted-foreground/40" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
+                <input
+                  value={serviceSearch}
+                  onChange={e => setServiceSearch(e.target.value)}
+                  placeholder="Search or create…"
+                  className="w-full px-2 py-1.5 text-[13px] bg-transparent border-b border-border/10 outline-none mb-1"
+                  autoFocus
+                />
+                <div className="max-h-[200px] overflow-y-auto">
+                  {services.filter(s => s.label.toLowerCase().includes(serviceSearch.toLowerCase())).map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => { setForm(f => ({ ...f, service: s.id })); setServiceOpen(false); setServiceSearch(''); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.service === s.id ? 'bg-muted/40' : ''}`}
+                    >
+                      <span className="flex items-center gap-2"><ServiceIcon serviceKey={s.id} size={12} /> {s.label}</span>
+                      {form.service === s.id && <Check size={14} className="text-primary" />}
+                    </button>
+                  ))}
+                  {serviceSearch.trim() && !services.some(s => s.label.toLowerCase() === serviceSearch.toLowerCase()) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const slug = serviceSearch.trim().toLowerCase().replace(/\s+/g, '-');
+                        const res = await fetch('/api/services', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: slug, label: serviceSearch.trim() }),
+                        });
+                        if (res.ok) {
+                          const newSvc = await res.json();
+                          setServices(prev => [...prev, newSvc]);
+                          setForm(f => ({ ...f, service: newSvc.id }));
+                          toast.success(`Service "${serviceSearch.trim()}" created`);
+                        } else { toast.error('Failed to create service'); }
+                        setServiceOpen(false);
+                        setServiceSearch('');
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-primary hover:bg-muted/60 transition-colors"
+                    >
+                      <Plus size={12} /> Create &ldquo;{serviceSearch.trim()}&rdquo;
+                    </button>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">Description</Label>
@@ -571,6 +631,9 @@ export default function ClientDetailPage() {
 
   const totalMonthlyValue = contractItems.filter(i => i.is_active && i.billing_type !== 'one-off').reduce((sum, i) => sum + (i.monthly_value || 0), 0);
 
+  // Derive active services from billing line items (not client.services)
+  const derivedServices = [...new Set(contractItems.filter(i => i.is_active).map(i => i.service).filter(Boolean))];
+
   return (
     <div className="animate-in fade-in duration-200">
       <button
@@ -619,16 +682,15 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
-        {(client.services || []).length > 0 && (
+        {derivedServices.length > 0 && (
           <div className="mb-4">
             <p className="text-[11px] text-muted-foreground/60 mb-2">Services</p>
             <div className="flex flex-wrap gap-2">
-              {client.services.map((service) => {
+              {derivedServices.map((service) => {
                 const s = SERVICE_STYLES[service];
-                if (!s) return null;
                 return (
-                  <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
-                    <ServiceIcon serviceKey={service} size={12} /> {s.label}
+                  <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s?.bg || 'bg-muted/20'} ${s?.text || 'text-muted-foreground'}`}>
+                    <ServiceIcon serviceKey={service} size={12} /> {s?.label || service}
                   </span>
                 );
               })}
@@ -713,16 +775,15 @@ export default function ClientDetailPage() {
           </div>
 
           {/* Services */}
-          {(client.services || []).length > 0 && (
+          {derivedServices.length > 0 && (
             <div>
               <h3 className="text-[13px] font-semibold mb-3">Services</h3>
               <div className="flex flex-wrap gap-2">
-                {client.services.map((service) => {
+                {derivedServices.map((service) => {
                   const s = SERVICE_STYLES[service];
-                  if (!s) return null;
                   return (
-                    <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
-                      <ServiceIcon serviceKey={service} size={12} /> {s.label}
+                    <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s?.bg || 'bg-muted/20'} ${s?.text || 'text-muted-foreground'}`}>
+                      <ServiceIcon serviceKey={service} size={12} /> {s?.label || service}
                     </span>
                   );
                 })}

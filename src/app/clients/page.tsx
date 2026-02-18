@@ -33,6 +33,7 @@ interface ClientRow {
   team: string;
   status: string;
   services: string[];
+  derived_services?: string[];
   monthly_retainer: number;
   calculated_retainer?: number;
   assigned_members: string[];
@@ -429,7 +430,7 @@ export default function ClientsPage() {
     if (searchQuery && !client.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterTeam.length > 0 && !filterTeam.includes(client.team)) return false;
     if (filterStatus.length > 0 && !filterStatus.includes(client.status)) return false;
-    if (filterService.length > 0 && !filterService.some(s => client.services?.includes(s))) return false;
+    if (filterService.length > 0 && !filterService.some(s => (client.derived_services || client.services || []).includes(s))) return false;
     return true;
   });
 
@@ -574,11 +575,16 @@ export default function ClientsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-1 mb-2">
-                  {(client.services || [])
-                    .filter(s => s !== 'account-management')
-                    .map((service) => {
+                  {(client.derived_services || client.services || [])
+                    .filter((s: string) => s !== 'account-management')
+                    .map((service: string) => {
                       const s = SERVICE_STYLES[service];
-                      if (!s) return null;
+                      if (!s) return (
+                        <span key={service} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/20 text-muted-foreground">
+                          <ServiceIcon serviceKey={service} size={10} />
+                          {service}
+                        </span>
+                      );
                       return (
                         <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
                           <ServiceIcon serviceKey={service} size={10} />

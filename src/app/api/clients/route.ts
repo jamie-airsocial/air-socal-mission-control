@@ -21,7 +21,9 @@ export async function GET() {
     });
     const recurring_total = activeItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
     const { contract_line_items: _, ...rest } = client;
-    return { ...rest, calculated_retainer: recurring_total, active_services: activeItems.map(i => i.billing_type !== 'one-off' ? i : null).filter(Boolean) };
+    // Derive services from active line items
+    const derived_services = [...new Set(activeItems.map((i) => (i as unknown as { service?: string }).service).filter(Boolean))];
+    return { ...rest, calculated_retainer: recurring_total, derived_services };
   });
 
   return NextResponse.json(enriched);
