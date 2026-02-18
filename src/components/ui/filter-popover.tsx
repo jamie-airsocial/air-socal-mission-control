@@ -48,7 +48,7 @@ export function FilterPopover({
               : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
           }`}
         >
-          {label}
+          {label}{hasActive && selected.length > 1 && ` (${selected.length})`}
           {hasActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
         </button>
       </PopoverTrigger>
