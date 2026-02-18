@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle } from '@/lib/constants';
+import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -642,11 +642,14 @@ export default function ClientDetailPage() {
               if (!groupTasks?.length) return null;
               const serviceStyle = view === 'service' && group !== 'none' ? SERVICE_STYLES[group] : null;
               const groupLabel = serviceStyle ? serviceStyle.label : view === 'service' ? 'No Service' : group;
-              const groupIcon = serviceStyle ? serviceStyle.icon : view === 'service' ? '📋' : '📅';
               return (
                 <div key={group}>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm">{groupIcon}</span>
+                    {view === 'service' && group !== 'none' ? (
+                      <ServiceIcon serviceKey={group} size={14} />
+                    ) : (
+                      <span className="text-sm">{view === 'service' ? '📋' : '📅'}</span>
+                    )}
                     <h3 className="text-[13px] font-semibold">{groupLabel}</h3>
                     <span className="text-[11px] text-muted-foreground/60">({groupTasks.length})</span>
                   </div>
@@ -664,7 +667,7 @@ export default function ClientDetailPage() {
                           <div className="flex-1 min-w-0">
                             <p className="text-[13px] font-medium truncate">{task.title}</p>
                             <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60">
-                              {task.assignee && <span>{task.assignee}</span>}
+                              {task.assignee && <span>{toDisplayName(task.assignee)}</span>}
                               {task.is_recurring && (
                                 <>
                                   <span>·</span>

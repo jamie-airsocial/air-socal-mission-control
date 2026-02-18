@@ -105,7 +105,7 @@ function BoardContent() {
 
   // Augment hasFilters/clearAll with service filter
   const hasAnyFilters = hasFilters || filterService.length > 0 || filterTeam.length > 0;
-  const clearAll = useCallback(() => { clearAllFilters(); setFilterService([]); }, [clearAllFilters]);
+  const clearAll = useCallback(() => { clearAllFilters(); setFilterService([]); setFilterTeam([]); }, [clearAllFilters]);
 
   // ── View switching ────────────────────────────────────────────────────────
   const handleViewChange = useCallback((newView: string) => {
