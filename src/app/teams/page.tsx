@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { getTeamStyle, SERVICE_STYLES, getAssigneeColor } from '@/lib/constants';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
-import { ChevronRight, Users } from 'lucide-react';
+import { ArrowUpDown, ChevronRight, Users } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -40,6 +40,51 @@ interface ContractLineItem {
 
 /** Services excluded from revenue breakdowns */
 const REVENUE_EXCLUDED_SERVICES = new Set(['account-management']);
+
+function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; contractRevenueByClient: Record<string, number> }) {
+  const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
+  const sorted = useMemo(() => {
+    return [...clients].sort((a, b) => {
+      if (sortBy === 'amount') {
+        return (contractRevenueByClient[b.id] || 0) - (contractRevenueByClient[a.id] || 0);
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [clients, contractRevenueByClient, sortBy]);
+
+  return (
+    <div>
+      <div className="flex items-center gap-1 mb-1">
+        <button
+          onClick={() => setSortBy(s => s === 'name' ? 'amount' : 'name')}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+        >
+          <ArrowUpDown size={10} /> Sort by {sortBy === 'name' ? 'amount' : 'name'}
+        </button>
+      </div>
+      <div className="space-y-1">
+        {sorted.map(client => {
+          const rev = contractRevenueByClient[client.id] || 0;
+          return (
+            <Link
+              key={client.id}
+              href={`/clients/${client.id}`}
+              className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-lg hover:bg-muted/40 transition-colors duration-150 group"
+            >
+              <span className="text-[13px] truncate">{client.name}</span>
+              <div className="flex items-center gap-1 shrink-0 ml-2">
+                <span className="text-[11px] text-muted-foreground/60">
+                  {rev > 0 ? `£${rev.toLocaleString()}/mo` : '—'}
+                </span>
+                <ChevronRight size={12} className="text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -249,27 +294,7 @@ export default function TeamsPage() {
                 {teamClients.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground/40">No active clients</p>
                 ) : (
-                  <div className="space-y-1">
-                    {teamClients.map(client => {
-                      const contractVal = contractRevenueByClient[client.id];
-                      const displayRevenue = contractVal !== undefined ? contractVal : (client.monthly_retainer || 0);
-                      return (
-                        <Link
-                          key={client.id}
-                          href={`/clients/${client.id}`}
-                          className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-lg hover:bg-muted/40 transition-colors duration-150 group"
-                        >
-                          <span className="text-[13px] truncate">{client.name}</span>
-                          <div className="flex items-center gap-1 shrink-0 ml-2">
-                            <span className="text-[11px] text-muted-foreground/60">
-                              {displayRevenue > 0 ? `£${displayRevenue.toLocaleString()}/mo` : '—'}
-                            </span>
-                            <ChevronRight size={12} className="text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </div>
+                  <ClientList clients={teamClients} contractRevenueByClient={contractRevenueByClient} />
                 )}
               </div>
             </div>
