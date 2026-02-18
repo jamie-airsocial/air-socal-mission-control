@@ -35,6 +35,7 @@ interface ContractLineItem {
   monthly_value: number;
   service: string;
   is_active: boolean;
+  billing_type: string;
 }
 
 /** Services excluded from revenue breakdowns */
@@ -75,7 +76,7 @@ export default function TeamsPage() {
   const contractRevenueByClient = useMemo(() => {
     const map: Record<string, number> = {};
     for (const item of contractItems) {
-      if (item.is_active) {
+      if (item.is_active && item.billing_type !== 'one-off') {
         map[item.client_id] = (map[item.client_id] || 0) + (item.monthly_value || 0);
       }
     }
@@ -85,21 +86,11 @@ export default function TeamsPage() {
   // Build contract revenue by service for a team's clients
   function calcRevenueByService(teamClients: Client[]): Record<string, number> {
     const totals: Record<string, number> = {};
-    // Use contract items if available, else fall back to monthly_retainer split
+    // Revenue from active recurring contract line items only
     for (const client of teamClients) {
-      const hasContractData = contractItems.some(i => i.client_id === client.id);
-      if (hasContractData) {
-        for (const item of contractItems.filter(i => i.client_id === client.id && i.is_active)) {
-          if (!REVENUE_EXCLUDED_SERVICES.has(item.service)) {
-            totals[item.service] = (totals[item.service] || 0) + (item.monthly_value || 0);
-          }
-        }
-      } else {
-        const billable = (client.services || []).filter(s => !REVENUE_EXCLUDED_SERVICES.has(s));
-        if (billable.length === 0) continue;
-        const perService = (client.monthly_retainer || 0) / billable.length;
-        for (const s of billable) {
-          totals[s] = (totals[s] || 0) + perService;
+      for (const item of contractItems.filter(i => i.client_id === client.id && i.is_active && i.billing_type !== 'one-off')) {
+        if (!REVENUE_EXCLUDED_SERVICES.has(item.service)) {
+          totals[item.service] = (totals[item.service] || 0) + (item.monthly_value || 0);
         }
       }
     }
@@ -128,10 +119,9 @@ export default function TeamsPage() {
     const teamClients = activeClients.filter(c => c.team === slug);
     const members = team.members || [];
 
-    // Revenue: prefer contract items, fall back to monthly_retainer
+    // Revenue: from active recurring contract line items only
     const revenue = teamClients.reduce((sum, c) => {
-      const contractVal = contractRevenueByClient[c.id];
-      return sum + (contractVal !== undefined ? contractVal : (c.monthly_retainer || 0));
+      return sum + (contractRevenueByClient[c.id] || 0);
     }, 0);
 
     const revenueByService = calcRevenueByService(teamClients);
