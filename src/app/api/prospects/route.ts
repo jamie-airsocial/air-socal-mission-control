@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
-export async function GET() {
-  const { data, error } = await supabaseAdmin
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const includeArchived = searchParams.get('archived') === 'true';
+
+  let query = supabaseAdmin
     .from('prospects')
     .select('*')
     .order('created_at', { ascending: false });
 
+  if (!includeArchived) {
+    query = query.or('archived.is.null,archived.eq.false');
+  }
+
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
