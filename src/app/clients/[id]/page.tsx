@@ -735,15 +735,7 @@ export default function ClientDetailPage() {
       {/* Tab: Tasks */}
       {activeTab === 'tasks' && (
         <div className="rounded-lg border border-border/20 bg-card p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={openNewTask}
-                className="h-7 px-2.5 text-[11px] font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-150 flex items-center gap-1"
-              >
-                <Plus size={12} /> New Task
-              </button>
-            </div>
+          <div className="flex items-center justify-end mb-4">
             <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
               {(['service', 'month'] as const).map(v => (
                 <button
@@ -986,36 +978,6 @@ export default function ClientDetailPage() {
               })()}
             </div>
           )}
-          {/* Contract Details */}
-          <div className="mt-6 pt-6 border-t border-border/10">
-            <h3 className="text-[13px] font-semibold mb-4">Contract Details</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <EditableField
-                label="Contract Start"
-                value={toISODateString(client.contract_start)}
-                onSave={v => patchClient({ contract_start: v || undefined })}
-                type="date"
-              />
-              <EditableField
-                label="Contract End"
-                value={toISODateString(client.contract_end)}
-                onSave={v => patchClient({ contract_end: v || undefined })}
-                type="date"
-              />
-              <EditableField
-                label="Renewal Date"
-                value={toISODateString(client.contract_renewal)}
-                onSave={v => patchClient({ contract_renewal: v || undefined })}
-                type="date"
-              />
-              <EditableField
-                label="Sign-up Date"
-                value={toISODateString(client.signup_date)}
-                onSave={v => patchClient({ signup_date: v || undefined })}
-                type="date"
-              />
-            </div>
-          </div>
         </div>
       )}
 
@@ -1052,6 +1014,37 @@ export default function ClientDetailPage() {
               onSave={v => patchClient({ lost_reason: v || undefined })}
               placeholder="Why was this client lost? (leave empty to remove)"
             />
+          </div>
+
+          {/* Contract Details */}
+          <div className="mt-5 pt-5 border-t border-border/10">
+            <h3 className="text-[13px] font-semibold mb-4">Contract Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <EditableField
+                label="Contract Start"
+                value={toISODateString(client.contract_start)}
+                onSave={v => patchClient({ contract_start: v || undefined })}
+                type="date"
+              />
+              <EditableField
+                label="Contract End"
+                value={toISODateString(client.contract_end)}
+                onSave={v => patchClient({ contract_end: v || undefined })}
+                type="date"
+              />
+              <EditableField
+                label="Renewal Date"
+                value={toISODateString(client.contract_renewal)}
+                onSave={v => patchClient({ contract_renewal: v || undefined })}
+                type="date"
+              />
+              <EditableField
+                label="Sign-up Date"
+                value={toISODateString(client.signup_date)}
+                onSave={v => patchClient({ signup_date: v || undefined })}
+                type="date"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -1091,33 +1084,39 @@ export default function ClientDetailPage() {
 
 function NotesEditor({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [draft, setDraft] = useState(value);
-  const [changed, setChanged] = useState(false);
-  const handleChange = (v: string) => { setDraft(v); setChanged(v !== value); };
+  const [saved, setSaved] = useState(false);
+  const changed = draft !== value;
+  const handleSave = () => { onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2000); };
   return (
     <div className="space-y-3">
       <textarea
         value={draft}
-        onChange={e => handleChange(e.target.value)}
+        onChange={e => { setDraft(e.target.value); setSaved(false); }}
         placeholder="Add notes about this client..."
         rows={8}
         className="w-full p-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 resize-y"
       />
-      {changed && (
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleSave}
+          disabled={!changed}
+          className={`h-7 px-3 text-[13px] rounded-md transition-colors ${
+            changed
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          }`}
+        >
+          {saved ? 'Saved' : 'Save notes'}
+        </button>
+        {changed && (
           <button
-            onClick={() => onSave(draft)}
-            className="h-7 px-3 text-[13px] bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Save notes
-          </button>
-          <button
-            onClick={() => { setDraft(value); setChanged(false); }}
+            onClick={() => setDraft(value)}
             className="h-7 px-3 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
