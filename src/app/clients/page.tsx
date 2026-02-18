@@ -3,10 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
-import { Users, Search, ChevronDown, Check, X, Plus, Clock } from 'lucide-react';
+import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
@@ -372,12 +374,24 @@ export default function ClientsPage() {
             </div>
             <div>
               <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Start Date</label>
-              <input
-                value={newClientSignupDate}
-                onChange={e => setNewClientSignupDate(e.target.value)}
-                type="date"
-                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 [color-scheme:dark]"
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none hover:border-primary/50 transition-colors duration-150 flex items-center justify-between text-left">
+                    <span className={newClientSignupDate ? 'text-foreground' : 'text-muted-foreground/40'}>
+                      {newClientSignupDate ? format(new Date(newClientSignupDate), 'dd/MM/yyyy') : 'Select date...'}
+                    </span>
+                    <CalendarIcon size={14} className="text-muted-foreground/40" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={newClientSignupDate ? new Date(newClientSignupDate) : undefined}
+                    onSelect={(date) => { if (date) setNewClientSignupDate(date.toISOString().split('T')[0]); }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
