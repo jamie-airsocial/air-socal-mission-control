@@ -766,3 +766,13 @@ button:focus,
 /* Drag-and-drop placeholder styling is injected at runtime via usePlaceholderStyle()
    in kanban-board.tsx (Tailwind v4 strips attribute selectors during build) */
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+

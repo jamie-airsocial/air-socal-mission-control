@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { TEAM_STYLES } from '@/lib/constants';
-import { PoundSterling, TrendingUp, Users, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, TrendingDown } from 'lucide-react';
+import { PoundSterling, TrendingUp, Users, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, TrendingDown } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -26,10 +26,10 @@ function monthsBetween(from: string, to?: string): number {
 }
 
 function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
-  if (col !== sortKey) return <ArrowUpDown size={11} className="text-muted-foreground/30 ml-1" />;
+  if (col !== sortKey) return <ChevronsUpDown size={11} className="text-muted-foreground/30 ml-1" />;
   return sortDir === 'asc'
-    ? <ArrowUp size={11} className="text-primary ml-1" />
-    : <ArrowDown size={11} className="text-primary ml-1" />;
+    ? <ChevronUp size={11} className="text-primary ml-1" />
+    : <ChevronDown size={11} className="text-primary ml-1" />;
 }
 
 export default function XeroPage() {
@@ -37,8 +37,7 @@ export default function XeroPage() {
   const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>('retainer');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // No date picker — churn is always based on last 12 months
 
   useEffect(() => {
     fetch('/api/clients')
@@ -53,30 +52,18 @@ export default function XeroPage() {
     else { setSortKey(key); setSortDir('desc'); }
   };
 
-  // Date range filter — filter clients that were active during the selected period
-  const filteredClients = useMemo(() => {
-    if (!dateFrom && !dateTo) return clients;
-    const from = dateFrom ? new Date(dateFrom) : null;
-    const to = dateTo ? new Date(dateTo) : null;
-    return clients.filter(c => {
-      const start = new Date(c.signup_date || c.created_at);
-      const end = c.churned_at ? new Date(c.churned_at) : new Date();
-      // Client was active if their period overlaps the filter range
-      if (from && end < from) return false;
-      if (to && start > to) return false;
-      return true;
-    });
-  }, [clients, dateFrom, dateTo]);
-
-  const allClients = filteredClients;
+  const allClients = clients;
   const activeClients = allClients.filter(c => c.status === 'active');
   const churnedClients = allClients.filter(c => c.status === 'churned');
 
   const totalRevenue = activeClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
   const avgRetainer = activeClients.length > 0 ? Math.round(totalRevenue / activeClients.length) : 0;
 
+  // Churn rate: based on clients who churned in the last 12 months
+  const twelveMonthsAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+  const recentlyChurned = churnedClients.filter(c => c.churned_at && c.churned_at >= twelveMonthsAgo);
   const overallChurnRate = allClients.length > 0
-    ? Math.round((churnedClients.length / allClients.length) * 100)
+    ? Math.round((recentlyChurned.length / allClients.length) * 100)
     : 0;
 
   // Revenue by team
@@ -84,7 +71,7 @@ export default function XeroPage() {
     const teamClients = activeClients.filter(c => c.team === team);
     const revenue = teamClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
     const allTeamClients = allClients.filter(c => c.team === team);
-    const churnedTeam = allTeamClients.filter(c => c.status === 'churned');
+    const churnedTeam = allTeamClients.filter(c => c.status === 'churned' && c.churned_at && c.churned_at >= twelveMonthsAgo);
     const churnRate = allTeamClients.length > 0 ? Math.round((churnedTeam.length / allTeamClients.length) * 100) : 0;
     return { team, revenue, count: teamClients.length, churnRate, allCount: allTeamClients.length };
   });
@@ -139,39 +126,6 @@ export default function XeroPage() {
         </p>
       </div>
 
-      {/* Date range filter */}
-      <div className="mb-6 flex items-center gap-3 flex-wrap">
-        <p className="text-[13px] text-muted-foreground/60">Filter period:</p>
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={e => setDateFrom(e.target.value)}
-            className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors"
-            title="From date"
-          />
-          <span className="text-[13px] text-muted-foreground/40">→</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={e => setDateTo(e.target.value)}
-            className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors"
-            title="To date"
-          />
-        </div>
-        {(dateFrom || dateTo) && (
-          <button
-            onClick={() => { setDateFrom(''); setDateTo(''); }}
-            className="text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors"
-          >
-            Clear
-          </button>
-        )}
-        {(dateFrom || dateTo) && (
-          <span className="text-[11px] text-muted-foreground/40">{allClients.length} clients in period</span>
-        )}
-      </div>
-
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <div className="p-4 rounded-lg border border-border/20 bg-card">
@@ -198,7 +152,7 @@ export default function XeroPage() {
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown size={14} className="text-red-400" />
-            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Churn Rate</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Churn (12 Months)</span>
           </div>
           <p className="text-2xl font-bold text-red-400">{overallChurnRate}%</p>
           <p className="text-[11px] text-muted-foreground/40 mt-0.5">{churnedClients.length} churned</p>
@@ -245,7 +199,7 @@ export default function XeroPage() {
 
         {/* Churn by Team */}
         <div className="p-4 rounded-lg border border-border/20 bg-card">
-          <h3 className="text-[13px] font-semibold mb-4">Churn by Team</h3>
+          <h3 className="text-[13px] font-semibold mb-4">Churn by Team (Last 12 Months)</h3>
           <div className="space-y-3 mb-4">
             {revenueByTeam.map(({ team, churnRate, allCount }) => {
               const style = TEAM_STYLES[team];

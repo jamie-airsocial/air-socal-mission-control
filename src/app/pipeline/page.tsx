@@ -192,10 +192,12 @@ export default function PipelinePage() {
   const stats = useMemo(() => {
     const total = prospects.length;
     const won = prospects.filter(p => p.stage === 'won');
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const wonRecent = won.filter(p => p.won_at && p.won_at >= thirtyDaysAgo);
     const lost = prospects.filter(p => p.stage === 'lost');
     const active = prospects.filter(p => !['won', 'lost'].includes(p.stage));
     const pipelineValue = active.reduce((s, p) => s + (p.value || 0), 0);
-    const wonValue = won.reduce((s, p) => s + (p.value || 0), 0);
+    const wonValue = wonRecent.reduce((s, p) => s + (p.value || 0), 0);
     const conversionRate = total > 0 ? Math.round((won.length / total) * 100) : 0;
     const avgDealValue = won.length > 0 ? Math.round(wonValue / won.length) : 0;
 
@@ -651,7 +653,7 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { label: 'Pipeline Value', value: `£${s.pipelineValue.toLocaleString()}`, icon: PoundSterling, color: 'text-primary' },
-          { label: 'Won Revenue', value: `£${s.wonValue.toLocaleString()}`, icon: Trophy, color: 'text-emerald-400' },
+          { label: 'Won (Last 30 Days)', value: `£${s.wonValue.toLocaleString()}`, icon: Trophy, color: 'text-emerald-400' },
           { label: 'Conversion Rate', value: `${s.conversionRate}%`, icon: Percent, color: 'text-amber-400' },
           { label: 'Avg Deal Value', value: `£${s.avgDealValue.toLocaleString()}`, icon: TrendingUp, color: 'text-blue-400' },
         ].map(kpi => (

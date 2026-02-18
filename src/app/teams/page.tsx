@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
 import type { Team } from '@/lib/types';
-import { Mail, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { ServiceIcon } from '@/components/ui/service-icon';
 
@@ -127,7 +127,6 @@ export default function TeamsPage() {
                     <div
                       key={member.id}
                       className="flex items-center gap-2.5 p-2 -mx-2 rounded-lg border border-transparent hover:border-border/20 hover:bg-muted/30 transition-all duration-150 cursor-pointer group"
-                      title={member.email}
                     >
                       <div
                         className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold"
@@ -140,16 +139,6 @@ export default function TeamsPage() {
                         <p className="text-[11px] text-muted-foreground/60">{member.role}</p>
                       </div>
                       <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                        {member.email && (
-                          <a
-                            href={`mailto:${member.email}`}
-                            onClick={e => e.stopPropagation()}
-                            className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-                            title={member.email}
-                          >
-                            <Mail size={12} />
-                          </a>
-                        )}
                         <ChevronRight size={12} className="text-muted-foreground/30" />
                       </div>
                     </div>
