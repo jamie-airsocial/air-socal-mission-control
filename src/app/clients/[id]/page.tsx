@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { TaskSheet } from '@/components/board/task-sheet';
+import { TableView } from '@/components/board/table-view';
 import type { Task, Project } from '@/lib/types';
 import {
   Dialog,
@@ -795,103 +796,27 @@ export default function ClientDetailPage() {
 
       {/* Tab: Tasks */}
       {activeTab === 'tasks' && (
-        <div className="rounded-lg border border-border/20 bg-card p-6">
-          <div className="flex items-center justify-end mb-4">
-            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
-              {(['service', 'month'] as const).map(v => (
-                <button
-                  key={v}
-                  onClick={() => setView(v)}
-                  className={`px-2.5 py-1 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                    view === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  By {v === 'service' ? 'Service' : 'Month'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            {Object.entries(groupedTasks).map(([group, groupTasks]) => {
-              if (!groupTasks?.length) return null;
-              const serviceStyle = view === 'service' && group !== 'none' ? SERVICE_STYLES[group] : null;
-              const groupLabel = serviceStyle ? serviceStyle.label : view === 'service' ? 'No Service' : group;
-              const isCollapsed = collapsedGroups.has(group);
-              const toggleCollapse = () => setCollapsedGroups(prev => {
-                const next = new Set(prev);
-                if (next.has(group)) next.delete(group); else next.add(group);
-                return next;
-              });
-              return (
-                <div key={group}>
-                  <div className="flex items-center gap-2 mb-3">
-                    <button onClick={toggleCollapse} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                      {isCollapsed ? <ChevronRight size={14} className="text-muted-foreground/60" /> : <ChevronDown size={14} className="text-muted-foreground/60" />}
-                      {view === 'service' && group !== 'none' ? (
-                        <ServiceIcon serviceKey={group} size={14} />
-                      ) : (
-                        <span className="text-muted-foreground/60">{view === 'service' ? <Tag size={14} /> : <Calendar size={14} />}</span>
-                      )}
-                      <h3 className="text-[13px] font-semibold">{groupLabel}</h3>
-                      <span className="text-[11px] text-muted-foreground/60">({groupTasks.length})</span>
-                    </button>
-                    <button
-                      onClick={() => { setIsNew(true); setSelectedTask({ id: '', title: '', description: null, status: 'todo', priority: 'P2', assignee: null, project_id: clientId, client_id: clientId, service: view === 'service' && group !== 'none' ? group : null, parent_id: null, due_date: null, completed_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as unknown as Task); setSheetOpen(true); }}
-                      className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors"
-                    >
-                      <Plus size={12} />
-                    </button>
-                  </div>
-                  {!isCollapsed && <div className="space-y-2">
-                    {groupTasks.map((task) => {
-                      const statusStyle = STATUS_STYLES[task.status];
-                      const priorityStyle = task.priority && PRIORITY_STYLES[task.priority];
-                      return (
-                        <button
-                          key={task.id}
-                          onClick={() => handleTaskClick(task as unknown as Task)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 transition-colors duration-150 text-left"
-                        >
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: statusStyle?.dot }} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13px] font-medium truncate">{task.title}</p>
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60">
-                              {task.assignee && <span>{toDisplayName(task.assignee)}</span>}
-                              {task.is_recurring && (
-                                <>
-                                  <span>·</span>
-                                  <span className="flex items-center gap-1"><Calendar size={10} /> Recurring</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          {priorityStyle && (
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-medium shrink-0 ${priorityStyle.bg} ${priorityStyle.text}`}>
-                              {task.priority}
-                            </span>
-                          )}
-                          {task.due_date && (
-                            <span className={`text-[11px] whitespace-nowrap shrink-0 ${getDueDateColor(task.due_date)}`}>
-                              {formatDueDate(task.due_date)}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>}
-                </div>
-              );
-            })}
-          </div>
-
-          {tasks.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Tag size={32} className="text-muted-foreground/30 mb-3" />
-              <p className="text-[13px] font-medium text-muted-foreground">No tasks yet</p>
-              <p className="text-[13px] text-muted-foreground/60 mt-1">Tasks assigned to this client will appear here</p>
-            </div>
-          )}
+        <div className="rounded-lg border border-border/20 bg-card">
+          <TableView
+            tasks={tasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
+            allTasks={tasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
+            projects={projects}
+            onTaskClick={(t) => handleTaskClick(t as Task)}
+            onUpdate={async (taskId, patch) => {
+              if (!taskId || !patch) return;
+              try {
+                const res = await fetch(`/api/tasks/${taskId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(patch),
+                });
+                if (res.ok) {
+                  setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...patch } as typeof t : t));
+                }
+              } catch { /* ignore */ }
+            }}
+            hiddenColumns={['project_name']}
+          />
         </div>
       )}
 

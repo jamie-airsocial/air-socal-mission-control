@@ -52,6 +52,7 @@ interface TableViewProps {
   onUpdate: (taskId?: string, patch?: Partial<Task>) => void;
   groupBy?: GroupBy;
   allLabels?: string[];
+  hiddenColumns?: SortField[];
 }
 
 type SortField = 'title' | 'status' | 'priority' | 'assignee' | 'project_name' | 'due_date' | 'service';
@@ -435,7 +436,7 @@ function SortHeader({ field, sortField, sortOrder, onSort, children, className =
   );
 }
 
-export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [] }: TableViewProps) {
+export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [] }: TableViewProps) {
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -723,18 +724,18 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                   />
                 </th>
                 <SortHeader field="title" sortField={sortField} sortOrder={sortOrder} onSort={handleSort} className="min-w-[200px] sticky left-[58px] z-20 bg-card">Title</SortHeader>
-                <SortHeader field="status" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Status</SortHeader>
-                <SortHeader field="priority" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Priority</SortHeader>
-                <SortHeader field="project_name" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Project</SortHeader>
-                <SortHeader field="due_date" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Due Date</SortHeader>
-                <SortHeader field="service" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Service</SortHeader>
-                <SortHeader field="assignee" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Assignee</SortHeader>
+                {!hiddenColumns.includes('status') && <SortHeader field="status" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Status</SortHeader>}
+                {!hiddenColumns.includes('priority') && <SortHeader field="priority" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Priority</SortHeader>}
+                {!hiddenColumns.includes('project_name') && <SortHeader field="project_name" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Project</SortHeader>}
+                {!hiddenColumns.includes('due_date') && <SortHeader field="due_date" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Due Date</SortHeader>}
+                {!hiddenColumns.includes('service') && <SortHeader field="service" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Service</SortHeader>}
+                {!hiddenColumns.includes('assignee') && <SortHeader field="assignee" sortField={sortField} sortOrder={sortOrder} onSort={handleSort}>Assignee</SortHeader>}
               </tr>
             </thead>
             <tbody>
               {paginatedTasks.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={8 - hiddenColumns.length}>
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <CheckSquare className="h-8 w-8 text-muted-foreground/30 mb-3" />
                       <p className="text-[13px] font-medium text-muted-foreground">No tasks found</p>
@@ -751,7 +752,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                   if (groupBy !== 'none') {
                     groupRows.push(
                       <tr key={`group-${group.key}`} className="border-b border-border/20">
-                        <td colSpan={8} className="py-2.5 px-5 bg-muted/20">
+                        <td colSpan={8 - hiddenColumns.length} className="py-2.5 px-5 bg-muted/20">
                           <button
                             onClick={() => toggleGroupCollapse(group.key)}
                             aria-expanded={!groupCollapsed}
@@ -842,24 +843,24 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                           <td className={`py-2.5 px-5 sticky left-[58px] z-10 ${rowSelected ? '' : 'bg-card group-hover/row:bg-muted/40'} transition-colors duration-150`} style={rowSelected ? { backgroundColor: 'color-mix(in srgb, hsl(var(--primary)) 5%, hsl(var(--card)))' } : undefined}>
                             <InlineTitleCell task={task} onUpdate={onUpdate} />
                           </td>
-                          <td className="py-2.5 px-5">
+                          {!hiddenColumns.includes('status') && <td className="py-2.5 px-5">
                             <InlineStatusCell task={task} onUpdate={onUpdate} />
-                          </td>
-                          <td className="py-2.5 px-5">
+                          </td>}
+                          {!hiddenColumns.includes('priority') && <td className="py-2.5 px-5">
                             <InlinePriorityCell task={task} onUpdate={onUpdate} />
-                          </td>
-                          <td className="py-2.5 px-5">
+                          </td>}
+                          {!hiddenColumns.includes('project_name') && <td className="py-2.5 px-5">
                             <InlineProjectCell task={task} projects={projects} onUpdate={onUpdate} />
-                          </td>
-                          <td className="py-2.5 px-5">
+                          </td>}
+                          {!hiddenColumns.includes('due_date') && <td className="py-2.5 px-5">
                             <InlineDueDateCell task={task} onUpdate={onUpdate} />
-                          </td>
-                          <td className="py-2.5 px-5">
+                          </td>}
+                          {!hiddenColumns.includes('service') && <td className="py-2.5 px-5">
                             <ServiceCell service={task.service} />
-                          </td>
-                          <td className="py-2.5 px-5">
+                          </td>}
+                          {!hiddenColumns.includes('assignee') && <td className="py-2.5 px-5">
                             <InlineAssigneeCell task={task} onUpdate={onUpdate} />
-                          </td>
+                          </td>}
                         </tr>
                       );
 
@@ -882,24 +883,24 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                                 <span className="text-[13px] text-muted-foreground truncate">{sub.title}</span>
                               </div>
                             </td>
-                            <td className="py-2.5 px-5">
+                            {!hiddenColumns.includes('status') && <td className="py-2.5 px-5">
                               <InlineStatusCell task={sub} onUpdate={onUpdate} />
-                            </td>
-                            <td className="py-2.5 px-5">
+                            </td>}
+                            {!hiddenColumns.includes('priority') && <td className="py-2.5 px-5">
                               <InlinePriorityCell task={sub} onUpdate={onUpdate} />
-                            </td>
-                            <td className="py-2.5 px-5">
+                            </td>}
+                            {!hiddenColumns.includes('project_name') && <td className="py-2.5 px-5">
                               <InlineProjectCell task={sub} projects={projects} onUpdate={onUpdate} />
-                            </td>
-                            <td className="py-2.5 px-5">
+                            </td>}
+                            {!hiddenColumns.includes('due_date') && <td className="py-2.5 px-5">
                               <InlineDueDateCell task={sub} onUpdate={onUpdate} />
-                            </td>
-                            <td className="py-2.5 px-5">
+                            </td>}
+                            {!hiddenColumns.includes('service') && <td className="py-2.5 px-5">
                               <ServiceCell service={sub.service} />
-                            </td>
-                            <td className="py-2.5 px-5">
+                            </td>}
+                            {!hiddenColumns.includes('assignee') && <td className="py-2.5 px-5">
                               <InlineAssigneeCell task={sub} onUpdate={onUpdate} />
-                            </td>
+                            </td>}
                           </tr>
                         );
                       });
