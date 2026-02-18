@@ -950,7 +950,7 @@ export default function ClientDetailPage() {
                 <TableBody>
                   {contractItems.map(item => (
                     <TableRow key={item.id} className={`border-border/20 hover:bg-secondary/30 transition-colors ${!item.is_active ? 'opacity-50' : ''}`}>
-                      <TableCell className="text-[13px] font-medium">{item.service}</TableCell>
+                      <TableCell className="text-[13px] font-medium">{SERVICE_STYLES[item.service]?.label || item.service}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
                       <TableCell>
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
