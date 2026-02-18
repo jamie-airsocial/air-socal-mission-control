@@ -373,12 +373,10 @@ export default function AdminTeamsPage() {
                         <p className="text-[11px] text-muted-foreground/50 truncate">
                           {u.role?.name || 'No role'}
                           {currentTeam && (
-                            <span
-                              className={`ml-1.5 ${isOnOtherTeam ? 'text-amber-400/80' : 'text-muted-foreground/40'}`}
-                            >
-                              · <span className="inline-flex items-center gap-0.5">
+                            <span className="ml-1.5 text-muted-foreground/40">
+                              · <span className="inline-flex items-center gap-1 align-middle">
                                 <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentTeam.color || '#3b82f6' }} />
-                                {currentTeam.name}
+                                <span>{currentTeam.name}</span>
                               </span>
                             </span>
                           )}
