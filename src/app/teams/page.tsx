@@ -228,13 +228,13 @@ export default function TeamsPage() {
                         .sort(([, a], [, b]) => b - a)
                         .map(([service, amount]) => {
                           const s = SERVICE_STYLES[service];
-                          if (!s) return null;
+                          const label = s?.label || service;
                           const pct = revenue > 0 ? (amount / revenue) * 100 : 0;
                           return (
                             <div key={service}>
                               <div className="flex items-center justify-between mb-0.5">
                                 <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                                  <ServiceIcon serviceKey={service} size={10} /> {s.label}
+                                  <ServiceIcon serviceKey={service} size={10} /> {label}
                                 </span>
                                 <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
                               </div>
