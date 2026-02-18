@@ -329,14 +329,14 @@ export default function XeroPage() {
                 );
               })}
             </tbody>
-            {activeClients.length > 0 && (
+            {sortedClients.length > 0 && (
               <tfoot>
                 <tr className="border-t border-border/20 bg-muted/20">
                   <td colSpan={3} className="px-3 py-2.5 text-[12px] font-semibold text-muted-foreground/60">
-                    Total ({activeClients.length} active)
+                    Total ({sortedClients.filter(c => c.status === 'active').length} active{tableTeamFilter ? ` · ${TEAM_STYLES[tableTeamFilter as keyof typeof TEAM_STYLES]?.label}` : ''})
                   </td>
                   <td className="px-3 py-2.5 text-[13px] font-bold text-emerald-400">
-                    £{totalRevenue.toLocaleString()}/mo
+                    £{sortedClients.reduce((sum, c) => sum + (c.status === 'active' ? (c.monthly_retainer || 0) : 0), 0).toLocaleString()}/mo
                   </td>
                   <td className="px-3 py-2.5 text-[11px] text-muted-foreground/40">
                     ARR £{(totalRevenue * 12).toLocaleString()}
