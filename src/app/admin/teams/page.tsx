@@ -355,6 +355,8 @@ export default function AdminTeamsPage() {
                   const isSelected = selectedMembers.includes(u.id);
                   const colorClass = ASSIGNEE_COLORS[u.full_name] || 'bg-primary/20 text-primary';
                   const initials = u.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                  const currentTeam = u.team ? teams.find(t => teamSlug(t.name) === u.team) : null;
+                  const isOnOtherTeam = currentTeam && editingTeam && teamSlug(currentTeam.name) !== teamSlug(editingTeam.name);
                   return (
                     <button
                       key={u.id}
@@ -368,9 +370,20 @@ export default function AdminTeamsPage() {
                       </div>
                       <div className="flex-1 text-left min-w-0">
                         <p className="font-medium truncate">{u.full_name}</p>
-                        {u.role?.name && (
-                          <p className="text-[11px] text-muted-foreground/50 truncate">{u.role.name}</p>
-                        )}
+                        <p className="text-[11px] text-muted-foreground/50 truncate">
+                          {u.role?.name || 'No role'}
+                          {currentTeam && (
+                            <span
+                              className={`ml-1.5 ${isOnOtherTeam ? 'text-amber-400/80' : 'text-muted-foreground/40'}`}
+                            >
+                              · <span className="inline-flex items-center gap-0.5">
+                                <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: currentTeam.color || '#3b82f6' }} />
+                                {currentTeam.name}
+                              </span>
+                            </span>
+                          )}
+                          {!currentTeam && <span className="ml-1.5 text-muted-foreground/30">· No team</span>}
+                        </p>
                       </div>
                       <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
                         isSelected ? 'border-primary bg-primary' : 'border-border/40'
