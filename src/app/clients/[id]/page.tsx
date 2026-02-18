@@ -12,7 +12,13 @@ import { toast } from 'sonner';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { TableView } from '@/components/board/table-view';
+import dynamic from 'next/dynamic';
 import type { Task, Project } from '@/lib/types';
+
+const TaskDescriptionEditor = dynamic(
+  () => import('@/components/board/task-description-editor').then(mod => ({ default: mod.TaskDescriptionEditor })),
+  { ssr: false, loading: () => <div className="h-32 bg-secondary rounded-lg animate-pulse" /> }
+);
 import {
   Dialog,
   DialogContent,
@@ -1075,12 +1081,10 @@ function NotesEditor({ value, onSave }: { value: string; onSave: (v: string) => 
   const handleSave = () => { onSave(draft); setSaved(true); setTimeout(() => setSaved(false), 2000); };
   return (
     <div className="space-y-3">
-      <textarea
-        value={draft}
-        onChange={e => { setDraft(e.target.value); setSaved(false); }}
+      <TaskDescriptionEditor
+        content={draft}
+        onChange={(html) => { setDraft(html); setSaved(false); }}
         placeholder="Add notes about this client..."
-        rows={8}
-        className="w-full p-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 resize-y"
       />
       <div className="flex items-center gap-2">
         <button
