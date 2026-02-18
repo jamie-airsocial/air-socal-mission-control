@@ -149,27 +149,53 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Logout button */}
+          {/* Settings + Logout row */}
           {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={signOut}
-                  className="w-full flex items-center justify-center p-2 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
-                >
-                  <LogOut size={16} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-[13px]">Sign out</TooltipContent>
-            </Tooltip>
+            <>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/admin/users"
+                    className="w-full flex items-center justify-center p-2 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors duration-150 mt-0.5"
+                  >
+                    <Settings size={16} />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-[13px]">Settings</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={signOut}
+                    className="w-full flex items-center justify-center p-2 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="text-[13px]">Sign out</TooltipContent>
+              </Tooltip>
+            </>
           ) : (
-            <button
-              onClick={signOut}
-              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 mt-0.5"
-            >
-              <LogOut size={16} className="shrink-0" />
-              <span className="text-[13px]">Sign out</span>
-            </button>
+            <div className="flex items-center gap-1 mt-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href="/admin/users"
+                    className="flex items-center justify-center p-2 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors duration-150"
+                  >
+                    <Settings size={16} />
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-[13px]">Settings</TooltipContent>
+              </Tooltip>
+              <button
+                onClick={signOut}
+                className="flex-1 flex items-center gap-2 px-2 py-2 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"
+              >
+                <LogOut size={16} className="shrink-0" />
+                <span className="text-[13px]">Sign out</span>
+              </button>
+            </div>
           )}
         </div>
       </aside>
