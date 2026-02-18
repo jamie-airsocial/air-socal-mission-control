@@ -184,7 +184,7 @@ export default function AdminUsersPage() {
       if (editingUser) {
         const res = await fetch(`/api/users/${editingUser.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name: form.full_name, role_id: form.role_id || null, team: form.team }),
+          body: JSON.stringify({ full_name: form.full_name, email: form.email, role_id: form.role_id || null, team: form.team }),
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
         toast.success('User updated', { description: `${form.full_name} has been updated.` });
@@ -462,19 +462,22 @@ export default function AdminUsersPage() {
                 <Input value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                   placeholder="Sophie Gore" className="h-9 text-[13px] bg-secondary border-border/20" />
               </div>
+              <div className="space-y-1.5">
+                <Label className="text-[13px] text-muted-foreground">Email *</Label>
+                <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="name@airsocial.co.uk" className="h-9 text-[13px] bg-secondary border-border/20" />
+                {editingUser && (
+                  <p className="text-[11px] text-muted-foreground/50">
+                    Changing email updates both the app and Supabase Auth.
+                  </p>
+                )}
+              </div>
               {!editingUser && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-[13px] text-muted-foreground">Email *</Label>
-                    <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                      placeholder="name@airsocial.co.uk" className="h-9 text-[13px] bg-secondary border-border/20" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[13px] text-muted-foreground">Temporary password</Label>
-                    <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                      placeholder="Leave blank for default" className="h-9 text-[13px] bg-secondary border-border/20" />
-                  </div>
-                </>
+                <div className="space-y-1.5">
+                  <Label className="text-[13px] text-muted-foreground">Temporary password</Label>
+                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                    placeholder="Leave blank for default" className="h-9 text-[13px] bg-secondary border-border/20" />
+                </div>
               )}
               <div className="space-y-1.5">
                 <Label className="text-[13px] text-muted-foreground">Team *</Label>

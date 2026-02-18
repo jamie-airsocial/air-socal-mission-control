@@ -2,7 +2,16 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy } from 'lucide-react';
+import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy, UserPlus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -51,6 +60,7 @@ export default function PipelinePage() {
   const [lossModalProspect, setLossModalProspect] = useState<string | null>(null);
   const [lossReason, setLossReason] = useState('');
   const [lossReasonCustom, setLossReasonCustom] = useState('');
+  const [convertProspect, setConvertProspect] = useState<Prospect | null>(null);
 
   // Filters
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
@@ -492,6 +502,20 @@ export default function PipelinePage() {
             setEditingProspect(prev => prev ? { ...prev, ...updates } : null);
           }}
           onDelete={() => { deleteProspect(editingProspect.id); setEditingProspect(null); }}
+          onConvert={() => { setConvertProspect(editingProspect); setEditingProspect(null); }}
+        />
+      )}
+
+      {/* Convert to Client Dialog */}
+      {convertProspect && (
+        <ConvertToClientDialog
+          prospect={convertProspect}
+          onClose={() => setConvertProspect(null)}
+          onConverted={() => {
+            setConvertProspect(null);
+            fetchProspects();
+            toast.success('🎉 Client created!', { description: `${convertProspect.name} is now a client.` });
+          }}
         />
       )}
       {/* Shortcuts Dialog */}
@@ -764,11 +788,12 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
 }
 
 // ── Prospect Detail Sheet ────────────────────────────────────────────────────
-function ProspectSheet({ prospect, onClose, onUpdate, onDelete }: {
+function ProspectSheet({ prospect, onClose, onUpdate, onDelete, onConvert }: {
   prospect: Prospect;
   onClose: () => void;
   onUpdate: (updates: Partial<Prospect>) => void;
   onDelete: () => void;
+  onConvert?: () => void;
 }) {
   const [notes, setNotes] = useState(prospect.notes || '');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -900,6 +925,26 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete }: {
               </p>
             </div>
           )}
+
+          {/* Convert to Client banner (won stage) */}
+          {prospect.stage === 'won' && onConvert && (
+            <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-semibold text-emerald-400">🎉 Deal Won!</p>
+                  <p className="text-[12px] text-muted-foreground/60 mt-0.5">Ready to onboard this client?</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={onConvert}
+                  className="h-8 text-[13px] gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
+                >
+                  <UserPlus size={14} />
+                  Convert to Client
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -919,5 +964,149 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete }: {
         </div>
       </div>
     </>
+  );
+}
+
+// ── Convert to Client Dialog ─────────────────────────────────────────────────
+function ConvertToClientDialog({ prospect, onClose, onConverted }: {
+  prospect: Prospect;
+  onClose: () => void;
+  onConverted: () => void;
+}) {
+  const [name, setName] = useState(prospect.name);
+  const [monthlyRetainer, setMonthlyRetainer] = useState(prospect.value?.toString() || '');
+  const [signupDate, setSignupDate] = useState(new Date().toISOString().split('T')[0]);
+  const [saleSource, setSaleSource] = useState(prospect.source || '');
+  const [archiveProspect, setArchiveProspect] = useState(false);
+  const [converting, setConverting] = useState(false);
+
+  const handleConvert = async () => {
+    if (!name.trim()) {
+      toast.error('Client name is required');
+      return;
+    }
+    setConverting(true);
+    try {
+      const res = await fetch(`/api/prospects/${prospect.id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          services: prospect.service ? [prospect.service] : [],
+          monthly_retainer: monthlyRetainer ? parseFloat(monthlyRetainer) : null,
+          signup_date: signupDate,
+          sale_source: saleSource || null,
+          sold_by: prospect.assignee || null,
+          team: prospect.team || null,
+          notes: prospect.notes || null,
+          archive_prospect: archiveProspect,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Conversion failed');
+      }
+      onConverted();
+    } catch (err) {
+      toast.error('Conversion failed', { description: err instanceof Error ? err.message : 'Something went wrong' });
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md bg-card border-border/20">
+        <DialogHeader>
+          <DialogTitle className="text-[15px] flex items-center gap-2">
+            <UserPlus size={16} className="text-emerald-400" />
+            Convert to Client
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-[13px] text-muted-foreground/70">
+            This will create a new client record and mark the prospect as won.
+          </p>
+
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Client name *</Label>
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="h-9 text-[13px] bg-secondary border-border/20"
+            />
+          </div>
+
+          {prospect.contact_name && (
+            <div className="space-y-1 text-[13px]">
+              <Label className="text-[13px] text-muted-foreground">Contact</Label>
+              <div className="h-9 px-3 rounded-md border border-border/20 bg-secondary/50 flex items-center text-muted-foreground">
+                {prospect.contact_name}
+                {prospect.contact_email && <span className="ml-2 text-muted-foreground/60">· {prospect.contact_email}</span>}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Monthly retainer (£)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+              <Input
+                type="number"
+                value={monthlyRetainer}
+                onChange={e => setMonthlyRetainer(e.target.value)}
+                className="h-9 pl-7 text-[13px] bg-secondary border-border/20"
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Sign-up date</Label>
+            <Input
+              type="date"
+              value={signupDate}
+              onChange={e => setSignupDate(e.target.value)}
+              className="h-9 text-[13px] bg-secondary border-border/20"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Sale source</Label>
+            <Input
+              value={saleSource}
+              onChange={e => setSaleSource(e.target.value)}
+              placeholder="e.g. Referral, LinkedIn..."
+              className="h-9 text-[13px] bg-secondary border-border/20"
+            />
+          </div>
+
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={archiveProspect}
+              onChange={e => setArchiveProspect(e.target.checked)}
+              className="w-4 h-4 rounded border-border/40 accent-primary"
+            />
+            <span className="text-[13px] text-muted-foreground">Hide prospect from active pipeline view</span>
+          </label>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="text-[13px] h-8 border-border/20">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleConvert}
+            disabled={converting || !name.trim()}
+            className="text-[13px] h-8 bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
+          >
+            <UserPlus size={14} />
+            {converting ? 'Converting…' : 'Create Client'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -40,10 +40,38 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { full_name, role_id, team, is_active } = body;
+  const { full_name, email, role_id, team, is_active } = body;
+
+  // If email is changing, sync to Supabase Auth first
+  if (email !== undefined) {
+    // Fetch the auth_user_id so we can update the auth record
+    const { data: existing, error: fetchErr } = await supabaseAdmin
+      .from('app_users')
+      .select('auth_user_id, email')
+      .eq('id', id)
+      .single();
+
+    if (fetchErr || !existing) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    if (existing.auth_user_id && email !== existing.email) {
+      const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(
+        existing.auth_user_id,
+        { email, email_confirm: true }
+      );
+      if (authErr) {
+        return NextResponse.json(
+          { error: `Auth email update failed: ${authErr.message}` },
+          { status: 500 }
+        );
+      }
+    }
+  }
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (full_name !== undefined) updates.full_name = full_name;
+  if (email !== undefined) updates.email = email;
   if (role_id !== undefined) updates.role_id = role_id;
   if (team !== undefined) updates.team = team;
   if (is_active !== undefined) updates.is_active = is_active;

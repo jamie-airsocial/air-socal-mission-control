@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const ADMIN_TABS = [
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/roles', label: 'Roles & Permissions' },
+  { href: '/admin/teams', label: 'Teams' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -15,7 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="space-y-6">
       <div>
         <h1 className="text-[20px] font-semibold text-foreground">Admin</h1>
-        <p className="text-[13px] text-muted-foreground mt-0.5">Manage users, roles and permissions</p>
+        <p className="text-[13px] text-muted-foreground mt-0.5">Manage users, roles, permissions and teams</p>
       </div>
 
       {/* Admin tabs */}
