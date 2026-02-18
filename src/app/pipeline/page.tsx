@@ -193,12 +193,12 @@ export default function PipelinePage() {
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const total = prospects.length;
-    const won = prospects.filter(p => p.stage === 'won');
+    const total = filtered.length;
+    const won = filtered.filter(p => p.stage === 'won');
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const wonRecent = won.filter(p => p.won_at && p.won_at >= thirtyDaysAgo);
-    const lost = prospects.filter(p => p.stage === 'lost');
-    const active = prospects.filter(p => !['won', 'lost'].includes(p.stage));
+    const lost = filtered.filter(p => p.stage === 'lost');
+    const active = filtered.filter(p => !['won', 'lost'].includes(p.stage));
     const pipelineValue = active.reduce((s, p) => s + (p.value || 0), 0);
     const wonValue = wonRecent.reduce((s, p) => s + (p.value || 0), 0);
     const conversionRate = total > 0 ? Math.round((won.length / total) * 100) : 0;
@@ -213,16 +213,16 @@ export default function PipelinePage() {
 
     // Stage distribution
     const stageCount: Record<string, number> = {};
-    PIPELINE_STAGES.forEach(s => { stageCount[s.id] = prospects.filter(p => p.stage === s.id).length; });
+    PIPELINE_STAGES.forEach(s => { stageCount[s.id] = filtered.filter(p => p.stage === s.id).length; });
 
     // Value by stage
     const stageValue: Record<string, number> = {};
     PIPELINE_STAGES.forEach(s => {
-      stageValue[s.id] = prospects.filter(p => p.stage === s.id).reduce((sum, p) => sum + (p.value || 0), 0);
+      stageValue[s.id] = filtered.filter(p => p.stage === s.id).reduce((sum, p) => sum + (p.value || 0), 0);
     });
 
     return { total, won: won.length, lost: lost.length, active: active.length, pipelineValue, wonValue, conversionRate, avgDealValue, lossReasons, stageCount, stageValue };
-  }, [prospects]);
+  }, [filtered]);
 
   // ── Shared Header ──────────────────────────────────────────────────────────
   const viewButtons: { mode: ViewMode; icon: typeof Kanban; label: string }[] = [
@@ -256,7 +256,7 @@ export default function PipelinePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Sales Pipeline</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">
-          {prospects.length} prospects · £{stats.pipelineValue.toLocaleString()} pipeline · £{stats.wonValue.toLocaleString()} won
+          {filtered.length} prospects · £{stats.pipelineValue.toLocaleString()} pipeline · £{stats.wonValue.toLocaleString()} won
         </p>
       </div>
 
