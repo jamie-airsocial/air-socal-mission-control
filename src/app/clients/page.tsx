@@ -297,7 +297,7 @@ export default function ClientsPage() {
         }),
       });
       if (!res.ok) { toast.error('Failed to create client'); return; }
-      toast.success('Client created');
+      toast.success(newClientName + ' added to clients');
       resetForm();
       fetchClients();
     } catch { toast.error('Failed to create client'); }

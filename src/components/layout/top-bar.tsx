@@ -79,7 +79,7 @@ export function TopBar() {
         {/* Notifications */}
         <button
           aria-label="Notifications"
-          onClick={() => { setShowNotifications(!showNotifications); toast.info('No new notifications'); }}
+          onClick={() => { setShowNotifications(!showNotifications); toast('You\'re all caught up — no new notifications', { icon: '🔔' }); }}
           className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-150"
         >
           <Bell size={15} />
@@ -88,7 +88,7 @@ export function TopBar() {
         {/* Settings */}
         <button
           aria-label="Settings"
-          onClick={() => toast.info('Settings coming soon')}
+          onClick={() => toast('Settings page coming soon', { icon: '⚙️' })}
           className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-150"
         >
           <Settings size={15} />

@@ -158,7 +158,7 @@ export default function ClientDetailPage() {
       setNewTaskPriority('P2');
       setNewTaskAssignee('');
       setShowNewTask(false);
-      toast.success('Task created');
+      toast.success('Task created for ' + (client?.name || 'client'));
     } catch {
       toast.error('Failed to create task');
     } finally {
@@ -203,7 +203,7 @@ export default function ClientDetailPage() {
       if (!res.ok) throw new Error();
       const updated = await res.json();
       setClient(updated);
-      toast.success('Saved');
+      toast.success('Changes saved');
     } catch {
       toast.error('Failed to save');
     } finally {

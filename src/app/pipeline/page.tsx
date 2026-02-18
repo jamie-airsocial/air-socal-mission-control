@@ -121,7 +121,7 @@ export default function PipelinePage() {
         }),
       });
       if (!res.ok) { toast.error('Failed to create prospect'); return; }
-      toast.success('Prospect added');
+      toast.success('Prospect added to pipeline');
       resetForm();
       setShowNewForm(false);
       fetchProspects();
@@ -175,7 +175,7 @@ export default function PipelinePage() {
     try {
       const res = await fetch(`/api/prospects?id=${id}`, { method: 'DELETE' });
       if (!res.ok) { toast.error('Failed to delete'); fetchProspects(); return; }
-      toast.success('Prospect deleted');
+      toast.success('Prospect removed from pipeline');
     } catch { toast.error('Failed to delete'); fetchProspects(); }
   };
 

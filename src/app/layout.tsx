@@ -25,7 +25,13 @@ export default function RootLayout({
         <main className="ml-56 min-h-screen bg-background p-6 pt-[60px]">
           {children}
         </main>
-        <Toaster position="top-right" />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            className: '!bg-card !border !border-border/20 !text-foreground !text-[13px] !shadow-xl !rounded-lg',
+            style: { borderColor: 'hsl(var(--border) / 0.2)' },
+          }}
+        />
       </body>
     </html>
   );
