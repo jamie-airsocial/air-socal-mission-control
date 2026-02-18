@@ -174,6 +174,9 @@ export default function ClientsPage() {
   const [newClientRetainer, setNewClientRetainer] = useState('');
   const [newClientServices, setNewClientServices] = useState<string[]>([]);
   const [newClientSignupDate, setNewClientSignupDate] = useState('');
+  const [newClientContactName, setNewClientContactName] = useState('');
+  const [newClientContactEmail, setNewClientContactEmail] = useState('');
+  const [newClientContactPhone, setNewClientContactPhone] = useState('');
   const [creating, setCreating] = useState(false);
 
   const resetForm = () => {
@@ -182,6 +185,9 @@ export default function ClientsPage() {
     setNewClientRetainer('');
     setNewClientServices([]);
     setNewClientSignupDate('');
+    setNewClientContactName('');
+    setNewClientContactEmail('');
+    setNewClientContactPhone('');
     setShowNewClient(false);
   };
 
@@ -200,6 +206,9 @@ export default function ClientsPage() {
           monthly_retainer: newClientRetainer ? parseFloat(newClientRetainer) : 0,
           assigned_members: [],
           signup_date: newClientSignupDate || new Date().toISOString().split('T')[0],
+          contact_name: newClientContactName.trim() || null,
+          contact_email: newClientContactEmail.trim() || null,
+          contact_phone: newClientContactPhone.trim() || null,
         }),
       });
       if (!res.ok) { toast.error('Failed to create client'); return; }
@@ -274,52 +283,111 @@ export default function ClientsPage() {
         </Button>
       </div>
 
-      {/* New client inline form — expanded */}
+      {/* New client form */}
       {showNewClient && (
-        <div className="mb-4 p-4 rounded-lg border border-primary/30 bg-card space-y-3">
-          <p className="text-[13px] font-semibold">New Client</p>
-          <div className="flex items-center gap-3 flex-wrap">
-            <input
-              autoFocus
-              value={newClientName}
-              onChange={e => setNewClientName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Escape') resetForm(); }}
-              placeholder="Client name..."
-              className="flex-1 min-w-[180px] h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-            />
-            <select
-              value={newClientTeam}
-              onChange={e => setNewClientTeam(e.target.value)}
-              className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none"
-            >
-              {Object.entries(TEAM_STYLES).map(([key, style]) => (
-                <option key={key} value={key}>{style.label}</option>
-              ))}
-            </select>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+        <div className="mb-4 p-5 rounded-lg border border-primary/30 bg-card space-y-4">
+          <p className="text-[15px] font-semibold">New Client</p>
+
+          {/* Row 1: Company + Team */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Company Name *</label>
               <input
-                value={newClientRetainer}
-                onChange={e => setNewClientRetainer(e.target.value)}
-                placeholder="Retainer"
-                type="number"
-                className="h-8 w-28 pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+                autoFocus
+                value={newClientName}
+                onChange={e => setNewClientName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Escape') resetForm(); }}
+                placeholder="e.g. Acme Ltd"
+                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
               />
             </div>
-            <div className="relative">
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Team</label>
+              <div className="flex gap-1.5">
+                {Object.entries(TEAM_STYLES).map(([key, style]) => (
+                  <button
+                    key={key}
+                    onClick={() => setNewClientTeam(key)}
+                    className={`flex-1 h-8 rounded-lg text-[13px] font-medium border transition-colors duration-150 flex items-center justify-center gap-1.5 ${
+                      newClientTeam === key
+                        ? `${style.bg} ${style.text} border-current`
+                        : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/30'
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
+                    {style.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Contact details */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Contact Name</label>
+              <input
+                value={newClientContactName}
+                onChange={e => setNewClientContactName(e.target.value)}
+                placeholder="e.g. John Smith"
+                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Email</label>
+              <input
+                value={newClientContactEmail}
+                onChange={e => setNewClientContactEmail(e.target.value)}
+                placeholder="john@company.com"
+                type="email"
+                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Phone</label>
+              <input
+                value={newClientContactPhone}
+                onChange={e => setNewClientContactPhone(e.target.value)}
+                placeholder="07xxx xxxxxx"
+                type="tel"
+                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Retainer + Start Date */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Monthly Retainer</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+                <input
+                  value={newClientRetainer}
+                  onChange={e => setNewClientRetainer(e.target.value)}
+                  placeholder="0"
+                  type="number"
+                  className="w-full h-8 pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground/60 mb-1 block">Start Date</label>
               <input
                 value={newClientSignupDate}
                 onChange={e => setNewClientSignupDate(e.target.value)}
                 type="date"
-                title="Sign-up date"
-                className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 [color-scheme:dark]"
               />
             </div>
           </div>
+
+          {/* Row 4: Services */}
           <div>
-            <p className="text-[11px] text-muted-foreground/60 mb-1.5">Services</p>
+            <label className="text-[11px] font-medium text-muted-foreground/60 mb-1.5 block">Services</label>
             <ServicesMultiSelect selected={newClientServices} onChange={setNewClientServices} />
           </div>
+
+          {/* Actions */}
           <div className="flex items-center gap-2 pt-1">
             <Button size="sm" onClick={createClient} disabled={creating || !newClientName.trim()}>
               {creating ? 'Creating...' : 'Create Client'}
