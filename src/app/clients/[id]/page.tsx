@@ -249,7 +249,7 @@ export default function ClientDetailPage() {
   return (
     <div className="animate-in fade-in duration-200">
       <button
-        onClick={() => router.back()}
+        onClick={() => { if (window.history.length > 1) router.back(); else router.push('/clients'); }}
         className="flex items-center gap-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors duration-150 mb-4"
       >
         <ArrowLeft size={16} />
