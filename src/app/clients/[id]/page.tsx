@@ -500,12 +500,22 @@ export default function ClientDetailPage() {
             </div>
           </div>
           <div className="text-right">
-            {client.monthly_retainer > 0 && (
-              <div className="mb-1">
-                <p className="text-[11px] text-muted-foreground/60">Monthly Retainer</p>
-                <p className="text-xl font-semibold">£{client.monthly_retainer.toLocaleString()}</p>
-              </div>
-            )}
+            {(() => {
+              // Prefer sum of active contract line items; fall back to monthly_retainer field
+              const fromLineItems = contractItems.filter(i => i.is_active).length > 0;
+              const displayValue = fromLineItems ? totalMonthlyValue : (client.monthly_retainer || 0);
+              if (displayValue <= 0) return null;
+              return (
+                <div className="mb-1">
+                  <p className="text-[11px] text-muted-foreground/60">
+                    Monthly Retainer{fromLineItems && <span className="ml-1 opacity-60">(from line items)</span>}
+                  </p>
+                  <p className="text-xl font-semibold">
+                    £{displayValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              );
+            })()}
             {saving && <p className="text-[11px] text-muted-foreground/40">Saving…</p>}
           </div>
         </div>
