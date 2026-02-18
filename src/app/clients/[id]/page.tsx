@@ -837,9 +837,9 @@ export default function ClientDetailPage() {
           { value: 'month', label: 'Month' },
         ];
         return (
-        <div className="rounded-lg border border-border/20 bg-card">
+        <div>
           {/* Filter bar */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-border/20 flex-wrap">
+          <div className="flex items-center gap-2 px-5 py-3 flex-wrap">
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
               <input
@@ -886,7 +886,8 @@ export default function ClientDetailPage() {
             projects={projects}
             onTaskClick={(t) => handleTaskClick(t as Task)}
             onUpdate={async (taskId, patch) => {
-              if (!taskId || !patch) return;
+              // No args = refresh (e.g. after bulk update/delete)
+              if (!taskId || !patch) { fetchData(); return; }
               try {
                 const res = await fetch(`/api/tasks/${taskId}`, {
                   method: 'PUT',
