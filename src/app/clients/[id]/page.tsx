@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface Client {
   id: string;
@@ -92,6 +93,23 @@ function monthsActive(from: string, to?: string): number {
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
 }
 
+function contractDuration(startDate: string | null, endDate: string | null): string {
+  if (!startDate && !endDate) return '—';
+  if (startDate && !endDate) return 'Ongoing';
+  if (!startDate && endDate) return '—';
+  const start = new Date(startDate!);
+  const end = new Date(endDate!);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return '—';
+  const months = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+  if (months <= 0) return '—';
+  if (months === 1) return '1 month';
+  if (months < 12) return `${months} months`;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (rem === 0) return years === 1 ? '1 year' : `${years} years`;
+  return `${years}y ${rem}m`;
+}
+
 function formatDateUK(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -111,22 +129,45 @@ function EditableField({
   const [draft, setDraft] = useState(value);
   const save = () => { onSave(draft); setEditing(false); };
   const cancel = () => { setDraft(value); setEditing(false); };
+
+  // UK-format display for date fields
+  const displayValue = type === 'date' && value
+    ? (() => {
+        try {
+          return new Date(value).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch { return value; }
+      })()
+    : value;
+
   return (
     <div>
       <p className="text-[11px] text-muted-foreground/60 mb-1">{label}</p>
       {editing ? (
-        <div className="flex items-center gap-1.5">
-          <input autoFocus type={type} value={draft} onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
-            placeholder={placeholder}
-            className="flex-1 h-7 px-2 text-[13px] bg-secondary border border-border/30 rounded outline-none focus:border-primary/50 transition-colors"
-          />
-          <button onClick={save} className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400"><Check size={12} /></button>
-          <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground"><X size={12} /></button>
-        </div>
+        type === 'date' ? (
+          <div className="flex items-center gap-1.5">
+            <DatePicker
+              value={draft}
+              onChange={v => { setDraft(v); }}
+              placeholder="DD/MM/YYYY"
+              className="flex-1"
+            />
+            <button onClick={save} className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400"><Check size={12} /></button>
+            <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground"><X size={12} /></button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <input autoFocus type={type} value={draft} onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
+              placeholder={placeholder}
+              className="flex-1 h-7 px-2 text-[13px] bg-secondary border border-border/30 rounded outline-none focus:border-primary/50 transition-colors"
+            />
+            <button onClick={save} className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400"><Check size={12} /></button>
+            <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground"><X size={12} /></button>
+          </div>
+        )
       ) : (
         <div className="flex items-center gap-2 group">
-          <p className="text-[13px]">{value || <span className="text-muted-foreground/40">{placeholder || 'Not set'}</span>}</p>
+          <p className="text-[13px]">{displayValue || <span className="text-muted-foreground/40">{placeholder || 'Not set'}</span>}</p>
           <button onClick={() => { setDraft(value); setEditing(true); }}
             className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground">
             <Edit2 size={10} />
@@ -217,13 +258,19 @@ function LineItemDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">Start date</Label>
-              <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
-                className="h-9 text-[13px] bg-secondary border-border/20" />
+              <DatePicker
+                value={form.start_date}
+                onChange={v => setForm(f => ({ ...f, start_date: v }))}
+                placeholder="DD/MM/YYYY"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">End date</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
-                className="h-9 text-[13px] bg-secondary border-border/20" />
+              <DatePicker
+                value={form.end_date}
+                onChange={v => setForm(f => ({ ...f, end_date: v }))}
+                placeholder="DD/MM/YYYY"
+              />
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -796,6 +843,7 @@ export default function ClientDetailPage() {
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Monthly (£)</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Start</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">End</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Duration</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Active</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium w-20">Actions</TableHead>
                   </TableRow>
@@ -810,6 +858,9 @@ export default function ClientDetailPage() {
                       </TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{formatDateUK(item.start_date)}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{formatDateUK(item.end_date)}</TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground/60">
+                        {contractDuration(item.start_date, item.end_date)}
+                      </TableCell>
                       <TableCell>
                         <Switch
                           checked={item.is_active}

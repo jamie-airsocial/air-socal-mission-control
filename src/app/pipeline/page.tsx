@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -1064,11 +1065,10 @@ function ConvertToClientDialog({ prospect, onClose, onConverted }: {
 
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">Sign-up date</Label>
-            <Input
-              type="date"
+            <DatePicker
               value={signupDate}
-              onChange={e => setSignupDate(e.target.value)}
-              className="h-9 text-[13px] bg-secondary border-border/20"
+              onChange={setSignupDate}
+              placeholder="DD/MM/YYYY"
             />
           </div>
 

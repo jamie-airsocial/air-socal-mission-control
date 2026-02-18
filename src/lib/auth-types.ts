@@ -9,6 +9,7 @@ export interface AppUser {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  last_active_at?: string | null;
   role?: Role;
   // Merged from Supabase Auth
   last_sign_in_at?: string | null;
@@ -22,6 +23,7 @@ export interface Role {
 }
 
 export interface Permissions {
+  // Page access
   dashboard: boolean;
   tasks: boolean;
   clients: boolean;
@@ -29,6 +31,12 @@ export interface Permissions {
   teams: boolean;
   xero: boolean;
   settings: boolean;
+  // Action permissions
+  manage_users?: boolean;
+  manage_clients?: boolean;
+  manage_tasks?: boolean;
+  manage_prospects?: boolean;
+  manage_billing?: boolean;
 }
 
 export const DEFAULT_PERMISSIONS: Permissions = {
@@ -39,4 +47,9 @@ export const DEFAULT_PERMISSIONS: Permissions = {
   teams: true,
   xero: true,
   settings: true,
+  manage_users: true,
+  manage_clients: true,
+  manage_tasks: true,
+  manage_prospects: true,
+  manage_billing: true,
 };

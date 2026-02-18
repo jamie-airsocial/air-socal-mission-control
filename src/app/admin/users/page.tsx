@@ -63,6 +63,11 @@ function absoluteTime(isoString: string | null | undefined): string {
   });
 }
 
+function isOnline(isoString: string | null | undefined): boolean {
+  if (!isoString) return false;
+  return Date.now() - new Date(isoString).getTime() < 5 * 60_000; // < 5 minutes
+}
+
 // ── Sub-components ───────────────────────────────────────────────────────────
 const TEAMS = [
   { value: 'synergy', label: 'Synergy' },
@@ -314,7 +319,7 @@ export default function AdminUsersPage() {
                 <TableHead className="text-[12px] text-muted-foreground font-medium">Email</TableHead>
                 <TableHead className="text-[12px] text-muted-foreground font-medium">Team</TableHead>
                 <TableHead className="text-[12px] text-muted-foreground font-medium">Role</TableHead>
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Last Login</TableHead>
+                <TableHead className="text-[12px] text-muted-foreground font-medium">Last Active</TableHead>
                 <TableHead className="text-[12px] text-muted-foreground font-medium">Status</TableHead>
                 <TableHead className="text-[12px] text-muted-foreground font-medium w-32">Actions</TableHead>
               </TableRow>
@@ -366,12 +371,21 @@ export default function AdminUsersPage() {
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground/60 cursor-default">
-                            <Clock size={11} className="shrink-0" />
-                            <span>{relativeTime(user.last_sign_in_at)}</span>
+                            {isOnline(user.last_active_at) ? (
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" title="Online now" />
+                            ) : (
+                              <Clock size={11} className="shrink-0" />
+                            )}
+                            <span>{user.last_active_at ? relativeTime(user.last_active_at) : relativeTime(user.last_sign_in_at)}</span>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="text-[12px]">
-                          {absoluteTime(user.last_sign_in_at)}
+                          {user.last_active_at ? (
+                            <div>
+                              <p className="font-medium">Last active: {absoluteTime(user.last_active_at)}</p>
+                              <p className="text-muted-foreground/60 mt-0.5">Last login: {absoluteTime(user.last_sign_in_at)}</p>
+                            </div>
+                          ) : absoluteTime(user.last_sign_in_at)}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>

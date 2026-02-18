@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import type { User } from '@supabase/supabase-js';
 import type { AppUser, Permissions } from '@/lib/auth-types';
@@ -30,6 +30,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [permissions, setPermissions] = useState<Permissions>(DEFAULT_PERMISSIONS);
   const [roleName, setRoleName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,9 +47,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (data) {
       setAppUser(data);
       if (data.role?.permissions) {
-        setPermissions(data.role.permissions as Permissions);
+        // Admin always has full access — override all permissions to true
+        if (data.role.name === 'Admin') {
+          const fullPerms: Permissions = {
+            dashboard: true, tasks: true, clients: true, pipeline: true,
+            teams: true, xero: true, settings: true,
+            manage_users: true, manage_clients: true, manage_tasks: true,
+            manage_prospects: true, manage_billing: true,
+          };
+          setPermissions(fullPerms);
+        } else {
+          setPermissions({
+            ...DEFAULT_PERMISSIONS,
+            ...data.role.permissions,
+          } as Permissions);
+        }
         setRoleName(data.role.name);
       }
+    }
+  };
+
+  // Send heartbeat (updates last_active_at) every 60s when tab is visible
+  const sendHeartbeat = () => {
+    if (document.visibilityState === 'visible') {
+      fetch('/api/users/heartbeat', { method: 'POST' }).catch(() => {});
+    }
+  };
+
+  const startHeartbeat = () => {
+    stopHeartbeat();
+    sendHeartbeat(); // immediate call
+    heartbeatRef.current = setInterval(sendHeartbeat, 60_000);
+  };
+
+  const stopHeartbeat = () => {
+    if (heartbeatRef.current) {
+      clearInterval(heartbeatRef.current);
+      heartbeatRef.current = null;
     }
   };
 
@@ -57,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(user);
       if (user) {
         loadAppUser(user).finally(() => setLoading(false));
+        startHeartbeat();
       } else {
         setLoading(false);
       }
@@ -66,18 +102,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         loadAppUser(session.user);
+        startHeartbeat();
       } else {
         setAppUser(null);
         setPermissions(DEFAULT_PERMISSIONS);
         setRoleName(null);
+        stopHeartbeat();
       }
     });
 
-    return () => subscription.unsubscribe();
+    // Handle visibility change
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        sendHeartbeat();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      subscription.unsubscribe();
+      stopHeartbeat();
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signOut = async () => {
+    stopHeartbeat();
     await supabase.auth.signOut();
     window.location.href = '/login';
   };

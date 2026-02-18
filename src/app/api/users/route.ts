@@ -20,6 +20,7 @@ export async function GET() {
       const merged = (data || []).map(u => ({
         ...u,
         last_sign_in_at: u.auth_user_id ? (authMap.get(u.auth_user_id) ?? null) : null,
+        last_active_at: u.last_active_at ?? null,
       }));
       return NextResponse.json(merged, { headers: { 'Cache-Control': 'no-store' } });
     }
