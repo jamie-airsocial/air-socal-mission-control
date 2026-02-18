@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SERVICE_STYLES } from '@/lib/constants';
+import { ServiceIcon } from '@/components/ui/service-icon';
 
 const SERVICES = Object.entries(SERVICE_STYLES);
 
@@ -59,7 +60,7 @@ export function FilterServicePopover({
               value.includes(key) ? 'bg-primary/10 text-primary' : ''
             }`}
           >
-            <span>{style.icon}</span>
+            <ServiceIcon serviceKey={key} size={13} />
             <span className="flex-1 text-left">{style.label}</span>
             {value.includes(key) && <Check size={14} className="text-primary shrink-0" />}
           </button>

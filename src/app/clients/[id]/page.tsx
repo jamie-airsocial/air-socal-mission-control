@@ -6,6 +6,7 @@ import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar } from 'lucide-react';
+import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
 
 interface Client {
@@ -146,7 +147,8 @@ export default function ClientDetailPage() {
                 if (!s) return null;
                 return (
                   <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
-                    {s.icon} {s.label}
+                    <ServiceIcon serviceKey={service} size={13} />
+                    {s.label}
                   </span>
                 );
               })}

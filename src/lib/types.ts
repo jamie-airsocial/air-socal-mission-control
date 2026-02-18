@@ -153,3 +153,39 @@ export interface TokenUsageResponse {
 export type Team = 'synergy' | 'ignite' | 'alliance';
 export type ClientStatus = 'active' | 'paused' | 'churned';
 export type Service = 'seo' | 'paid-ads' | 'social-media' | 'account-management';
+
+/** A team member conceptually treated as a user who can log in */
+export interface User {
+  id: string;
+  name: string;
+  role: string;
+  team: Team;
+  email: string;
+}
+
+/** Extended client detail fields (optional — may not yet be in DB) */
+export interface ClientExtended {
+  id: string;
+  name: string;
+  team?: string;
+  status?: string;
+  services?: string[];
+  monthly_retainer?: number;
+  assigned_members?: string[];
+  color?: string;
+  created_at: string;
+  updated_at?: string;
+  // Contract fields
+  contract_value?: number;
+  contract_start?: string;
+  contract_end?: string;
+  contract_renewal?: string;
+  // Sale details
+  sale_source?: string;
+  sold_by?: string;
+  sale_closed_at?: string;
+  // Other
+  notes?: string;
+  signup_date?: string;
+  churned_at?: string;
+}

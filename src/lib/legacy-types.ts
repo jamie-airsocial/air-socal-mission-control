@@ -24,6 +24,7 @@ export interface TeamMember {
   role: string;
   team: Team;
   avatar?: string;
+  email?: string;
 }
 
 export interface Task {

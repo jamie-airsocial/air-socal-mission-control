@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import type { Task, Project, Comment } from '@/lib/types';
 import { STATUS_STYLES, SERVICE_STYLES, toSlug, toDisplayName, getInitials } from '@/lib/constants';
+import { ServiceIcon } from '@/components/ui/service-icon';
 // Note: ASSIGNEE_COLORS / NAME_TO_SLUG are used in subtask-list.tsx, not here.
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -1062,7 +1063,7 @@ export function TaskSheet({
                   <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
                     {form.service && SERVICE_STYLES[form.service] ? (
                       <>
-                        <span>{SERVICE_STYLES[form.service].icon}</span>
+                        <ServiceIcon serviceKey={form.service} size={13} className={SERVICE_STYLES[form.service].text} />
                         <span className={`text-[13px] ${SERVICE_STYLES[form.service].text}`}>{SERVICE_STYLES[form.service].label}</span>
                       </>
                     ) : (
@@ -1085,7 +1086,7 @@ export function TaskSheet({
                       onClick={() => setForm({ ...form, service: key })}
                       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${form.service === key ? 'bg-primary/10 text-primary' : ''}`}
                     >
-                      <span>{style.icon}</span>
+                      <ServiceIcon serviceKey={key} size={13} />
                       <span className="flex-1 text-left">{style.label}</span>
                     </button>
                   ))}

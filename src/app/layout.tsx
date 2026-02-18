@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { Sidebar } from '@/components/layout/sidebar';
+import { TopBar } from '@/components/layout/top-bar';
 import { Toaster } from 'sonner';
 import './globals.css';
 
@@ -20,7 +21,8 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={inter.className}>
         <Sidebar />
-        <main className="ml-56 min-h-screen bg-background p-6">
+        <TopBar />
+        <main className="ml-56 min-h-screen bg-background p-6 pt-[60px]">
           {children}
         </main>
         <Toaster position="top-right" />

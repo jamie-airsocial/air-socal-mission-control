@@ -111,10 +111,10 @@ export const TEAM_STYLES: Record<Team, { color: string; bg: string; text: string
 };
 
 export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: string; label: string }> = {
-  seo: { icon: '🔍', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SEO' },
-  'paid-advertising': { icon: '💰', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Advertising' },
-  'social-media': { icon: '📱', bg: 'bg-pink-500/10', text: 'text-pink-400', label: 'Social Media' },
-  'account-management': { icon: '👤', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management' },
+  seo: { icon: 'Search', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SEO' },
+  'paid-advertising': { icon: 'Target', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Advertising' },
+  'social-media': { icon: 'Share2', bg: 'bg-pink-500/10', text: 'text-pink-400', label: 'Social Media' },
+  'account-management': { icon: 'UserCheck', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management' },
 };
 
 export const LOSS_REASONS = [

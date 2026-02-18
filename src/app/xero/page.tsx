@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { TEAM_STYLES } from '@/lib/constants';
-import { DollarSign, TrendingUp, Users, AlertCircle } from 'lucide-react';
+import { PoundSterling, TrendingUp, Users, AlertCircle } from 'lucide-react';
 
 interface Client {
   id: string;
@@ -65,7 +65,7 @@ export default function XeroPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <div className="flex items-center gap-2 mb-2">
-            <DollarSign size={14} className="text-emerald-400" />
+            <PoundSterling size={14} className="text-emerald-400" />
             <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Monthly Revenue</span>
           </div>
           <p className="text-2xl font-bold text-emerald-400">£{totalRevenue.toLocaleString()}</p>

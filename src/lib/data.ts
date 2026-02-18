@@ -4,19 +4,19 @@ import type { Client, TeamMember, Task, TaskTemplate } from './legacy-types';
 
 export const TEAM_MEMBERS: TeamMember[] = [
   // Synergy Team (Blue)
-  { id: 'm1', name: 'Sarah Chen', role: 'Account Manager', team: 'synergy' },
-  { id: 'm2', name: 'Marcus Johnson', role: 'SEO Specialist', team: 'synergy' },
-  { id: 'm3', name: 'Emily Rodriguez', role: 'Paid Ads Manager', team: 'synergy' },
-  
+  { id: 'm1', name: 'Sophie Gore', role: 'Account Manager', team: 'synergy', email: 'sophie.gore@airsocial.co.uk' },
+  { id: 'm2', name: 'Jamie Ludlow', role: 'Paid Ads Manager', team: 'synergy', email: 'jamie.ludlow@airsocial.co.uk' },
+  { id: 'm3', name: 'Sophie Collins', role: 'Social Media Manager', team: 'synergy', email: 'sophie.collins@airsocial.co.uk' },
+
   // Ignite Team (Orange)
-  { id: 'm4', name: 'David Kim', role: 'Social Media Manager', team: 'ignite' },
-  { id: 'm5', name: 'Rachel Foster', role: 'Content Creator', team: 'ignite' },
-  { id: 'm6', name: 'James Taylor', role: 'SEO Specialist', team: 'ignite' },
-  
+  { id: 'm4', name: 'Chloe Taylor', role: 'Account Manager', team: 'ignite', email: 'chloe.taylor@airsocial.co.uk' },
+  { id: 'm5', name: 'Dave Gibbs', role: 'Paid Ads Manager', team: 'ignite', email: 'dave.gibbs@airsocial.co.uk' },
+  { id: 'm6', name: 'Jack Underwood', role: 'Social Media Manager', team: 'ignite', email: 'jack.underwood@airsocial.co.uk' },
+
   // Alliance Team (Purple)
-  { id: 'm7', name: 'Olivia Brown', role: 'Account Director', team: 'alliance' },
-  { id: 'm8', name: 'Tom Wilson', role: 'Paid Ads Specialist', team: 'alliance' },
-  { id: 'm9', name: 'Sophie Davies', role: 'Social Media Manager', team: 'alliance' },
+  { id: 'm7', name: 'Chloe Hodgetts', role: 'Account Manager', team: 'alliance', email: 'chloe.hodgetts@airsocial.co.uk' },
+  { id: 'm8', name: 'Aaron Lewis', role: 'Paid Ads Manager', team: 'alliance', email: 'aaron.lewis@airsocial.co.uk' },
+  { id: 'm9', name: 'Marcus Yeatman', role: 'Social Media Manager', team: 'alliance', email: 'marcus.yeatman@airsocial.co.uk' },
 ];
 
 export const CLIENTS: Client[] = [

@@ -191,7 +191,7 @@ export function KanbanBoard({
     if (groupBy === 'service') {
       const cols: KanbanColumn[] = Object.entries(SERVICE_STYLES).map(([key, style]) => ({
         id: key,
-        label: `${style.icon} ${style.label}`,
+        label: style.label,
         dotClass: '',
       }));
       if (tasks.some((t) => !t.service)) {

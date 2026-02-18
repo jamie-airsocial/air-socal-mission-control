@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, DollarSign, Percent, Trophy } from 'lucide-react';
+import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy } from 'lucide-react';
+import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS } from '@/lib/constants';
@@ -268,7 +269,8 @@ export default function PipelinePage() {
                   }`}>
                     {isSelected && <Check size={10} className="text-primary-foreground" />}
                   </div>
-                  <span className="flex-1 text-left">{s.icon} {s.label}</span>
+                  <ServiceIcon serviceKey={key} size={12} className="shrink-0" />
+                  <span className="flex-1 text-left">{s.label}</span>
                 </button>
               );
             })}
@@ -333,7 +335,7 @@ export default function PipelinePage() {
             <select value={formService} onChange={e => setFormService(e.target.value)} className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none">
               <option value="">Service...</option>
               {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                <option key={key} value={key}>{s.icon} {s.label}</option>
+                <option key={key} value={key}>{s.label}</option>
               ))}
             </select>
             <input value={formSource} onChange={e => setFormSource(e.target.value)} placeholder="Source (e.g. Referral, LinkedIn)" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
@@ -593,7 +595,6 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
   };
 
   const maxStageCount = Math.max(...Object.values(s.stageCount), 1);
-  const maxStageValue = Math.max(...Object.values(s.stageValue), 1);
   const totalLost = Object.values(s.lossReasons).reduce((a, b) => a + b, 0) || 1;
 
   return (
@@ -601,7 +602,7 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Pipeline Value', value: `£${s.pipelineValue.toLocaleString()}`, icon: DollarSign, color: 'text-primary' },
+          { label: 'Pipeline Value', value: `£${s.pipelineValue.toLocaleString()}`, icon: PoundSterling, color: 'text-primary' },
           { label: 'Won Revenue', value: `£${s.wonValue.toLocaleString()}`, icon: Trophy, color: 'text-emerald-400' },
           { label: 'Conversion Rate', value: `${s.conversionRate}%`, icon: Percent, color: 'text-amber-400' },
           { label: 'Avg Deal Value', value: `£${s.avgDealValue.toLocaleString()}`, icon: TrendingUp, color: 'text-blue-400' },
@@ -678,28 +679,6 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
         </div>
       </div>
 
-      {/* Value by Stage */}
-      <div className="p-4 rounded-lg border border-border/20 bg-card">
-        <h3 className="text-[13px] font-semibold mb-4">Value by Stage</h3>
-        <div className="flex items-end gap-3 h-[200px]">
-          {PIPELINE_STAGES.map(stage => {
-            const value = s.stageValue[stage.id] || 0;
-            const heightPercent = Math.max((value / maxStageValue) * 100, 2);
-            return (
-              <div key={stage.id} className="flex-1 flex flex-col items-center justify-end h-full">
-                <span className="text-[10px] text-muted-foreground/60 mb-1">
-                  {value > 0 ? `£${(value / 1000).toFixed(value >= 1000 ? 0 : 1)}k` : '£0'}
-                </span>
-                <div
-                  className={`w-full rounded-t-lg ${stage.dotClass} opacity-70 transition-all duration-500`}
-                  style={{ height: `${heightPercent}%` }}
-                />
-                <span className="text-[10px] text-muted-foreground/60 mt-2">{stage.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
@@ -795,13 +774,14 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete }: {
                 <button
                   key={key}
                   onClick={() => onUpdate({ service: prospect.service === key ? null : key })}
-                  className={`px-2.5 py-1 rounded-lg text-[13px] border transition-colors duration-150 ${
+                  className={`px-2.5 py-1 rounded-lg text-[13px] border transition-colors duration-150 flex items-center gap-1.5 ${
                     prospect.service === key
                       ? `${s.bg} ${s.text} border-current`
                       : 'border-border/20 bg-secondary hover:border-primary/30'
                   }`}
                 >
-                  {s.icon} {s.label}
+                  <ServiceIcon serviceKey={key} size={12} />
+                  {s.label}
                 </button>
               ))}
             </div>

@@ -13,21 +13,38 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, team, status, services, monthly_retainer, assigned_members, color } = body;
+  const {
+    name, team, status, services, monthly_retainer, assigned_members, color,
+    signup_date, notes, sale_source, sold_by, sale_closed_at,
+    contract_value, contract_start, contract_end, contract_renewal,
+  } = body;
 
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
+  const insertData: Record<string, unknown> = {
+    name,
+    team: team || null,
+    status: status || 'active',
+    services: services || [],
+    monthly_retainer: monthly_retainer || null,
+    assigned_members: assigned_members || [],
+    color: color || null,
+  };
+
+  // Include optional extended fields if provided
+  if (signup_date !== undefined) insertData.signup_date = signup_date;
+  if (notes !== undefined) insertData.notes = notes;
+  if (sale_source !== undefined) insertData.sale_source = sale_source;
+  if (sold_by !== undefined) insertData.sold_by = sold_by;
+  if (sale_closed_at !== undefined) insertData.sale_closed_at = sale_closed_at;
+  if (contract_value !== undefined) insertData.contract_value = contract_value;
+  if (contract_start !== undefined) insertData.contract_start = contract_start;
+  if (contract_end !== undefined) insertData.contract_end = contract_end;
+  if (contract_renewal !== undefined) insertData.contract_renewal = contract_renewal;
+
   const { data, error } = await supabaseAdmin
     .from('clients')
-    .insert({
-      name,
-      team: team || null,
-      status: status || 'active',
-      services: services || [],
-      monthly_retainer: monthly_retainer || null,
-      assigned_members: assigned_members || [],
-      color: color || null,
-    })
+    .insert(insertData)
     .select()
     .single();
 
