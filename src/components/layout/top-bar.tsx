@@ -4,9 +4,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Bell, Settings, Sun, Moon, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/auth-context';
+import { ASSIGNEE_COLORS } from '@/lib/constants';
 
 export function TopBar() {
   const [dark, setDark] = useState(true);
+  const { appUser } = useAuth();
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -104,13 +107,16 @@ export function TopBar() {
         </button>
 
         {/* User avatar */}
-        <div
-          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 ml-1 cursor-pointer select-none"
-          style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #0d9488 100%)' }}
-          title="Jamie Ludlow"
-        >
-          <span className="text-[11px] font-bold text-white leading-none">JL</span>
-        </div>
+        {appUser ? (
+          <div
+            className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ml-1 select-none text-[11px] font-bold leading-none ${ASSIGNEE_COLORS[appUser.full_name] || 'bg-primary/20 text-primary'}`}
+            title={appUser.full_name}
+          >
+            {appUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+          </div>
+        ) : (
+          <div className="h-8 w-8 rounded-full bg-muted/40 ml-1 shrink-0" />
+        )}
       </header>
 
       {/* Search overlay */}

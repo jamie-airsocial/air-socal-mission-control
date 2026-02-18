@@ -46,6 +46,19 @@ export const ASSIGNEE_COLORS: Record<string, string> = {
   'marcus-yeatman': 'bg-violet-500/20 text-violet-400',
 };
 
+/** Get colour for an assignee given their team — used for dynamic users from DB */
+export function getAssigneeColorByTeam(team: string | null | undefined): string {
+  if (team === 'synergy') return 'bg-blue-500/20 text-blue-400';
+  if (team === 'ignite') return 'bg-orange-500/20 text-orange-400';
+  if (team === 'alliance') return 'bg-purple-500/20 text-purple-400';
+  return 'bg-muted/40 text-muted-foreground';
+}
+
+/** Get colour for an assignee — checks static map first, falls back to team-based colour */
+export function getAssigneeColor(nameOrSlug: string, team?: string | null): string {
+  return ASSIGNEE_COLORS[nameOrSlug] || getAssigneeColorByTeam(team);
+}
+
 /** Assignee name ↔ slug mappings — single source of truth */
 export const NAME_TO_SLUG: Record<string, string> = {
   'Sophie Gore': 'sophie-gore',

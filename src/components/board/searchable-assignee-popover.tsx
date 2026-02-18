@@ -4,10 +4,8 @@ import { useState, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/components/ui/popover';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { ASSIGNEE_COLORS, NAME_TO_SLUG } from '@/lib/constants';
-
-// Derived from constants — single source of truth for all assignee names
-const ASSIGNEES = Object.keys(NAME_TO_SLUG);
+import { getAssigneeColor, ASSIGNEE_COLORS } from '@/lib/constants';
+import { useUsers } from '@/hooks/use-users';
 
 export function SearchableAssigneePopover({ 
   value, 
@@ -27,6 +25,7 @@ export function SearchableAssigneePopover({
   const [search, setSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { users } = useUsers();
 
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange?.(nextOpen);
@@ -35,30 +34,39 @@ export function SearchableAssigneePopover({
       setSearch('');
     }
   };
-  
-  const filtered = ASSIGNEES.filter(a => 
-    a.toLowerCase().includes(search.toLowerCase())
+
+  const assignees = users.length > 0
+    ? users.map(u => ({ name: u.full_name, team: u.team }))
+    : [];
+
+  const filtered = assignees.filter(a =>
+    a.name.toLowerCase().includes(search.toLowerCase())
   );
-  
+
+  const selectedUser = users.find(u => u.full_name === value);
+  const valueColor = value
+    ? (ASSIGNEE_COLORS[value] || getAssigneeColor(value, selectedUser?.team))
+    : '';
+
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         {trigger ? trigger : compact ? (
           <Tooltip>
-          <TooltipTrigger asChild>
-          <button className="flex items-center hover:bg-muted/60 rounded p-0.5 transition-colors duration-150">
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] leading-none font-medium flex-shrink-0 ${value ? (ASSIGNEE_COLORS[value] || 'bg-muted/60 text-muted-foreground') : 'bg-muted/30'}`}>
-              {value ? value.charAt(0) : ''}
-            </span>
-          </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-[13px]">{value || 'Unassigned'}</TooltipContent>
+            <TooltipTrigger asChild>
+              <button className="flex items-center hover:bg-muted/60 rounded p-0.5 transition-colors duration-150">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] leading-none font-medium flex-shrink-0 ${value ? (valueColor || 'bg-muted/60 text-muted-foreground') : 'bg-muted/30'}`}>
+                  {value ? value.charAt(0) : ''}
+                </span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-[13px]">{value || 'Unassigned'}</TooltipContent>
           </Tooltip>
         ) : (
           <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
             {value ? (
               <>
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${ASSIGNEE_COLORS[value] || 'bg-muted/40 text-muted-foreground'}`}>
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${valueColor || 'bg-muted/40 text-muted-foreground'}`}>
                   {value.charAt(0)}
                 </span>
                 <span className="text-[13px] truncate max-w-[120px]">{value}</span>
@@ -99,21 +107,24 @@ export function SearchableAssigneePopover({
               <div className="border-t border-border/20 my-1" />
             </>
           )}
-          {filtered.map((a, idx) => (
-            <PopoverClose asChild key={a}>
-              <button
-                onClick={() => { onChange(a); }}
-                data-search-item 
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === a ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
-              >
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${ASSIGNEE_COLORS[a] || 'bg-muted/40 text-muted-foreground'}`}>
-                  {a.charAt(0)}
-                </span>
-                <span className="flex-1 text-left">{a}</span>
-                {value === a && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
-              </button>
-            </PopoverClose>
-          ))}
+          {filtered.map((a, idx) => {
+            const colorClass = getAssigneeColor(a.name, a.team);
+            return (
+              <PopoverClose asChild key={a.name}>
+                <button
+                  onClick={() => { onChange(a.name); }}
+                  data-search-item
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === a.name ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${colorClass}`}>
+                    {a.name.charAt(0)}
+                  </span>
+                  <span className="flex-1 text-left">{a.name}</span>
+                  {value === a.name && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                </button>
+              </PopoverClose>
+            );
+          })}
           {filtered.length === 0 && (
             <div className="px-2 py-3 text-[13px] text-muted-foreground/30 text-center">
               No assignees found
