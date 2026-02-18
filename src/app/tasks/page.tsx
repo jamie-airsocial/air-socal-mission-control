@@ -51,12 +51,19 @@ function BoardContent() {
 
   useEffect(() => {
     fetch('/api/teams').then(r => r.json()).then(data => {
-      setAvailableTeams((data || []).map((t: { name: string }) => ({
+      const mapped = (data || []).map((t: { name: string }) => ({
         slug: t.name.toLowerCase(),
         name: t.name,
-      })));
+      }));
+      setAvailableTeams(mapped);
+      // Clean up stale team filters
+      if (mapped.length > 0 && filterTeam.length > 0) {
+        const validSlugs = new Set(mapped.map((t: { slug: string }) => t.slug));
+        const cleaned = filterTeam.filter((f: string) => validSlugs.has(f));
+        if (cleaned.length !== filterTeam.length) setFilterTeam(cleaned);
+      }
     }).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist kanban group-by
   useEffect(() => {

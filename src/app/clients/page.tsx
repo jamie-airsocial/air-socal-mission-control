@@ -617,9 +617,17 @@ export default function ClientsPage() {
   useEffect(() => {
     fetch('/api/teams')
       .then(r => r.ok ? r.json() : [])
-      .then(data => setTeams(data))
+      .then(data => {
+        setTeams(data);
+        // Clean up stale team filters that reference renamed/deleted teams
+        if (data.length > 0 && filterTeam.length > 0) {
+          const validSlugs = new Set(data.map((t: { name: string }) => t.name.toLowerCase()));
+          const cleaned = filterTeam.filter(f => validSlugs.has(f));
+          if (cleaned.length !== filterTeam.length) setFilterTeam(cleaned);
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredClients = clients.filter(client => {
     if (searchQuery && !client.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
