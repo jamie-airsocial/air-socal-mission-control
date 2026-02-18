@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Plus, Pencil, UserX, UserCheck, KeyRound, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check } from 'lucide-react';
+import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -150,8 +151,8 @@ export default function AdminUsersPage() {
 
   // Search, filter, sort
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterTeamSlug, setFilterTeamSlug] = useState<string>('');
-  const [filterRoleId, setFilterRoleId] = useState<string>('');
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
+  const [filterRoles, setFilterRoles] = useState<string[]>([]);
   const [sortField, setSortField] = useState<'name' | 'email' | 'team' | 'role' | 'lastActive' | 'status'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -334,8 +335,8 @@ export default function AdminUsersPage() {
   // Filter
   const filteredUsers = users.filter(u => {
     if (searchQuery && !u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) && !u.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (filterTeamSlug && (u.team || '') !== filterTeamSlug) return false;
-    if (filterRoleId && (u.role_id || '') !== filterRoleId) return false;
+    if (filterTeams.length > 0 && !filterTeams.includes(u.team || '')) return false;
+    if (filterRoles.length > 0 && !filterRoles.includes(u.role_id || '')) return false;
     return true;
   });
 
@@ -357,7 +358,7 @@ export default function AdminUsersPage() {
     }
   });
 
-  const hasFilters = searchQuery || filterTeamSlug || filterRoleId;
+  const hasFilters = searchQuery || filterTeams.length > 0 || filterRoles.length > 0;
 
   return (
     <TooltipProvider delayDuration={600}>
@@ -382,52 +383,21 @@ export default function AdminUsersPage() {
               className="h-8 pl-8 text-[13px] bg-secondary border-border/20"
             />
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className={`h-8 px-3 text-[13px] rounded-lg border flex items-center gap-1.5 transition-colors ${
-                filterTeamSlug ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
-              }`}>
-                <Filter size={12} /> Team {filterTeamSlug && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-44 p-1" align="start">
-              <button onClick={() => setFilterTeamSlug('')}
-                className={`w-full px-2 py-1.5 rounded text-[13px] text-left hover:bg-muted/60 ${!filterTeamSlug ? 'bg-muted/40' : ''}`}>
-                All teams
-              </button>
-              {teamOptions.map(t => (
-                <button key={t.value} onClick={() => setFilterTeamSlug(t.value)}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${filterTeamSlug === t.value ? 'bg-muted/40' : ''}`}>
-                  {t.label}
-                  {filterTeamSlug === t.value && <Check size={14} className="text-primary" />}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button className={`h-8 px-3 text-[13px] rounded-lg border flex items-center gap-1.5 transition-colors ${
-                filterRoleId ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
-              }`}>
-                <Filter size={12} /> Role {filterRoleId && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-52 p-1" align="start">
-              <button onClick={() => setFilterRoleId('')}
-                className={`w-full px-2 py-1.5 rounded text-[13px] text-left hover:bg-muted/60 ${!filterRoleId ? 'bg-muted/40' : ''}`}>
-                All roles
-              </button>
-              {roles.map(r => (
-                <button key={r.id} onClick={() => setFilterRoleId(r.id)}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${filterRoleId === r.id ? 'bg-muted/40' : ''}`}>
-                  {r.name}
-                  {filterRoleId === r.id && <Check size={14} className="text-primary" />}
-                </button>
-              ))}
-            </PopoverContent>
-          </Popover>
+          <FilterPopover
+            label="Team"
+            options={teamOptions.map(t => ({ value: t.value, label: t.label }))}
+            selected={filterTeams}
+            onSelectionChange={setFilterTeams}
+          />
+          <FilterPopover
+            label="Role"
+            options={roles.map(r => ({ value: r.id, label: r.name }))}
+            selected={filterRoles}
+            onSelectionChange={setFilterRoles}
+            width="w-52"
+          />
           {hasFilters && (
-            <button onClick={() => { setSearchQuery(''); setFilterTeamSlug(''); setFilterRoleId(''); }}
+            <button onClick={() => { setSearchQuery(''); setFilterTeams([]); setFilterRoles([]); }}
               className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1.5">
               <X size={12} /> Clear
             </button>

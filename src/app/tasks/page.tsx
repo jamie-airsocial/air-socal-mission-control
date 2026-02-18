@@ -13,12 +13,12 @@ import { FilterAssigneePopover } from '@/components/board/filter-assignee-popove
 import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
 import { FilterStatusPopover } from '@/components/board/filter-status-popover';
 import { FilterLabelPopover } from '@/components/board/filter-label-popover';
-import { FilterServicePopover } from '@/components/board/filter-service-popover';
+import { FilterPopover } from '@/components/ui/filter-popover';
+import { SERVICE_STYLES, getTeamStyle } from '@/lib/constants';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { LayoutGrid, Table2, Plus, Search, Eye, EyeOff, CalendarDays, X, ChevronDown, Check } from 'lucide-react';
-import { getTeamStyle } from '@/lib/constants';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SavedViews } from '@/components/board/saved-views';
@@ -347,45 +347,20 @@ function BoardContent() {
           onCreateLabel={handleLabelCreate}
         />
 
-        <FilterServicePopover value={filterService} onChange={setFilterService} />
+        <FilterPopover
+          label="Service"
+          options={Object.entries(SERVICE_STYLES).map(([key, s]) => ({ value: key, label: s.label }))}
+          selected={filterService}
+          onSelectionChange={setFilterService}
+          width="w-52"
+        />
 
-        {/* Team filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap ${
-              filterTeam.length > 0 ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
-            }`}>
-              {filterTeam.length > 0 ? `Team (${filterTeam.length})` : 'All teams'}
-              <ChevronDown size={12} className="text-muted-foreground/60" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-48 p-1" align="start">
-            {availableTeams.map(team => {
-              const style = getTeamStyle(team.slug);
-              const isSelected = filterTeam.includes(team.slug);
-              return (
-                <button
-                  key={team.slug}
-                  onClick={() => setFilterTeam(prev => isSelected ? prev.filter(v => v !== team.slug) : [...prev, team.slug])}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
-                    isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-                  }`}
-                >
-                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                    isSelected ? 'border-primary bg-primary' : 'border-border/40'
-                  }`}>
-                    {isSelected && <Check size={10} className="text-primary-foreground" />}
-                  </div>
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
-                  <span className="flex-1 text-left">{team.name}</span>
-                </button>
-              );
-            })}
-            {filterTeam.length > 0 && (
-              <button onClick={() => setFilterTeam([])} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
-            )}
-          </PopoverContent>
-        </Popover>
+        <FilterPopover
+          label="Team"
+          options={availableTeams.map(t => ({ value: t.slug, label: t.name, dot: getTeamStyle(t.slug).color }))}
+          selected={filterTeam}
+          onSelectionChange={setFilterTeam}
+        />
 
         {view !== 'calendar' && (
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>

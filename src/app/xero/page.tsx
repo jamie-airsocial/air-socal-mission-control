@@ -3,8 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTeamStyle, TEAM_STYLES } from '@/lib/constants';
-import { PoundSterling, TrendingUp, Users, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, TrendingDown, AlertTriangle } from 'lucide-react';
+import { PoundSterling, TrendingUp, Users, AlertCircle, ChevronUp, ChevronDown, ChevronsUpDown, TrendingDown, AlertTriangle, X } from 'lucide-react';
 import { usePersistedState } from '@/hooks/use-persisted-state';
+import { FilterPopover } from '@/components/ui/filter-popover';
 
 interface Client {
   id: string;
@@ -75,7 +76,7 @@ export default function XeroPage() {
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>('retainer');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [tableTeamFilter, setTableTeamFilter] = usePersistedState<string>('xero-teamFilter', '');
+  const [filterTeams, setFilterTeams] = usePersistedState<string[]>('xero-filterTeams', []);
   const [activeSection, setActiveSection] = usePersistedState<'overview' | 'projections'>('xero-section', 'overview');
 
   useEffect(() => {
@@ -243,10 +244,10 @@ export default function XeroPage() {
       if (va > vb) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-    if (tableTeamFilter) return sorted.filter(c => c.team === tableTeamFilter);
+    if (filterTeams.length > 0) return sorted.filter(c => filterTeams.includes(c.team));
     return sorted;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allClients, sortKey, sortDir, tableTeamFilter, contractRevenueByClient]);
+  }, [allClients, sortKey, sortDir, filterTeams, contractRevenueByClient]);
 
   if (loading) {
     return (
@@ -411,30 +412,26 @@ export default function XeroPage() {
                 <h3 className="text-[13px] font-semibold">All Clients</h3>
                 <p className="text-[11px] text-muted-foreground/40 mt-0.5">Click column headers to sort</p>
               </div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  onClick={() => setTableTeamFilter('')}
-                  className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 ${
-                    !tableTeamFilter ? 'border-primary bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/30'
-                  }`}
-                >All</button>
-                {teamSlugs.map(slug => {
-                  const style = getTeamStyle(slug);
-                  const teamObj = teams.find(t => t.name.toLowerCase() === slug);
-                  const label = teamObj?.name || style.label || slug;
-                  return (
-                    <button
-                      key={slug}
-                      onClick={() => setTableTeamFilter(tableTeamFilter === slug ? '' : slug)}
-                      className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 flex items-center gap-1.5 ${
-                        tableTeamFilter === slug ? 'border-primary bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/30'
-                      }`}
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.color }} />
-                      {label}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-2 flex-wrap">
+                <FilterPopover
+                  label="Team"
+                  options={teamSlugs.map(slug => {
+                    const style = getTeamStyle(slug);
+                    const teamObj = teams.find(t => t.name.toLowerCase() === slug);
+                    const label = teamObj?.name || style.label || slug;
+                    return { value: slug, label, dot: style.color };
+                  })}
+                  selected={filterTeams}
+                  onSelectionChange={setFilterTeams}
+                />
+                {filterTeams.length > 0 && (
+                  <button
+                    onClick={() => setFilterTeams([])}
+                    className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1.5"
+                  >
+                    <X size={12} /> Clear
+                  </button>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -500,7 +497,7 @@ export default function XeroPage() {
                   <tfoot>
                     <tr className="border-t border-border/20 bg-muted/20">
                       <td colSpan={3} className="px-3 py-2.5 text-[12px] font-semibold text-muted-foreground/60">
-                        Total ({sortedClients.filter(c => c.status === 'active').length} active{tableTeamFilter ? ` · ${teams.find(t => t.name.toLowerCase() === tableTeamFilter)?.name || tableTeamFilter}` : ''})
+                        Total ({sortedClients.filter(c => c.status === 'active').length} active{filterTeams.length === 1 ? ` · ${teams.find(t => t.name.toLowerCase() === filterTeams[0])?.name || filterTeams[0]}` : filterTeams.length > 1 ? ` · ${filterTeams.length} teams` : ''})
                       </td>
                       <td className="px-3 py-2.5 text-[13px] font-bold text-emerald-400">
                         £{sortedClients.reduce((sum, c) => sum + (c.status === 'active' ? clientRevenue(c) : 0), 0).toLocaleString()}/mo

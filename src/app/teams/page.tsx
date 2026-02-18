@@ -184,49 +184,51 @@ export default function TeamsPage() {
               </div>
 
               {/* Revenue by Service — consistent height across cards */}
-              <div className="px-4 py-3 border-b border-border/10 bg-muted/10" style={{ minHeight: `${28 + maxServices * 28}px` }}>
+              <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
                 <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Revenue by Service</p>
-                {Object.keys(revenueByService).length > 0 ? (
-                  <div className="space-y-1.5">
-                    {Object.entries(revenueByService)
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([service, amount]) => {
-                        const s = SERVICE_STYLES[service];
-                        if (!s) return null;
-                        const pct = revenue > 0 ? (amount / revenue) * 100 : 0;
-                        return (
-                          <div key={service}>
-                            <div className="flex items-center justify-between mb-0.5">
-                              <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                                <ServiceIcon serviceKey={service} size={10} /> {s.label}
-                              </span>
-                              <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
+                <div style={{ minHeight: `${maxServices * 28}px` }}>
+                  {Object.keys(revenueByService).length > 0 ? (
+                    <div className="space-y-1.5">
+                      {Object.entries(revenueByService)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([service, amount]) => {
+                          const s = SERVICE_STYLES[service];
+                          if (!s) return null;
+                          const pct = revenue > 0 ? (amount / revenue) * 100 : 0;
+                          return (
+                            <div key={service}>
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
+                                  <ServiceIcon serviceKey={service} size={10} /> {s.label}
+                                </span>
+                                <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
+                              </div>
+                              <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${Math.max(pct, 3)}%`,
+                                    backgroundColor: style?.color || 'var(--primary)',
+                                    opacity: 0.6,
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.max(pct, 3)}%`,
-                                  backgroundColor: style?.color || 'var(--primary)',
-                                  opacity: 0.6,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                ) : (
-                  <p className="text-[12px] text-muted-foreground/40 italic">No revenue data</p>
-                )}
+                          );
+                        })}
+                    </div>
+                  ) : (
+                    <p className="text-[12px] text-muted-foreground/40 italic">No revenue data</p>
+                  )}
+                </div>
               </div>
 
               {/* Members — consistent height across cards */}
-              <div className="p-4 border-b border-border/10" style={{ minHeight: `${28 + maxMembers * 48}px` }}>
+              <div className="p-4 border-b border-border/10">
                 <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">
                   Members ({members.length})
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-1" style={{ minHeight: `${maxMembers * 48}px` }}>
                   {members.length === 0 ? (
                     <p className="text-[12px] text-muted-foreground/40 italic">No members assigned</p>
                   ) : members.map(member => {
@@ -252,7 +254,7 @@ export default function TeamsPage() {
               </div>
 
               {/* Clients — consistent height across cards */}
-              <div className="p-4 flex-1" style={{ minHeight: `${28 + maxClients * 32}px` }}>
+              <div className="p-4 flex-1">
                 <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Active Clients</p>
                 {teamClients.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground/40">No active clients</p>

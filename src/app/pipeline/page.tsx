@@ -33,6 +33,7 @@ import confetti from 'canvas-confetti';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 import { usePersistedState } from '@/hooks/use-persisted-state';
+import { FilterPopover } from '@/components/ui/filter-popover';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Prospect {
@@ -686,46 +687,13 @@ export default function PipelinePage() {
         </div>
 
         {/* Service filter */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg hover:border-primary/50 transition-colors duration-150 flex items-center gap-1.5 ${
-              filterService.length > 0 ? 'border-primary text-primary' : 'border-border/20 text-muted-foreground'
-            }`}>
-              {filterService.length > 0 ? `Service (${filterService.length})` : 'Service'}
-              <ChevronDown size={12} className="text-muted-foreground/40" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-56 p-1" align="start">
-            {Object.entries(SERVICE_STYLES).map(([key, s]) => {
-              const isSelected = filterService.includes(key);
-              return (
-                <button
-                  key={key}
-                  onClick={() => setFilterService(prev => isSelected ? prev.filter(v => v !== key) : [...prev, key])}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
-                    isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-                  }`}
-                >
-                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                    isSelected ? 'border-primary bg-primary' : 'border-border/40'
-                  }`}>
-                    {isSelected && <Check size={10} className="text-primary-foreground" />}
-                  </div>
-                  <ServiceIcon serviceKey={key} size={12} className="shrink-0" />
-                  <span className="flex-1 text-left whitespace-nowrap">{s.label}</span>
-                </button>
-              );
-            })}
-            {filterService.length > 0 && (
-              <button
-                onClick={() => setFilterService([])}
-                className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left"
-              >
-                Clear
-              </button>
-            )}
-          </PopoverContent>
-        </Popover>
+        <FilterPopover
+          label="Service"
+          options={Object.entries(SERVICE_STYLES).map(([key, s]) => ({ value: key, label: s.label }))}
+          selected={filterService}
+          onSelectionChange={setFilterService}
+          width="w-52"
+        />
 
         {hasFilters && (
           <button

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle } from '@/lib/constants';
 import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink } from 'lucide-react';
+import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -55,73 +56,6 @@ function monthsActive(createdAt: string): number {
   return Math.max(
     0,
     Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
-  );
-}
-
-/* ── Multi-select filter popover ───────────────────────────────────────────── */
-function MultiFilterPopover({
-  label,
-  selected,
-  options,
-  onChange,
-}: {
-  label: string;
-  selected: string[];
-  options: { value: string; label: string; dot?: string }[];
-  onChange: (v: string[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const active = selected.length > 0;
-
-  const toggle = (val: string) => {
-    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg hover:border-primary/50 transition-colors duration-150 flex items-center gap-1.5 ${
-            active ? 'border-primary text-primary' : 'border-border/20 text-muted-foreground'
-          }`}
-        >
-          {active ? `${label} (${selected.length})` : label}
-          <ChevronDown size={12} className="text-muted-foreground/40" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-48 p-1" align="start">
-        {options.map(opt => {
-          const isSelected = selected.includes(opt.value);
-          return (
-            <button
-              key={opt.value}
-              onClick={() => toggle(opt.value)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
-                isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-              }`}
-            >
-              <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
-                isSelected ? 'border-primary bg-primary' : 'border-border/40'
-              }`}>
-                {isSelected && <Check size={10} className="text-primary-foreground" />}
-              </div>
-              {opt.dot && (
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.dot }} />
-              )}
-              <span className="flex-1 text-left">{opt.label}</span>
-            </button>
-          );
-        })}
-        {selected.length > 0 && (
-          <button
-            onClick={() => onChange([])}
-            className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left"
-          >
-            Clear
-          </button>
-        )}
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -687,14 +621,14 @@ export default function ClientsPage() {
           />
         </div>
 
-        <MultiFilterPopover
+        <FilterPopover
           label="Team"
           selected={filterTeam}
           options={teamFilterOptions}
-          onChange={setFilterTeam}
+          onSelectionChange={setFilterTeam}
         />
 
-        <MultiFilterPopover
+        <FilterPopover
           label="Status"
           selected={filterStatus}
           options={[
@@ -702,14 +636,14 @@ export default function ClientsPage() {
             { value: 'paused', label: 'Paused' },
             { value: 'churned', label: 'Churned' },
           ]}
-          onChange={setFilterStatus}
+          onSelectionChange={setFilterStatus}
         />
 
-        <MultiFilterPopover
+        <FilterPopover
           label="Service"
           selected={filterService}
           options={REVENUE_SERVICES}
-          onChange={setFilterService}
+          onSelectionChange={setFilterService}
         />
 
         {hasFilters && (
