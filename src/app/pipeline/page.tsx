@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS } from '@/lib/constants';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Prospect {
@@ -62,6 +64,10 @@ export default function PipelinePage() {
   const [formSource, setFormSource] = useState('');
   const [formStage, setFormStage] = useState('lead');
   const [creating, setCreating] = useState(false);
+  const [formServiceOpen, setFormServiceOpen] = useState(false);
+  const [formTeamOpen, setFormTeamOpen] = useState(false);
+  const [formStageOpen, setFormStageOpen] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const fetchProspects = useCallback(async () => {
     try {
@@ -224,6 +230,25 @@ export default function PipelinePage() {
     { mode: 'stats', icon: BarChart3, label: 'Stats' },
   ];
 
+  // Keyboard shortcuts
+  const PAGE_SHORTCUTS = [
+    { key: 'N', description: 'New prospect' },
+    { key: 'Esc', description: 'Close form / sheet' },
+    { key: '1', description: 'Pipeline view' },
+    { key: '2', description: 'Table view' },
+    { key: '3', description: 'Stats view' },
+    { key: '?', description: 'Show shortcuts' },
+  ];
+
+  useKeyboardShortcuts([
+    { key: 'n', description: 'New prospect', action: () => { if (!showNewForm) setShowNewForm(true); } },
+    { key: 'Escape', description: 'Close', action: () => { setShowNewForm(false); setEditingProspect(null); setShowShortcuts(false); resetForm(); }, skipInInput: false },
+    { key: '1', description: 'Pipeline view', action: () => setViewMode('pipeline') },
+    { key: '2', description: 'Table view', action: () => setViewMode('table') },
+    { key: '3', description: 'Stats view', action: () => setViewMode('stats') },
+    { key: '?', description: 'Show shortcuts', action: () => setShowShortcuts(v => !v) },
+  ]);
+
   return (
     <div className="animate-in fade-in duration-200">
       {/* Header */}
@@ -335,20 +360,67 @@ export default function PipelinePage() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
               <input value={formValue} onChange={e => setFormValue(e.target.value)} placeholder="Deal value" type="number" className="h-8 w-full pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
             </div>
-            <select value={formService} onChange={e => setFormService(e.target.value)} className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none">
-              <option value="">Service...</option>
-              {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                <option key={key} value={key}>{s.label}</option>
-              ))}
-            </select>
+            <Popover open={formServiceOpen} onOpenChange={setFormServiceOpen}>
+              <PopoverTrigger asChild>
+                <button className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg flex items-center gap-1.5 hover:border-primary/50 transition-colors duration-150 w-full">
+                  {formService && SERVICE_STYLES[formService] ? (
+                    <>
+                      <ServiceIcon serviceKey={formService} size={12} className="shrink-0" />
+                      <span className="flex-1 text-left">{SERVICE_STYLES[formService].label}</span>
+                    </>
+                  ) : (
+                    <span className="flex-1 text-left text-muted-foreground/60">Service...</span>
+                  )}
+                  <ChevronDown size={12} className="text-muted-foreground/40 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-1" align="start">
+                {Object.entries(SERVICE_STYLES).map(([key, s]) => (
+                  <button
+                    key={key}
+                    onClick={() => { setFormService(key); setFormServiceOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                      formService === key ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                    }`}
+                  >
+                    <ServiceIcon serviceKey={key} size={12} className="shrink-0" />
+                    <span className="flex-1 text-left">{s.label}</span>
+                    {formService === key && <Check size={12} className="shrink-0" />}
+                  </button>
+                ))}
+                {formService && (
+                  <button onClick={() => { setFormService(''); setFormServiceOpen(false); }} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
+                )}
+              </PopoverContent>
+            </Popover>
             <input value={formSource} onChange={e => setFormSource(e.target.value)} placeholder="Source (e.g. Referral, LinkedIn)" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
           </div>
           <div className="flex items-center gap-3 mt-3">
-            <select value={formStage} onChange={e => setFormStage(e.target.value)} className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none">
-              {PIPELINE_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => (
-                <option key={s.id} value={s.id}>{s.label}</option>
-              ))}
-            </select>
+            <Popover open={formStageOpen} onOpenChange={setFormStageOpen}>
+              <PopoverTrigger asChild>
+                <button className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg flex items-center gap-1.5 hover:border-primary/50 transition-colors duration-150">
+                  {(() => { const stage = PIPELINE_STAGES.find(s => s.id === formStage); return stage ? (
+                    <><span className={`w-2 h-2 rounded-full shrink-0 ${stage.dotClass}`} /><span>{stage.label}</span></>
+                  ) : <span className="text-muted-foreground/60">Stage...</span>; })()}
+                  <ChevronDown size={12} className="text-muted-foreground/40 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-44 p-1" align="start">
+                {PIPELINE_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => { setFormStage(s.id); setFormStageOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                      formStage === s.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${s.dotClass}`} />
+                    <span className="flex-1 text-left">{s.label}</span>
+                    {formStage === s.id && <Check size={12} className="shrink-0" />}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
             <div className="flex-1" />
             <Button size="sm" variant="ghost" onClick={() => { setShowNewForm(false); resetForm(); }}>Cancel</Button>
             <Button size="sm" onClick={createProspect} disabled={creating || !formName.trim()}>
@@ -423,6 +495,13 @@ export default function PipelinePage() {
           onDelete={() => { deleteProspect(editingProspect.id); setEditingProspect(null); }}
         />
       )}
+      {/* Shortcuts Dialog */}
+      <ShortcutsDialog
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+        shortcuts={PAGE_SHORTCUTS}
+        pageName="Pipeline"
+      />
     </div>
   );
 }

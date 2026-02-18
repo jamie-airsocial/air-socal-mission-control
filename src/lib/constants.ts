@@ -23,43 +23,40 @@ export const PRIORITY_BADGE: Record<string, { label: string; className: string }
 };
 
 export const ASSIGNEE_COLORS: Record<string, string> = {
-  // Display names
+  // Synergy (blue tones)
+  'Sophie Gore': 'bg-blue-500/20 text-blue-400',
+  'sophie-gore': 'bg-blue-500/20 text-blue-400',
   'Jamie Ludlow': 'bg-green-500/20 text-green-400',
-  'Jamie': 'bg-green-500/20 text-green-400',
-  'Casper': 'bg-primary/20 text-primary',
-  'Developer': 'bg-blue-500/20 text-blue-400',
-  'UI/UX Designer': 'bg-purple-500/20 text-purple-400',
-  'QA Tester': 'bg-destructive/20 text-destructive',
-  'Copywriter': 'bg-amber-500/20 text-amber-400',
-  'Analyst': 'bg-cyan-500/20 text-cyan-400',
-  'Manager': 'bg-muted-foreground/20 text-slate-400',
-  'Trainer': 'bg-orange-500/20 text-orange-400',
-  'Heartbeat': 'bg-pink-500/20 text-pink-400',
-  // DB slugs (same colours)
-  'jamie': 'bg-green-500/20 text-green-400',
-  'casper': 'bg-primary/20 text-primary',
-  'developer': 'bg-blue-500/20 text-blue-400',
-  'ui-designer': 'bg-purple-500/20 text-purple-400',
-  'qa-tester': 'bg-destructive/20 text-destructive',
-  'copywriter': 'bg-amber-500/20 text-amber-400',
-  'analyst': 'bg-cyan-500/20 text-cyan-400',
-  'manager': 'bg-muted-foreground/20 text-slate-400',
-  'trainer': 'bg-orange-500/20 text-orange-400',
-  'heartbeat': 'bg-pink-500/20 text-pink-400',
+  'jamie-ludlow': 'bg-green-500/20 text-green-400',
+  'Sophie Collins': 'bg-cyan-500/20 text-cyan-400',
+  'sophie-collins': 'bg-cyan-500/20 text-cyan-400',
+  // Ignite (orange tones)
+  'Chloe Taylor': 'bg-orange-500/20 text-orange-400',
+  'chloe-taylor': 'bg-orange-500/20 text-orange-400',
+  'Dave Gibbs': 'bg-amber-500/20 text-amber-400',
+  'dave-gibbs': 'bg-amber-500/20 text-amber-400',
+  'Jack Underwood': 'bg-yellow-500/20 text-yellow-400',
+  'jack-underwood': 'bg-yellow-500/20 text-yellow-400',
+  // Alliance (purple tones)
+  'Chloe Hodgetts': 'bg-purple-500/20 text-purple-400',
+  'chloe-hodgetts': 'bg-purple-500/20 text-purple-400',
+  'Aaron Lewis': 'bg-pink-500/20 text-pink-400',
+  'aaron-lewis': 'bg-pink-500/20 text-pink-400',
+  'Marcus Yeatman': 'bg-violet-500/20 text-violet-400',
+  'marcus-yeatman': 'bg-violet-500/20 text-violet-400',
 };
 
 /** Assignee name ↔ slug mappings — single source of truth */
 export const NAME_TO_SLUG: Record<string, string> = {
-  'Jamie Ludlow': 'jamie',
-  'Casper': 'casper',
-  'Developer': 'developer',
-  'UI/UX Designer': 'ui-designer',
-  'QA Tester': 'qa-tester',
-  'Copywriter': 'copywriter',
-  'Analyst': 'analyst',
-  'Manager': 'manager',
-  'Trainer': 'trainer',
-  'Heartbeat': 'heartbeat',
+  'Sophie Gore': 'sophie-gore',
+  'Jamie Ludlow': 'jamie-ludlow',
+  'Sophie Collins': 'sophie-collins',
+  'Chloe Taylor': 'chloe-taylor',
+  'Dave Gibbs': 'dave-gibbs',
+  'Jack Underwood': 'jack-underwood',
+  'Chloe Hodgetts': 'chloe-hodgetts',
+  'Aaron Lewis': 'aaron-lewis',
+  'Marcus Yeatman': 'marcus-yeatman',
 };
 
 export const SLUG_TO_NAME: Record<string, string> = Object.fromEntries(
@@ -138,10 +135,13 @@ export const PIPELINE_STAGES = [
 ] as const;
 
 export const MEMBER_COLORS: Record<string, string> = {
+  'Sophie Gore': 'bg-blue-500/20 text-blue-400',
   'Jamie Ludlow': 'bg-green-500/20 text-green-400',
-  'Alex Vinall': 'bg-blue-500/20 text-blue-400',
-  'Sarah Mitchell': 'bg-purple-500/20 text-purple-400',
-  'Tom Carter': 'bg-amber-500/20 text-amber-400',
-  'Emily Chen': 'bg-pink-500/20 text-pink-400',
-  'David Park': 'bg-cyan-500/20 text-cyan-400',
+  'Sophie Collins': 'bg-cyan-500/20 text-cyan-400',
+  'Chloe Taylor': 'bg-orange-500/20 text-orange-400',
+  'Dave Gibbs': 'bg-amber-500/20 text-amber-400',
+  'Jack Underwood': 'bg-yellow-500/20 text-yellow-400',
+  'Chloe Hodgetts': 'bg-purple-500/20 text-purple-400',
+  'Aaron Lewis': 'bg-pink-500/20 text-pink-400',
+  'Marcus Yeatman': 'bg-violet-500/20 text-violet-400',
 };

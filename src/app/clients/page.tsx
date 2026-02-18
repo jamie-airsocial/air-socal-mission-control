@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES } from '@/lib/constants';
 import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon } from 'lucide-react';
@@ -12,6 +12,8 @@ import { format } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 
 interface ClientRow {
   id: string;
@@ -114,12 +116,53 @@ function ServicesMultiSelect({
   selected: string[];
   onChange: (v: string[]) => void;
 }) {
+  const [services, setServices] = React.useState(REVENUE_SERVICES);
+  const [adding, setAdding] = React.useState(false);
+  const [newServiceName, setNewServiceName] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    fetch('/api/services')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: Array<{ id: string; label: string }> | null) => {
+        if (!data) return;
+        const apiServices = data
+          .filter((s) => s.id !== 'account-management')
+          .map((s) => ({ value: s.id, label: s.label }));
+        // Merge: keep hardcoded order, append new ones not in hardcoded list
+        const hardcodedIds = new Set(REVENUE_SERVICES.map(s => s.value));
+        const extras = apiServices.filter(s => !hardcodedIds.has(s.value));
+        setServices([...REVENUE_SERVICES, ...extras]);
+      })
+      .catch(() => {});
+  }, []);
+
   const toggle = (val: string) => {
     onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
   };
+
+  const handleAddService = async () => {
+    if (!newServiceName.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: newServiceName.trim() }),
+      });
+      if (res.ok) {
+        const created = await res.json() as { id: string; label: string };
+        setServices(prev => [...prev, { value: created.id, label: created.label }]);
+        setNewServiceName('');
+        setAdding(false);
+      }
+    } catch { /* silent */ }
+    finally { setSaving(false); }
+  };
+
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {REVENUE_SERVICES.map(s => {
+    <div className="flex flex-wrap gap-1.5 items-center">
+      {services.map(s => {
         const active = selected.includes(s.value);
         return (
           <button
@@ -137,6 +180,45 @@ function ServicesMultiSelect({
           </button>
         );
       })}
+      {adding ? (
+        <div className="flex items-center gap-1">
+          <input
+            autoFocus
+            value={newServiceName}
+            onChange={e => setNewServiceName(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') handleAddService();
+              if (e.key === 'Escape') { setAdding(false); setNewServiceName(''); }
+            }}
+            placeholder="Service name..."
+            className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/50 w-32"
+          />
+          <button
+            type="button"
+            onClick={handleAddService}
+            disabled={saving || !newServiceName.trim()}
+            className="h-7 px-2 text-[11px] rounded-md border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors duration-150 disabled:opacity-50"
+          >
+            {saving ? '...' : 'Add'}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setAdding(false); setNewServiceName(''); }}
+            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors duration-150"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="h-7 px-2.5 text-[11px] rounded-md border border-dashed border-border/30 text-muted-foreground/60 hover:border-primary/40 hover:text-muted-foreground transition-colors duration-150 flex items-center gap-1"
+        >
+          <Plus size={10} /> Add Service
+        </button>
+      )}
+
     </div>
   );
 }
@@ -180,6 +262,7 @@ export default function ClientsPage() {
   const [newClientContactEmail, setNewClientContactEmail] = useState('');
   const [newClientContactPhone, setNewClientContactPhone] = useState('');
   const [creating, setCreating] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const resetForm = () => {
     setNewClientName('');
@@ -220,6 +303,19 @@ export default function ClientsPage() {
     } catch { toast.error('Failed to create client'); }
     finally { setCreating(false); }
   };
+
+  // Keyboard shortcuts
+  const PAGE_SHORTCUTS = [
+    { key: 'N', description: 'New client' },
+    { key: 'Esc', description: 'Close form' },
+    { key: '?', description: 'Show shortcuts' },
+  ];
+
+  useKeyboardShortcuts([
+    { key: 'n', description: 'New client', action: () => { if (!showNewClient) setShowNewClient(true); } },
+    { key: 'Escape', description: 'Close form', action: () => { if (showNewClient) resetForm(); setShowShortcuts(false); }, skipInInput: false },
+    { key: '?', description: 'Show shortcuts', action: () => setShowShortcuts(v => !v) },
+  ]);
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -528,6 +624,14 @@ export default function ClientsPage() {
           <p className="text-[13px] text-muted-foreground/60 mt-1">Try adjusting your filters</p>
         </div>
       )}
+
+      {/* Shortcuts Dialog */}
+      <ShortcutsDialog
+        open={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+        shortcuts={PAGE_SHORTCUTS}
+        pageName="Clients"
+      />
     </div>
   );
 }

@@ -17,7 +17,8 @@ import { FilterServicePopover } from '@/components/board/filter-service-popover'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { LayoutGrid, Table2, Plus, Search, Eye, EyeOff, CalendarDays, X } from 'lucide-react';
+import { LayoutGrid, Table2, Plus, Search, Eye, EyeOff, CalendarDays, X, ChevronDown, Check } from 'lucide-react';
+import { TEAM_STYLES } from '@/lib/constants';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SavedViews } from '@/components/board/saved-views';
 import { toast } from 'sonner';
@@ -44,6 +45,7 @@ function BoardContent() {
   const [groupByOpen, setGroupByOpen] = useState(false);
   const [kanbanGroupByOpen, setKanbanGroupByOpen] = useState(false);
   const [filterService, setFilterService] = useState<string[]>([]);
+  const [filterTeam, setFilterTeam] = useState<string[]>([]);
 
   // Persist kanban group-by
   useEffect(() => {
@@ -84,7 +86,7 @@ function BoardContent() {
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   // Augment hasFilters/clearAll with service filter
-  const hasAnyFilters = hasFilters || filterService.length > 0;
+  const hasAnyFilters = hasFilters || filterService.length > 0 || filterTeam.length > 0;
   const clearAll = useCallback(() => { clearAllFilters(); setFilterService([]); }, [clearAllFilters]);
 
   // ── View switching ────────────────────────────────────────────────────────
@@ -243,9 +245,15 @@ function BoardContent() {
 
   // Apply service filter on top of useTaskFilters results
   const serviceFilteredTasks = useMemo(() => {
-    if (filterService.length === 0) return filteredTasks;
-    return filteredTasks.filter(t => t.service && filterService.includes(t.service));
-  }, [filteredTasks, filterService]);
+    let result = filteredTasks;
+    if (filterService.length > 0) {
+      result = result.filter(t => t.service && filterService.includes(t.service));
+    }
+    if (filterTeam.length > 0) {
+      result = result.filter(t => t.client_team && filterTeam.includes(t.client_team));
+    }
+    return result;
+  }, [filteredTasks, filterService, filterTeam]);
 
   const totalTasks = serviceFilteredTasks.length;
 
