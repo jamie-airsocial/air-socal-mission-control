@@ -6,7 +6,7 @@ import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS } from '@/lib/constants';
+import { SERVICE_STYLES, TEAM_STYLES, PIPELINE_STAGES, LOSS_REASONS } from '@/lib/constants';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 
@@ -28,6 +28,7 @@ interface Prospect {
   contact_phone: string | null;
   lost_reason: string | null;
   lost_reason_custom: string | null;
+  team: string | null;
   won_at: string | null;
   lost_at: string | null;
   created_at: string;
@@ -48,8 +49,9 @@ export default function PipelinePage() {
   const [lossReason, setLossReason] = useState('');
   const [lossReasonCustom, setLossReasonCustom] = useState('');
 
-  // New prospect form
+  // Filters
   const [filterService, setFilterService] = useState<string[]>([]);
+  const [filterTeam, setFilterTeam] = useState<string[]>([]);
 
   const [formName, setFormName] = useState('');
   const [formCompany, setFormCompany] = useState('');
@@ -58,6 +60,7 @@ export default function PipelinePage() {
   const [formContactPhone, setFormContactPhone] = useState('');
   const [formValue, setFormValue] = useState('');
   const [formService, setFormService] = useState('');
+  const [formTeam, setFormTeam] = useState('');
   const [formSource, setFormSource] = useState('');
   const [formStage, setFormStage] = useState('lead');
   const [creating, setCreating] = useState(false);
@@ -82,16 +85,17 @@ export default function PipelinePage() {
             !p.contact_email?.toLowerCase().includes(q)) return false;
       }
       if (filterService.length > 0 && (!p.service || !filterService.includes(p.service))) return false;
+      if (filterTeam.length > 0 && (!p.team || !filterTeam.includes(p.team))) return false;
       return true;
     });
-  }, [prospects, searchQuery, filterService]);
+  }, [prospects, searchQuery, filterService, filterTeam]);
 
-  const hasFilters = filterService.length > 0 || searchQuery !== '';
+  const hasFilters = filterService.length > 0 || filterTeam.length > 0 || searchQuery !== '';
 
   const resetForm = () => {
     setFormName(''); setFormCompany(''); setFormContactName('');
     setFormContactEmail(''); setFormContactPhone(''); setFormValue('');
-    setFormService(''); setFormSource(''); setFormStage('lead');
+    setFormService(''); setFormTeam(''); setFormSource(''); setFormStage('lead');
   };
 
   const createProspect = async () => {
@@ -109,6 +113,7 @@ export default function PipelinePage() {
           contact_phone: formContactPhone.trim() || null,
           value: formValue ? parseFloat(formValue) : null,
           service: formService || null,
+          team: formTeam || null,
           source: formSource.trim() || null,
           stage: formStage,
         }),
@@ -243,6 +248,43 @@ export default function PipelinePage() {
           />
         </div>
 
+        {/* Team filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg hover:border-primary/50 transition-colors duration-150 flex items-center gap-1.5 ${
+              filterTeam.length > 0 ? 'border-primary text-primary' : 'border-border/20 text-muted-foreground'
+            }`}>
+              {filterTeam.length > 0 ? `Team (${filterTeam.length})` : 'Team'}
+              <ChevronDown size={12} className="text-muted-foreground/40" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-1" align="start">
+            {Object.entries(TEAM_STYLES).map(([key, style]) => {
+              const isSelected = filterTeam.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setFilterTeam(prev => isSelected ? prev.filter(v => v !== key) : [...prev, key])}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                    isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                  }`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                    isSelected ? 'border-primary bg-primary' : 'border-border/40'
+                  }`}>
+                    {isSelected && <Check size={10} className="text-primary-foreground" />}
+                  </div>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
+                  <span className="flex-1 text-left whitespace-nowrap">{style.label}</span>
+                </button>
+              );
+            })}
+            {filterTeam.length > 0 && (
+              <button onClick={() => setFilterTeam([])} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
+            )}
+          </PopoverContent>
+        </Popover>
+
         {/* Service filter */}
         <Popover>
           <PopoverTrigger asChild>
@@ -282,7 +324,7 @@ export default function PipelinePage() {
 
         {hasFilters && (
           <button
-            onClick={() => { setFilterService([]); setSearchQuery(''); }}
+            onClick={() => { setFilterService([]); setFilterTeam([]); setSearchQuery(''); }}
             className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors duration-150 flex items-center gap-1.5"
           >
             <X className="h-3 w-3" /> Clear all
@@ -335,6 +377,12 @@ export default function PipelinePage() {
             <select value={formService} onChange={e => setFormService(e.target.value)} className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none">
               <option value="">Service...</option>
               {Object.entries(SERVICE_STYLES).map(([key, s]) => (
+                <option key={key} value={key}>{s.label}</option>
+              ))}
+            </select>
+            <select value={formTeam} onChange={e => setFormTeam(e.target.value)} className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none">
+              <option value="">Team...</option>
+              {Object.entries(TEAM_STYLES).map(([key, s]) => (
                 <option key={key} value={key}>{s.label}</option>
               ))}
             </select>
