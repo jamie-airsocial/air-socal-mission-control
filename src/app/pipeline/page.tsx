@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy, UserPlus } from 'lucide-react';
+import {
+  Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check,
+  BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy, UserPlus, Trash2,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,7 +23,6 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useUsers } from '@/hooks/use-users';
-// (date-fns format not needed in pipeline)
 import { DatePicker } from '@/components/ui/date-picker';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -57,7 +59,428 @@ interface Prospect {
   updated_at: string;
 }
 
+interface ProspectFormState {
+  name: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  value: string;
+  service: string;
+  source: string;
+  stage: string;
+  assignee: string;
+  notes: string;
+}
+
 type ViewMode = 'pipeline' | 'table' | 'stats';
+
+const emptyProspectForm: ProspectFormState = {
+  name: '',
+  contact_name: '',
+  contact_email: '',
+  contact_phone: '',
+  value: '',
+  service: '',
+  source: '',
+  stage: 'lead',
+  assignee: '',
+  notes: '',
+};
+
+// ── Prospect Sheet ───────────────────────────────────────────────────────────
+function ProspectSheet({
+  open,
+  onOpenChange,
+  editProspect,
+  defaultStage,
+  users,
+  onSaved,
+  onDelete,
+  onConvert,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editProspect: Prospect | null;
+  defaultStage?: string;
+  users: Array<{ id: string; full_name: string; is_active: boolean }>;
+  onSaved: () => void;
+  onDelete?: () => void;
+  onConvert?: () => void;
+}) {
+  const [form, setForm] = useState<ProspectFormState>(emptyProspectForm);
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const [stageOpen, setStageOpen] = useState(false);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setConfirmDelete(false);
+      if (editProspect) {
+        setForm({
+          name: editProspect.name || '',
+          contact_name: editProspect.contact_name || '',
+          contact_email: editProspect.contact_email || '',
+          contact_phone: editProspect.contact_phone || '',
+          value: editProspect.value != null ? String(editProspect.value) : '',
+          service: editProspect.service || '',
+          source: editProspect.source || '',
+          stage: editProspect.stage || 'lead',
+          assignee: editProspect.assignee || '',
+          notes: editProspect.notes || '',
+        });
+      } else {
+        setForm({ ...emptyProspectForm, stage: defaultStage || 'lead' });
+      }
+    }
+  }, [open, editProspect, defaultStage]);
+
+  const handleSave = async () => {
+    if (!form.name.trim()) { toast.error('Company name is required'); return; }
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        contact_name: form.contact_name.trim() || null,
+        contact_email: form.contact_email.trim() || null,
+        contact_phone: form.contact_phone.trim() || null,
+        value: form.value ? parseFloat(form.value) : null,
+        service: form.service || null,
+        source: form.source.trim() || null,
+        stage: form.stage,
+        assignee: form.assignee || null,
+        notes: form.notes.trim() || null,
+      };
+
+      if (editProspect) {
+        const res = await fetch('/api/prospects', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editProspect.id, ...payload }),
+        });
+        if (!res.ok) { toast.error('Failed to update prospect'); return; }
+
+        // Handle stage transitions
+        if (payload.stage === 'won' && editProspect.stage !== 'won') {
+          setTimeout(() => confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } }), 200);
+          toast.success('🎉 Deal won!');
+        } else {
+          toast.success(`${form.name} updated`);
+        }
+      } else {
+        const res = await fetch('/api/prospects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) { toast.error('Failed to create prospect'); return; }
+        toast.success('Prospect added to pipeline');
+      }
+
+      onOpenChange(false);
+      onSaved();
+    } catch { toast.error('Something went wrong'); }
+    finally { setSaving(false); }
+  };
+
+  const activeUsers = users.filter(u => u.is_active);
+  const currentStage = PIPELINE_STAGES.find(s => s.id === form.stage);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+        <SheetHeader className="px-6 py-5 border-b border-border/20">
+          <SheetTitle className="text-[15px] truncate">
+            {editProspect ? editProspect.name : 'New Prospect'}
+          </SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {/* Won banner */}
+          {editProspect?.stage === 'won' && onConvert && (
+            <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[13px] font-semibold text-emerald-400">🎉 Deal Won!</p>
+                  <p className="text-[12px] text-muted-foreground/60 mt-0.5">Ready to onboard this client?</p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={onConvert}
+                  className="h-8 text-[13px] gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
+                >
+                  <UserPlus size={14} />
+                  Convert to Client
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Lost reason badge */}
+          {editProspect?.stage === 'lost' && editProspect.lost_reason && (
+            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+              <span className="text-[11px] font-medium text-red-400 uppercase tracking-wider">Lost Reason</span>
+              <p className="text-[13px] mt-1">
+                {LOSS_REASONS.find(r => r.id === editProspect.lost_reason)?.label || editProspect.lost_reason}
+                {editProspect.lost_reason_custom && ` — ${editProspect.lost_reason_custom}`}
+              </p>
+            </div>
+          )}
+
+          {/* Company Name */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">
+              Company Name *
+            </Label>
+            <Input
+              autoFocus={!editProspect}
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Acme Ltd"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Contact Name */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Name</Label>
+            <Input
+              value={form.contact_name}
+              onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+              placeholder="Jane Smith"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Contact Email */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Email</Label>
+            <Input
+              type="email"
+              value={form.contact_email}
+              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+              placeholder="jane@company.com"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Contact Phone */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Phone</Label>
+            <Input
+              type="tel"
+              value={form.contact_phone}
+              onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))}
+              placeholder="07xxx xxxxxx"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Deal Value */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+              <Input
+                type="number"
+                value={form.value}
+                onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                placeholder="0"
+                className="pl-7 text-[13px] h-9"
+              />
+            </div>
+          </div>
+
+          {/* Service */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Service</Label>
+            <Popover open={serviceOpen} onOpenChange={setServiceOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
+                  {form.service && SERVICE_STYLES[form.service] ? (
+                    <>
+                      <ServiceIcon serviceKey={form.service} size={12} />
+                      <span className="flex-1 text-left">{SERVICE_STYLES[form.service].label}</span>
+                    </>
+                  ) : (
+                    <span className="flex-1 text-left text-muted-foreground/40">Select service…</span>
+                  )}
+                  <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-1" align="start">
+                {Object.entries(SERVICE_STYLES).map(([key, s]) => (
+                  <button
+                    key={key}
+                    onClick={() => { setForm(f => ({ ...f, service: key })); setServiceOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${
+                      form.service === key ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                    }`}
+                  >
+                    <ServiceIcon serviceKey={key} size={12} />
+                    <span className="flex-1 text-left">{s.label}</span>
+                    {form.service === key && <Check size={12} />}
+                  </button>
+                ))}
+                {form.service && (
+                  <button
+                    onClick={() => { setForm(f => ({ ...f, service: '' })); setServiceOpen(false); }}
+                    className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors text-left"
+                  >
+                    Clear
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Source */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Source</Label>
+            <Input
+              value={form.source}
+              onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
+              placeholder="e.g. Referral, LinkedIn, Website"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Stage */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Stage</Label>
+            <Popover open={stageOpen} onOpenChange={setStageOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
+                  {currentStage ? (
+                    <>
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${currentStage.dotClass}`} />
+                      <span className="flex-1 text-left">{currentStage.label}</span>
+                    </>
+                  ) : (
+                    <span className="flex-1 text-left text-muted-foreground/40">Select stage…</span>
+                  )}
+                  <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-44 p-1" align="start">
+                {PIPELINE_STAGES.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => { setForm(f => ({ ...f, stage: s.id })); setStageOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${
+                      form.stage === s.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${s.dotClass}`} />
+                    <span className="flex-1 text-left">{s.label}</span>
+                    {form.stage === s.id && <Check size={12} />}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Assignee */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assignee</Label>
+            <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                  {form.assignee ? (
+                    <span>{form.assignee}</span>
+                  ) : (
+                    <span className="text-muted-foreground/40">Select assignee…</span>
+                  )}
+                  <ChevronDown size={14} className="text-muted-foreground/60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-1 max-h-56 overflow-y-auto" align="start">
+                {activeUsers.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => { setForm(f => ({ ...f, assignee: u.full_name })); setAssigneeOpen(false); }}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${
+                      form.assignee === u.full_name ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                    }`}
+                  >
+                    <span className="flex-1 text-left">{u.full_name}</span>
+                    {form.assignee === u.full_name && <Check size={12} />}
+                  </button>
+                ))}
+                {form.assignee && (
+                  <button
+                    onClick={() => { setForm(f => ({ ...f, assignee: '' })); setAssigneeOpen(false); }}
+                    className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors text-left"
+                  >
+                    Clear
+                  </button>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Notes</Label>
+            <Textarea
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Any notes about this prospect…"
+              className="text-[13px] min-h-[80px] resize-none"
+            />
+          </div>
+
+          {/* Delete (edit mode only) */}
+          {editProspect && onDelete && (
+            <div className="pt-2 border-t border-border/10">
+              {confirmDelete ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] text-destructive flex-1">Delete this prospect? Cannot be undone.</span>
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                  <Button size="sm" variant="destructive" onClick={onDelete}>Delete</Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 size={14} className="mr-1.5" />
+                  Delete prospect
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-border/20 flex items-center gap-2">
+          {editProspect && (
+            <p className="text-[11px] text-muted-foreground/40 flex-1">
+              Created {new Date(editProspect.created_at).toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'short', year: 'numeric',
+              })}
+            </p>
+          )}
+          <div className="flex items-center gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+              className="text-[13px] h-8"
+            >
+              {saving ? 'Saving…' : editProspect ? 'Save changes' : 'Add Prospect'}
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function PipelinePage() {
@@ -65,8 +488,13 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = usePersistedState('pipeline-search', '');
   const [viewMode, setViewMode] = useState<ViewMode>('pipeline');
+
+  // Sheet state — single unified sheet for new + edit
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
-  const [showNewForm, setShowNewForm] = useState(false);
+  const [sheetDefaultStage, setSheetDefaultStage] = useState('lead');
+
+  // Loss + Convert dialogs
   const [lossModalProspect, setLossModalProspect] = useState<string | null>(null);
   const [lossReason, setLossReason] = useState('');
   const [lossReasonCustom, setLossReasonCustom] = useState('');
@@ -74,27 +502,9 @@ export default function PipelinePage() {
 
   // Filters
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
-
-  // Prospect Sheet state
-  const [prospectSheetOpen, setProspectSheetOpen] = useState(false);
-  const [prospectSheetMode, setProspectSheetMode] = useState<'new' | 'edit'>('new');
-  const { users } = useUsers();
-
-  const [formName, setFormName] = useState('');
-  const [formContactName, setFormContactName] = useState('');
-  const [formContactEmail, setFormContactEmail] = useState('');
-  const [formContactPhone, setFormContactPhone] = useState('');
-  const [formValue, setFormValue] = useState('');
-  const [formService, setFormService] = useState('');
-  const [formSource, setFormSource] = useState('');
-  const [formStage, setFormStage] = useState('lead');
-  const [formAssignee, setFormAssignee] = useState('');
-  const [formNotes, setFormNotes] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [formServiceOpen, setFormServiceOpen] = useState(false);
-  const [formTeamOpen, setFormTeamOpen] = useState(false);
-  const [formStageOpen, setFormStageOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+
+  const { users } = useUsers();
 
   const fetchProspects = useCallback(async () => {
     try {
@@ -110,10 +520,12 @@ export default function PipelinePage() {
     return prospects.filter(p => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!p.name.toLowerCase().includes(q) &&
-            !p.company?.toLowerCase().includes(q) &&
-            !p.contact_name?.toLowerCase().includes(q) &&
-            !p.contact_email?.toLowerCase().includes(q)) return false;
+        if (
+          !p.name.toLowerCase().includes(q) &&
+          !p.company?.toLowerCase().includes(q) &&
+          !p.contact_name?.toLowerCase().includes(q) &&
+          !p.contact_email?.toLowerCase().includes(q)
+        ) return false;
       }
       if (filterService.length > 0 && (!p.service || !filterService.includes(p.service))) return false;
       return true;
@@ -122,56 +534,21 @@ export default function PipelinePage() {
 
   const hasFilters = filterService.length > 0 || searchQuery !== '';
 
-  const resetForm = () => {
-    setFormName(''); setFormContactName('');
-    setFormContactEmail(''); setFormContactPhone(''); setFormValue('');
-    setFormService(''); setFormSource(''); setFormStage('lead');
-    setFormAssignee(''); setFormNotes('');
-  };
-
   const openNewProspect = (stage?: string) => {
-    resetForm();
-    if (stage) setFormStage(stage);
-    setProspectSheetMode('new');
-    setProspectSheetOpen(true);
-    setShowNewForm(false);
+    setEditingProspect(null);
+    setSheetDefaultStage(stage || 'lead');
+    setSheetOpen(true);
   };
 
-  const createProspect = async () => {
-    if (!formName.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch('/api/prospects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formName.trim(),
-          contact_name: formContactName.trim() || null,
-          contact_email: formContactEmail.trim() || null,
-          contact_phone: formContactPhone.trim() || null,
-          value: formValue ? parseFloat(formValue) : null,
-          service: formService || null,
-          source: formSource.trim() || null,
-          stage: formStage,
-          assignee: formAssignee || null,
-          notes: formNotes.trim() || null,
-        }),
-      });
-      if (!res.ok) { toast.error('Failed to create prospect'); return; }
-      toast.success('Prospect added to pipeline');
-      resetForm();
-      setShowNewForm(false);
-      setProspectSheetOpen(false);
-      fetchProspects();
-    } catch { toast.error('Failed to create prospect'); }
-    finally { setCreating(false); }
+  const openEditProspect = (prospect: Prospect) => {
+    setEditingProspect(prospect);
+    setSheetOpen(true);
   };
 
   const updateProspect = async (id: string, updates: Partial<Prospect>) => {
     const prev = prospects.find(p => p.id === id);
     setProspects(ps => ps.map(p => p.id === id ? { ...p, ...updates } : p));
 
-    // Confetti on won!
     if (updates.stage === 'won' && prev?.stage !== 'won') {
       updates.won_at = new Date().toISOString();
       setTimeout(() => {
@@ -180,7 +557,6 @@ export default function PipelinePage() {
       toast.success('🎉 Deal won!');
     }
 
-    // Show loss reason modal
     if (updates.stage === 'lost' && prev?.stage !== 'lost') {
       setLossModalProspect(id);
     }
@@ -210,6 +586,7 @@ export default function PipelinePage() {
 
   const deleteProspect = async (id: string) => {
     setProspects(prev => prev.filter(p => p.id !== id));
+    setSheetOpen(false);
     try {
       const res = await fetch(`/api/prospects?id=${id}`, { method: 'DELETE' });
       if (!res.ok) { toast.error('Failed to delete'); fetchProspects(); return; }
@@ -221,7 +598,9 @@ export default function PipelinePage() {
     const { draggableId, destination } = result;
     if (!destination) return;
     const newStage = destination.droppableId;
-    const clearLoss = newStage !== 'won' && newStage !== 'lost' ? { lost_reason: null, lost_reason_custom: null, lost_at: null } : {};
+    const clearLoss = newStage !== 'won' && newStage !== 'lost'
+      ? { lost_reason: null, lost_reason_custom: null, lost_at: null }
+      : {};
     updateProspect(draggableId, { stage: newStage, ...clearLoss });
     if (newStage !== 'won' && newStage !== 'lost') {
       const stageLabel = PIPELINE_STAGES.find(s => s.id === newStage)?.label || newStage;
@@ -242,18 +621,15 @@ export default function PipelinePage() {
     const conversionRate = total > 0 ? Math.round((won.length / total) * 100) : 0;
     const avgDealValue = won.length > 0 ? Math.round(wonValue / won.length) : 0;
 
-    // Loss reasons breakdown
     const lossReasons: Record<string, number> = {};
     lost.forEach(p => {
       const reason = p.lost_reason || 'unspecified';
       lossReasons[reason] = (lossReasons[reason] || 0) + 1;
     });
 
-    // Stage distribution
     const stageCount: Record<string, number> = {};
     PIPELINE_STAGES.forEach(s => { stageCount[s.id] = filtered.filter(p => p.stage === s.id).length; });
 
-    // Value by stage
     const stageValue: Record<string, number> = {};
     PIPELINE_STAGES.forEach(s => {
       stageValue[s.id] = filtered.filter(p => p.stage === s.id).reduce((sum, p) => sum + (p.value || 0), 0);
@@ -262,17 +638,10 @@ export default function PipelinePage() {
     return { total, won: won.length, lost: lost.length, active: active.length, pipelineValue, wonValue, conversionRate, avgDealValue, lossReasons, stageCount, stageValue };
   }, [filtered]);
 
-  // ── Shared Header ──────────────────────────────────────────────────────────
-  const viewButtons: { mode: ViewMode; icon: typeof Kanban; label: string }[] = [
-    { mode: 'pipeline', icon: Kanban, label: 'Pipeline' },
-    { mode: 'table', icon: Table2, label: 'Table' },
-    { mode: 'stats', icon: BarChart3, label: 'Stats' },
-  ];
-
-  // Keyboard shortcuts
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
   const PAGE_SHORTCUTS = [
     { key: 'N', description: 'New prospect' },
-    { key: 'Esc', description: 'Close form / sheet' },
+    { key: 'Esc', description: 'Close sheet' },
     { key: '1', description: 'Pipeline view' },
     { key: '2', description: 'Table view' },
     { key: '3', description: 'Stats view' },
@@ -280,13 +649,19 @@ export default function PipelinePage() {
   ];
 
   useKeyboardShortcuts([
-    { key: 'n', description: 'New prospect', action: () => { if (!prospectSheetOpen) openNewProspect(); } },
-    { key: 'Escape', description: 'Close', action: () => { setShowNewForm(false); setProspectSheetOpen(false); setEditingProspect(null); setShowShortcuts(false); resetForm(); }, skipInInput: false },
+    { key: 'n', description: 'New prospect', action: () => { if (!sheetOpen) openNewProspect(); } },
+    { key: 'Escape', description: 'Close', action: () => { setSheetOpen(false); setShowShortcuts(false); }, skipInInput: false },
     { key: '1', description: 'Pipeline view', action: () => setViewMode('pipeline') },
     { key: '2', description: 'Table view', action: () => setViewMode('table') },
     { key: '3', description: 'Stats view', action: () => setViewMode('stats') },
     { key: '?', description: 'Show shortcuts', action: () => setShowShortcuts(v => !v) },
   ]);
+
+  const viewButtons: { mode: ViewMode; icon: typeof Kanban; label: string }[] = [
+    { mode: 'pipeline', icon: Kanban, label: 'Pipeline' },
+    { mode: 'table', icon: Table2, label: 'Table' },
+    { mode: 'stats', icon: BarChart3, label: 'Stats' },
+  ];
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -342,7 +717,12 @@ export default function PipelinePage() {
               );
             })}
             {filterService.length > 0 && (
-              <button onClick={() => setFilterService([])} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
+              <button
+                onClick={() => setFilterService([])}
+                className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left"
+              >
+                Clear
+              </button>
             )}
           </PopoverContent>
         </Popover>
@@ -380,136 +760,20 @@ export default function PipelinePage() {
         </Button>
       </div>
 
-      {/* New Prospect Sheet */}
-      <Sheet open={prospectSheetOpen && prospectSheetMode === 'new'} onOpenChange={v => { if (!v) { setProspectSheetOpen(false); resetForm(); } }}>
-        <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
-          <SheetHeader className="px-6 py-5 border-b border-border/20">
-            <SheetTitle className="text-[15px]">New Prospect</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {/* Company Name */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Company Name *</Label>
-              <Input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. Acme Ltd" className="text-[13px] h-9" />
-            </div>
-            {/* Contact Name */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Name</Label>
-              <Input value={formContactName} onChange={e => setFormContactName(e.target.value)} placeholder="Jane Smith" className="text-[13px] h-9" />
-            </div>
-            {/* Contact Email */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Email</Label>
-              <Input type="email" value={formContactEmail} onChange={e => setFormContactEmail(e.target.value)} placeholder="jane@company.com" className="text-[13px] h-9" />
-            </div>
-            {/* Contact Phone */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Phone</Label>
-              <Input type="tel" value={formContactPhone} onChange={e => setFormContactPhone(e.target.value)} placeholder="07xxx xxxxxx" className="text-[13px] h-9" />
-            </div>
-            {/* Value */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-                <Input type="number" value={formValue} onChange={e => setFormValue(e.target.value)} placeholder="0" className="pl-7 text-[13px] h-9" />
-              </div>
-            </div>
-            {/* Service */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Service</Label>
-              <Popover open={formServiceOpen} onOpenChange={setFormServiceOpen}>
-                <PopoverTrigger asChild>
-                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
-                    {formService && SERVICE_STYLES[formService] ? (
-                      <><ServiceIcon serviceKey={formService} size={12} /><span className="flex-1 text-left">{SERVICE_STYLES[formService].label}</span></>
-                    ) : (<span className="flex-1 text-left text-muted-foreground/40">Select service…</span>)}
-                    <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-52 p-1" align="start">
-                  {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                    <button key={key} onClick={() => { setFormService(key); setFormServiceOpen(false); }}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${formService === key ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'}`}>
-                      <ServiceIcon serviceKey={key} size={12} />
-                      <span className="flex-1 text-left">{s.label}</span>
-                      {formService === key && <Check size={12} />}
-                    </button>
-                ))}
-                {formService && (
-                  <button onClick={() => { setFormService(''); setFormServiceOpen(false); }} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
-                )}
-              </PopoverContent>
-            </Popover>
-            </div>
-            {/* Source */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Source</Label>
-              <Input value={formSource} onChange={e => setFormSource(e.target.value)} placeholder="e.g. Referral, LinkedIn" className="text-[13px] h-9" />
-            </div>
-            {/* Stage */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Stage</Label>
-              <Popover open={formStageOpen} onOpenChange={setFormStageOpen}>
-                <PopoverTrigger asChild>
-                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
-                    {(() => { const stage = PIPELINE_STAGES.find(s => s.id === formStage); return stage ? (
-                      <><span className={`w-2 h-2 rounded-full shrink-0 ${stage.dotClass}`} /><span className="flex-1 text-left">{stage.label}</span></>
-                    ) : <span className="flex-1 text-left text-muted-foreground/40">Select stage…</span>; })()}
-                    <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-44 p-1" align="start">
-                  {PIPELINE_STAGES.filter(s => s.id !== 'won' && s.id !== 'lost').map(s => (
-                    <button key={s.id} onClick={() => { setFormStage(s.id); setFormStageOpen(false); }}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${formStage === s.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'}`}>
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${s.dotClass}`} />
-                      <span className="flex-1 text-left">{s.label}</span>
-                      {formStage === s.id && <Check size={12} />}
-                    </button>
-                  ))}
-                </PopoverContent>
-              </Popover>
-            </div>
-            {/* Assignee */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assignee</Label>
-              <Popover open={formTeamOpen} onOpenChange={setFormTeamOpen}>
-                <PopoverTrigger asChild>
-                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
-                    {formAssignee ? <span>{formAssignee}</span> : <span className="text-muted-foreground/40">Select assignee…</span>}
-                    <ChevronDown size={14} className="text-muted-foreground/60" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-1 max-h-56 overflow-y-auto" align="start">
-                  {users.filter(u => u.is_active).map(u => (
-                    <button key={u.id} onClick={() => { setFormAssignee(u.full_name); setFormTeamOpen(false); }}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${formAssignee === u.full_name ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'}`}>
-                      <span className="flex-1 text-left">{u.full_name}</span>
-                      {formAssignee === u.full_name && <Check size={12} />}
-                    </button>
-                  ))}
-                  {formAssignee && (
-                    <button onClick={() => setFormAssignee('')} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground text-left">Clear</button>
-                  )}
-                </PopoverContent>
-              </Popover>
-            </div>
-            {/* Notes */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Notes</Label>
-              <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Any notes…" className="text-[13px] min-h-[80px] resize-none" />
-            </div>
-          </div>
-          {/* Footer */}
-          <div className="px-6 py-4 border-t border-border/20 flex items-center justify-end gap-2">
-            <Button variant="outline" onClick={() => { setProspectSheetOpen(false); resetForm(); }} className="text-[13px] h-8 border-border/20">Cancel</Button>
-            <Button onClick={createProspect} disabled={creating || !formName.trim()} className="text-[13px] h-8">
-              {creating ? 'Adding…' : 'Add Prospect'}
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Unified Prospect Sheet */}
+      <ProspectSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        editProspect={editingProspect}
+        defaultStage={sheetDefaultStage}
+        users={users}
+        onSaved={fetchProspects}
+        onDelete={editingProspect ? () => deleteProspect(editingProspect.id) : undefined}
+        onConvert={editingProspect?.stage === 'won' ? () => {
+          setConvertProspect(editingProspect);
+          setSheetOpen(false);
+        } : undefined}
+      />
 
       {/* Loss Reason Modal */}
       {lossModalProspect && (
@@ -557,25 +821,23 @@ export default function PipelinePage() {
           ))}
         </div>
       ) : viewMode === 'pipeline' ? (
-        <PipelineView prospects={filtered} onDragEnd={onDragEnd} onUpdate={updateProspect} onDelete={deleteProspect} openNewProspect={openNewProspect} onEdit={setEditingProspect} />
+        <PipelineView
+          prospects={filtered}
+          onDragEnd={onDragEnd}
+          onUpdate={updateProspect}
+          onDelete={deleteProspect}
+          openNewProspect={openNewProspect}
+          onEdit={openEditProspect}
+        />
       ) : viewMode === 'table' ? (
-        <TableView prospects={filtered} onUpdate={updateProspect} onDelete={deleteProspect} onEdit={setEditingProspect} />
+        <TableView
+          prospects={filtered}
+          onUpdate={updateProspect}
+          onDelete={deleteProspect}
+          onEdit={openEditProspect}
+        />
       ) : (
         <StatsView stats={stats} prospects={prospects} />
-      )}
-
-      {/* Prospect Detail Sheet */}
-      {editingProspect && (
-        <ProspectSheet
-          prospect={editingProspect}
-          onClose={() => setEditingProspect(null)}
-          onUpdate={(updates) => {
-            updateProspect(editingProspect.id, updates);
-            setEditingProspect(prev => prev ? { ...prev, ...updates } : null);
-          }}
-          onDelete={() => { deleteProspect(editingProspect.id); setEditingProspect(null); }}
-          onConvert={() => { setConvertProspect(editingProspect); setEditingProspect(null); }}
-        />
       )}
 
       {/* Convert to Client Dialog */}
@@ -590,6 +852,7 @@ export default function PipelinePage() {
           }}
         />
       )}
+
       {/* Shortcuts Dialog */}
       <ShortcutsDialog
         open={showShortcuts}
@@ -656,12 +919,6 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspec
                                 </span>
                               )}
                             </div>
-                            {false && prospect.company && (
-                              <div className="flex items-center gap-1 mb-1">
-                                <Building2 size={10} className="text-muted-foreground/40" />
-                                <span className="text-[11px] text-muted-foreground truncate">{prospect.company}</span>
-                              </div>
-                            )}
                             {prospect.contact_name && (
                               <div className="text-[11px] text-muted-foreground/60 mb-1">{prospect.contact_name}</div>
                             )}
@@ -712,18 +969,24 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border/20 bg-muted/30">
-              {['Name', 'Contact', 'Stage', 'Value', 'Service', 'Source', 'Created'].map(h => (
+              {['Name', 'Contact', 'Stage', 'Value', 'Service', 'Source', 'Assignee', 'Created'].map(h => (
                 <th key={h} className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {prospects.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">No prospects yet</td></tr>
+              <tr>
+                <td colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">No prospects yet</td>
+              </tr>
             ) : prospects.map(p => {
               const stage = PIPELINE_STAGES.find(s => s.id === p.stage);
               return (
-                <tr key={p.id} onClick={() => onEdit(p)} className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer">
+                <tr
+                  key={p.id}
+                  onClick={() => onEdit(p)}
+                  className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer"
+                >
                   <td className="px-3 py-2.5 text-[13px] font-medium">{p.name}</td>
                   <td className="px-3 py-2.5">
                     <div className="text-[13px]">{p.contact_name || '—'}</div>
@@ -748,6 +1011,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
                     ) : '—'}
                   </td>
                   <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.source || '—'}</td>
+                  <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.assignee || '—'}</td>
                   <td className="px-3 py-2.5 text-[11px] text-muted-foreground/40">
                     {new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </td>
@@ -784,7 +1048,7 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
         ].map(kpi => (
           <div key={kpi.label} className="p-4 rounded-lg border border-border/20 bg-card">
             <div className="flex items-center gap-2 mb-2">
-              <kpi.icon size={14} className={`${kpi.color}`} />
+              <kpi.icon size={14} className={kpi.color} />
               <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">{kpi.label}</span>
             </div>
             <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
@@ -794,7 +1058,6 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
 
       {/* Stage Funnel + Loss Reasons */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* Pipeline Funnel */}
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <h3 className="text-[13px] font-semibold mb-4">Pipeline Funnel</h3>
           <div className="space-y-3">
@@ -823,7 +1086,6 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
           </div>
         </div>
 
-        {/* Loss Reasons */}
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <h3 className="text-[13px] font-semibold mb-4">Loss Reasons</h3>
           {Object.keys(s.lossReasons).length === 0 ? (
@@ -853,180 +1115,7 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
           )}
         </div>
       </div>
-
     </div>
-  );
-}
-
-// ── Prospect Detail Sheet ────────────────────────────────────────────────────
-function ProspectSheet({ prospect, onClose, onUpdate, onDelete, onConvert }: {
-  prospect: Prospect;
-  onClose: () => void;
-  onUpdate: (updates: Partial<Prospect>) => void;
-  onDelete: () => void;
-  onConvert?: () => void;
-}) {
-  const [notes, setNotes] = useState(prospect.notes || '');
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
-  return (
-    <Sheet open onOpenChange={open => { if (!open) onClose(); }}>
-      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
-        <SheetHeader className="px-6 py-5 border-b border-border/20">
-          <SheetTitle className="text-[15px] truncate">{prospect.name}</SheetTitle>
-        </SheetHeader>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {/* Stage */}
-          <div>
-            <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1.5 block">Stage</label>
-            <div className="flex flex-wrap gap-1.5">
-              {PIPELINE_STAGES.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => onUpdate({ stage: s.id })}
-                  className={`px-2.5 py-1 rounded-lg text-[13px] font-medium border transition-colors duration-150 ${
-                    prospect.stage === s.id
-                      ? `${s.dotClass.replace('bg-', 'bg-').replace('-400', '-500/20')} border-current`
-                      : 'border-border/20 bg-secondary hover:border-primary/30'
-                  }`}
-                >
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${s.dotClass} mr-1.5`} />
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Details grid */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Contact', value: prospect.contact_name, field: 'contact_name' },
-              { label: 'Email', value: prospect.contact_email, field: 'contact_email', icon: Mail },
-              { label: 'Phone', value: prospect.contact_phone, field: 'contact_phone', icon: Phone },
-            ].map(f => (
-              <div key={f.field}>
-                <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1 block">{f.label}</label>
-                <input
-                  defaultValue={f.value || ''}
-                  onBlur={e => { if (e.target.value !== (f.value || '')) onUpdate({ [f.field]: e.target.value || null }); }}
-                  placeholder={`Add ${f.label.toLowerCase()}...`}
-                  className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-                />
-              </div>
-            ))}
-          </div>
-
-          {/* Value */}
-          <div>
-            <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1 block">Deal Value</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-              <input
-                type="number"
-                defaultValue={prospect.value || ''}
-                onBlur={e => { const v = parseFloat(e.target.value); onUpdate({ value: isNaN(v) ? null : v }); }}
-                placeholder="0"
-                className="w-full h-8 pl-7 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-              />
-            </div>
-          </div>
-
-          {/* Service */}
-          <div>
-            <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1.5 block">Service</label>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                <button
-                  key={key}
-                  onClick={() => onUpdate({ service: prospect.service === key ? null : key })}
-                  className={`px-2.5 py-1 rounded-lg text-[13px] border transition-colors duration-150 flex items-center gap-1.5 ${
-                    prospect.service === key
-                      ? `${s.bg} ${s.text} border-current`
-                      : 'border-border/20 bg-secondary hover:border-primary/30'
-                  }`}
-                >
-                  <ServiceIcon serviceKey={key} size={12} />
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Source */}
-          <div>
-            <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1 block">Source</label>
-            <input
-              defaultValue={prospect.source || ''}
-              onBlur={e => { if (e.target.value !== (prospect.source || '')) onUpdate({ source: e.target.value || null }); }}
-              placeholder="e.g. Referral, LinkedIn, Website..."
-              className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-            />
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-1 block">Notes</label>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              onBlur={() => { if (notes !== (prospect.notes || '')) onUpdate({ notes: notes || null }); }}
-              placeholder="Add notes about this prospect..."
-              rows={4}
-              className="w-full px-3 py-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 resize-none"
-            />
-          </div>
-
-          {/* Loss reason (if lost) */}
-          {prospect.stage === 'lost' && prospect.lost_reason && (
-            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
-              <span className="text-[11px] font-medium text-red-400 uppercase tracking-wider">Lost Reason</span>
-              <p className="text-[13px] mt-1">
-                {LOSS_REASONS.find(r => r.id === prospect.lost_reason)?.label || prospect.lost_reason}
-                {prospect.lost_reason_custom && ` — ${prospect.lost_reason_custom}`}
-              </p>
-            </div>
-          )}
-
-          {/* Convert to Client banner (won stage) */}
-          {prospect.stage === 'won' && onConvert && (
-            <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[13px] font-semibold text-emerald-400">🎉 Deal Won!</p>
-                  <p className="text-[12px] text-muted-foreground/60 mt-0.5">Ready to onboard this client?</p>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={onConvert}
-                  className="h-8 text-[13px] gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
-                >
-                  <UserPlus size={14} />
-                  Convert to Client
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-border/20 flex items-center justify-between">
-          <div className="text-[11px] text-muted-foreground/40">
-            Created {new Date(prospect.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </div>
-          {confirmDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] text-destructive">Delete?</span>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-              <Button size="sm" variant="destructive" onClick={onDelete}>Delete</Button>
-            </div>
-          ) : (
-            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
-          )}
-        </div>
-      </SheetContent>
-    </Sheet>
   );
 }
 
@@ -1044,10 +1133,7 @@ function ConvertToClientDialog({ prospect, onClose, onConverted }: {
   const [converting, setConverting] = useState(false);
 
   const handleConvert = async () => {
-    if (!name.trim()) {
-      toast.error('Client name is required');
-      return;
-    }
+    if (!name.trim()) { toast.error('Client name is required'); return; }
     setConverting(true);
     try {
       const res = await fetch(`/api/prospects/${prospect.id}/convert`, {
@@ -1106,7 +1192,9 @@ function ConvertToClientDialog({ prospect, onClose, onConverted }: {
               <Label className="text-[13px] text-muted-foreground">Contact</Label>
               <div className="h-9 px-3 rounded-md border border-border/20 bg-secondary/50 flex items-center text-muted-foreground">
                 {prospect.contact_name}
-                {prospect.contact_email && <span className="ml-2 text-muted-foreground/60">· {prospect.contact_email}</span>}
+                {prospect.contact_email && (
+                  <span className="ml-2 text-muted-foreground/60">· {prospect.contact_email}</span>
+                )}
               </div>
             </div>
           )}

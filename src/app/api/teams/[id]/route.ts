@@ -51,12 +51,12 @@ export async function PATCH(
 
   // ── 2. Update membership if members array provided ────────────────────────
   if (members !== undefined) {
-    // Find ALL users currently on this team (by either old or new slug)
-    // so we don't accidentally leave stale assignments
-    const slugsToCheck = Array.from(new Set([oldSlug, newSlug]));
-    for (const slug of slugsToCheck) {
-      await supabaseAdmin.from('app_users').update({ team: null }).eq('team', slug);
-    }
+    // Clear ONLY users on the NEW slug (after rename migration has happened)
+    // This avoids clearing users that were just migrated
+    await supabaseAdmin
+      .from('app_users')
+      .update({ team: null, updated_at: new Date().toISOString() })
+      .eq('team', newSlug);
 
     // Assign the selected member IDs to the new team slug
     if (members.length > 0) {
