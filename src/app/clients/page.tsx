@@ -60,118 +60,6 @@ function monthsActive(createdAt: string): number {
 }
 
 /* ── Services multi-select ─────────────────────────────────────────────────── */
-function ServicesMultiSelect({
-  selected,
-  onChange,
-}: {
-  selected: string[];
-  onChange: (v: string[]) => void;
-}) {
-  const [services, setServices] = React.useState(REVENUE_SERVICES);
-  const [adding, setAdding] = React.useState(false);
-  const [newServiceName, setNewServiceName] = React.useState('');
-  const [saving, setSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    fetch('/api/services')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: Array<{ id: string; label: string }> | null) => {
-        if (!data) return;
-        const apiServices = data
-          .filter((s) => s.id !== 'account-management')
-          .map((s) => ({ value: s.id, label: s.label }));
-        const hardcodedIds = new Set(REVENUE_SERVICES.map(s => s.value));
-        const extras = apiServices.filter(s => !hardcodedIds.has(s.value));
-        setServices([...REVENUE_SERVICES, ...extras]);
-      })
-      .catch(() => {});
-  }, []);
-
-  const toggle = (val: string) => {
-    onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
-  };
-
-  const handleAddService = async () => {
-    if (!newServiceName.trim()) return;
-    setSaving(true);
-    try {
-      const res = await fetch('/api/services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label: newServiceName.trim() }),
-      });
-      if (res.ok) {
-        const created = await res.json() as { id: string; label: string };
-        setServices(prev => [...prev, { value: created.id, label: created.label }]);
-        setNewServiceName('');
-        setAdding(false);
-      }
-    } catch { /* silent */ }
-    finally { setSaving(false); }
-  };
-
-  return (
-    <div className="flex flex-wrap gap-1.5 items-center">
-      {services.map(s => {
-        const active = selected.includes(s.value);
-        return (
-          <button
-            key={s.value}
-            type="button"
-            onClick={() => toggle(s.value)}
-            className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 flex items-center gap-1 ${
-              active
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/40'
-            }`}
-          >
-            {active && <Check size={10} />}
-            {s.label}
-          </button>
-        );
-      })}
-      {adding ? (
-        <div className="flex items-center gap-1">
-          <input
-            autoFocus
-            value={newServiceName}
-            onChange={e => setNewServiceName(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') handleAddService();
-              if (e.key === 'Escape') { setAdding(false); setNewServiceName(''); }
-            }}
-            placeholder="Service name..."
-            className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/50 w-32"
-          />
-          <button
-            type="button"
-            onClick={handleAddService}
-            disabled={saving || !newServiceName.trim()}
-            className="h-7 px-2 text-[11px] rounded-md border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors duration-150 disabled:opacity-50"
-          >
-            {saving ? '...' : 'Add'}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAdding(false); setNewServiceName(''); }}
-            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors duration-150"
-          >
-            <X size={12} />
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="h-7 px-2.5 text-[11px] rounded-md border border-dashed border-border/30 text-muted-foreground/60 hover:border-primary/40 hover:text-muted-foreground transition-colors duration-150 flex items-center gap-1"
-        >
-          <Plus size={10} /> Add Service
-        </button>
-      )}
-    </div>
-  );
-}
-
 /* ── Members multi-select ──────────────────────────────────────────────────── */
 function MembersMultiSelect({
   selected,
@@ -234,23 +122,19 @@ function MembersMultiSelect({
 interface ClientFormState {
   name: string;
   team: string;
-  services: string[];
   assigned_members: string[];
   status: string;
   signup_date: string;
   notes: string;
-  monthly_retainer: string;
 }
 
 const emptyClientForm: ClientFormState = {
   name: '',
   team: '',
-  services: [],
   assigned_members: [],
   status: 'active',
   signup_date: '',
   notes: '',
-  monthly_retainer: '',
 };
 
 function ClientSheet({
@@ -280,12 +164,10 @@ function ClientSheet({
         setForm({
           name: editClient.name,
           team: editClient.team || '',
-          services: editClient.services || [],
           assigned_members: editClient.assigned_members || [],
           status: editClient.status || 'active',
           signup_date: editClient.signup_date || '',
           notes: editClient.notes || '',
-          monthly_retainer: String(editClient.monthly_retainer || ''),
         });
       } else {
         setForm(emptyClientForm);
@@ -300,12 +182,10 @@ function ClientSheet({
       const payload = {
         name: form.name.trim(),
         team: form.team || null,
-        services: form.services,
         assigned_members: form.assigned_members,
         status: form.status,
         signup_date: form.signup_date || null,
         notes: form.notes || null,
-        monthly_retainer: form.monthly_retainer ? parseFloat(form.monthly_retainer) : 0,
       };
 
       if (editClient) {
@@ -438,12 +318,6 @@ function ClientSheet({
             </Popover>
           </div>
 
-          {/* Services */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Services</Label>
-            <ServicesMultiSelect selected={form.services} onChange={v => setForm(f => ({ ...f, services: v }))} />
-          </div>
-
           {/* Assigned Members */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assigned Members</Label>
@@ -452,21 +326,6 @@ function ClientSheet({
               onChange={v => setForm(f => ({ ...f, assigned_members: v }))}
               users={users}
             />
-          </div>
-
-          {/* Monthly Retainer */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Monthly Retainer (£)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-              <Input
-                type="number"
-                value={form.monthly_retainer}
-                onChange={e => setForm(f => ({ ...f, monthly_retainer: e.target.value }))}
-                placeholder="0"
-                className="pl-7 text-[13px] h-9"
-              />
-            </div>
           </div>
 
           {/* Start Date */}
