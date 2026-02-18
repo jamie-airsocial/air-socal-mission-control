@@ -27,6 +27,7 @@ export async function PATCH(
 
   const oldSlug = nameToSlug(currentTeam.name);
   let newSlug = oldSlug;
+  const now = new Date().toISOString();
 
   // ── 1. Rename team if name provided ──────────────────────────────────────
   if (name !== undefined) {
@@ -35,34 +36,34 @@ export async function PATCH(
 
     const { error } = await supabaseAdmin
       .from('teams')
-      .update({ name: trimmed, updated_at: new Date().toISOString() })
+      .update({ name: trimmed, updated_at: now })
       .eq('id', id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Migrate all app_users from oldSlug → newSlug (handles rename)
+    // Cascade rename across ALL tables that store team as a string
     if (newSlug !== oldSlug) {
-      await supabaseAdmin
-        .from('app_users')
-        .update({ team: newSlug, updated_at: new Date().toISOString() })
-        .eq('team', oldSlug);
+      await Promise.all([
+        supabaseAdmin.from('app_users').update({ team: newSlug, updated_at: now }).eq('team', oldSlug),
+        supabaseAdmin.from('clients').update({ team: newSlug, updated_at: now }).eq('team', oldSlug),
+        supabaseAdmin.from('prospects').update({ team: newSlug, updated_at: now }).eq('team', oldSlug),
+      ]);
     }
   }
 
   // ── 2. Update membership if members array provided ────────────────────────
   if (members !== undefined) {
-    // Clear ONLY users on the NEW slug (after rename migration has happened)
-    // This avoids clearing users that were just migrated
+    // Remove all current members from this team
     await supabaseAdmin
       .from('app_users')
-      .update({ team: null, updated_at: new Date().toISOString() })
+      .update({ team: null, updated_at: now })
       .eq('team', newSlug);
 
-    // Assign the selected member IDs to the new team slug
+    // Assign the selected member IDs to the team
     if (members.length > 0) {
       await supabaseAdmin
         .from('app_users')
-        .update({ team: newSlug, updated_at: new Date().toISOString() })
+        .update({ team: newSlug, updated_at: now })
         .in('id', members);
     }
   }
@@ -90,11 +91,11 @@ export async function DELETE(
     .single();
 
   if (team) {
-    const teamSlug = nameToSlug(team.name);
+    const slug = nameToSlug(team.name);
     const { data: members } = await supabaseAdmin
       .from('app_users')
       .select('id')
-      .eq('team', teamSlug)
+      .eq('team', slug)
       .eq('is_active', true);
 
     if (members && members.length > 0) {
