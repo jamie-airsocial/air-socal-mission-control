@@ -5,12 +5,33 @@ import { useParams, useRouter } from 'next/navigation';
 import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
-import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NAME_TO_SLUG } from '@/lib/constants';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ServiceIcon } from '@/components/ui/service-icon';
+import { TaskSheet } from '@/components/board/task-sheet';
+import type { Task, Project } from '@/lib/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface Client {
   id: string;
@@ -23,7 +44,6 @@ interface Client {
   color: string | null;
   created_at: string;
   updated_at?: string;
-  // Extended fields
   contract_value?: number;
   contract_start?: string;
   contract_end?: string;
@@ -36,7 +56,7 @@ interface Client {
   churned_at?: string;
 }
 
-interface Task {
+interface ClientTask {
   id: string;
   title: string;
   status: string;
@@ -48,7 +68,19 @@ interface Task {
   client_id: string | null;
 }
 
-/** Services available for selection (account-management always included) */
+interface ContractLineItem {
+  id: string;
+  client_id: string;
+  service: string;
+  description: string | null;
+  monthly_value: number;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 const ALL_SERVICES = Object.entries(SERVICE_STYLES).map(([key, style]) => ({
   value: key,
   label: style.label,
@@ -60,40 +92,31 @@ function monthsActive(from: string, to?: string): number {
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44)));
 }
 
-function formatDate(iso?: string): string {
+function formatDateUK(iso?: string | null): string {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function toISODateString(iso?: string | null): string {
+  if (!iso) return '';
+  return iso.split('T')[0];
+}
+
 function EditableField({
-  label,
-  value,
-  onSave,
-  type = 'text',
-  placeholder = '',
+  label, value, onSave, type = 'text', placeholder = '',
 }: {
-  label: string;
-  value: string;
-  onSave: (v: string) => void;
-  type?: string;
-  placeholder?: string;
+  label: string; value: string; onSave: (v: string) => void; type?: string; placeholder?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-
   const save = () => { onSave(draft); setEditing(false); };
   const cancel = () => { setDraft(value); setEditing(false); };
-
   return (
     <div>
       <p className="text-[11px] text-muted-foreground/60 mb-1">{label}</p>
       {editing ? (
         <div className="flex items-center gap-1.5">
-          <input
-            autoFocus
-            type={type}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
+          <input autoFocus type={type} value={draft} onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
             placeholder={placeholder}
             className="flex-1 h-7 px-2 text-[13px] bg-secondary border border-border/30 rounded outline-none focus:border-primary/50 transition-colors"
@@ -104,10 +127,8 @@ function EditableField({
       ) : (
         <div className="flex items-center gap-2 group">
           <p className="text-[13px]">{value || <span className="text-muted-foreground/40">{placeholder || 'Not set'}</span>}</p>
-          <button
-            onClick={() => { setDraft(value); setEditing(true); }}
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground"
-          >
+          <button onClick={() => { setDraft(value); setEditing(true); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground">
             <Edit2 size={10} />
           </button>
         </div>
@@ -116,65 +137,152 @@ function EditableField({
   );
 }
 
+// ─── Contract line item dialog ───────────────────────────────────────────────
+interface LineItemFormData {
+  service: string;
+  description: string;
+  monthly_value: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
+
+const emptyLineItem: LineItemFormData = {
+  service: '',
+  description: '',
+  monthly_value: '',
+  start_date: '',
+  end_date: '',
+  is_active: true,
+};
+
+function LineItemDialog({
+  open,
+  onOpenChange,
+  initialData,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initialData?: ContractLineItem | null;
+  onSave: (data: LineItemFormData) => Promise<void>;
+}) {
+  const [form, setForm] = useState<LineItemFormData>(emptyLineItem);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm(initialData ? {
+        service: initialData.service,
+        description: initialData.description || '',
+        monthly_value: String(initialData.monthly_value),
+        start_date: toISODateString(initialData.start_date),
+        end_date: toISODateString(initialData.end_date),
+        is_active: initialData.is_active,
+      } : emptyLineItem);
+    }
+  }, [open, initialData]);
+
+  const handleSave = async () => {
+    if (!form.service) { toast.error('Service is required'); return; }
+    setSaving(true);
+    try { await onSave(form); onOpenChange(false); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to save'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-card border-border/20">
+        <DialogHeader>
+          <DialogTitle className="text-[15px]">{initialData ? 'Edit line item' : 'Add line item'}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Service *</Label>
+            <Input value={form.service} onChange={e => setForm(f => ({ ...f, service: e.target.value }))}
+              placeholder="e.g. SEO, Paid Ads, Social Media" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Description</Label>
+            <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Brief description" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Monthly value (£) *</Label>
+            <Input type="number" min="0" step="0.01"
+              value={form.monthly_value} onChange={e => setForm(f => ({ ...f, monthly_value: e.target.value }))}
+              placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Start date</Label>
+              <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))}
+                className="h-9 text-[13px] bg-secondary border-border/20" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">End date</Label>
+              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))}
+                className="h-9 text-[13px] bg-secondary border-border/20" />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch checked={form.is_active} onCheckedChange={v => setForm(f => ({ ...f, is_active: v }))} />
+            <Label className="text-[13px] text-muted-foreground">Active</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
+          <Button onClick={handleSave} disabled={saving} className="text-[13px] h-8">
+            {saving ? 'Saving…' : initialData ? 'Save changes' : 'Add line item'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
+
 export default function ClientDetailPage() {
   const params = useParams();
   const router = useRouter();
   const clientId = params.id as string;
 
   const [client, setClient] = useState<Client | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<ClientTask[]>([]);
+  const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'service' | 'month'>('service');
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'contract' | 'sale' | 'notes'>('overview');
-  const [showNewTask, setShowNewTask] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskService, setNewTaskService] = useState('');
-  const [newTaskPriority, setNewTaskPriority] = useState('P2');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('');
-  const [creatingTask, setCreatingTask] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'contract' | 'billing' | 'sale' | 'notes'>('overview');
 
-  const handleCreateTask = async () => {
-    if (!newTaskTitle.trim()) return;
-    setCreatingTask(true);
+  // Task sheet state
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isNew, setIsNew] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Contract line item dialog state
+  const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
+  const [editingLineItem, setEditingLineItem] = useState<ContractLineItem | null>(null);
+
+  const fetchContractItems = useCallback(async () => {
     try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newTaskTitle.trim(),
-          client_id: clientId,
-          service: newTaskService || null,
-          priority: newTaskPriority,
-          assignee: newTaskAssignee || null,
-          status: 'todo',
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to create task');
-      const task = await res.json();
-      setTasks(prev => [task, ...prev]);
-      setNewTaskTitle('');
-      setNewTaskService('');
-      setNewTaskPriority('P2');
-      setNewTaskAssignee('');
-      setShowNewTask(false);
-      toast.success('Task created for ' + (client?.name || 'client'));
-    } catch {
-      toast.error('Failed to create task');
-    } finally {
-      setCreatingTask(false);
-    }
-  };
+      const res = await fetch(`/api/clients/${clientId}/contracts`, { cache: 'no-store' });
+      if (res.ok) setContractItems(await res.json());
+    } catch { /* silent */ }
+  }, [clientId]);
 
   const fetchData = useCallback(async () => {
     try {
-      const [clientRes, tasksRes] = await Promise.all([
-        fetch(`/api/clients/${clientId}`).catch(() => fetch(`/api/clients`)),
+      const [clientRes, tasksRes, projectsRes] = await Promise.all([
+        fetch(`/api/clients/${clientId}`),
         fetch(`/api/tasks`),
+        fetch('/api/clients'),
       ]);
       if (clientRes.ok) {
         const data = await clientRes.json();
-        // Handle both single object (from [id] route) and array (fallback)
         if (Array.isArray(data)) {
           setClient(data.find((c: Client) => c.id === clientId) || null);
         } else {
@@ -183,33 +291,139 @@ export default function ClientDetailPage() {
       }
       if (tasksRes.ok) {
         const allTasks = await tasksRes.json();
-        setTasks(allTasks.filter((t: Task) => t.client_id === clientId));
+        setTasks(allTasks.filter((t: ClientTask) => t.client_id === clientId));
+      }
+      if (projectsRes.ok) {
+        const allClients = await projectsRes.json();
+        setProjects(allClients.map((c: Client) => ({ id: c.id, name: c.name, color: c.color || '', created_at: c.created_at })));
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
   }, [clientId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    fetchContractItems();
+  }, [fetchData, fetchContractItems]);
 
   const patchClient = useCallback(async (updates: Partial<Client>) => {
     if (!client) return;
     setSaving(true);
     try {
       const res = await fetch(`/api/clients/${clientId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error();
-      const updated = await res.json();
-      setClient(updated);
+      setClient(await res.json());
       toast.success('Changes saved');
-    } catch {
-      toast.error('Failed to save');
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error('Failed to save'); }
+    finally { setSaving(false); }
   }, [client, clientId]);
+
+  // ── Task sheet handlers ───────────────────────────────────────────────────
+  const openNewTask = () => {
+    setIsNew(true);
+    setSelectedTask({
+      id: '',
+      title: '',
+      description: null,
+      status: 'todo',
+      priority: 'P2',
+      assignee: null,
+      project_id: clientId,
+      client_id: clientId,
+      service: null,
+      parent_id: null,
+      due_date: null,
+      completed_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    setSheetOpen(true);
+  };
+
+  const handleTaskClick = (task: Task) => {
+    setIsNew(false);
+    setSelectedTask(task);
+    setSheetOpen(true);
+  };
+
+  const handleTaskSave = useCallback(async (data: Partial<Task>, opts?: { optimistic?: boolean; taskId?: string }) => {
+    if (opts?.optimistic && opts.taskId) return; // ignore optimistic updates for now
+    if (isNew) {
+      const res = await fetch('/api/tasks', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, client_id: clientId }),
+      });
+      if (!res.ok) { toast.error('Failed to create task'); return; }
+      toast.success('Task created');
+    } else if (selectedTask) {
+      const res = await fetch(`/api/tasks/${selectedTask.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) { toast.error('Failed to save task'); return; }
+    }
+    setSheetOpen(false);
+    setSelectedTask(null);
+    fetchData();
+  }, [isNew, selectedTask, clientId, fetchData]);
+
+  const handleTaskDelete = useCallback(async () => {
+    if (!selectedTask) return;
+    const res = await fetch(`/api/tasks/${selectedTask.id}`, { method: 'DELETE' });
+    if (!res.ok) { toast.error('Failed to delete task'); return; }
+    setSheetOpen(false);
+    setSelectedTask(null);
+    toast.success('Task deleted');
+    fetchData();
+  }, [selectedTask, fetchData]);
+
+  // ── Contract line item handlers ───────────────────────────────────────────
+  const handleLineItemSave = async (data: LineItemFormData) => {
+    const payload = {
+      service: data.service,
+      description: data.description || null,
+      monthly_value: parseFloat(data.monthly_value) || 0,
+      start_date: data.start_date || null,
+      end_date: data.end_date || null,
+      is_active: data.is_active,
+    };
+
+    if (editingLineItem) {
+      const res = await fetch(`/api/contracts/${editingLineItem.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to update line item');
+      toast.success('Line item updated');
+    } else {
+      const res = await fetch(`/api/clients/${clientId}/contracts`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to create line item');
+      toast.success('Line item added');
+    }
+    fetchContractItems();
+  };
+
+  const handleLineItemDelete = async (item: ContractLineItem) => {
+    const res = await fetch(`/api/contracts/${item.id}`, { method: 'DELETE' });
+    if (!res.ok) { toast.error('Failed to delete line item'); return; }
+    toast.success('Line item deleted');
+    fetchContractItems();
+  };
+
+  const handleToggleActive = async (item: ContractLineItem) => {
+    const res = await fetch(`/api/contracts/${item.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !item.is_active }),
+    });
+    if (!res.ok) { toast.error('Failed to update'); return; }
+    fetchContractItems();
+  };
 
   if (loading) {
     return (
@@ -235,16 +449,18 @@ export default function ClientDetailPage() {
   const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
 
   const groupedTasks = view === 'service'
-    ? tasks.reduce<Record<string, Task[]>>((acc, t) => {
+    ? tasks.reduce<Record<string, ClientTask[]>>((acc, t) => {
         const key = t.service || 'none';
         (acc[key] ??= []).push(t);
         return acc;
       }, {})
-    : tasks.reduce<Record<string, Task[]>>((acc, t) => {
+    : tasks.reduce<Record<string, ClientTask[]>>((acc, t) => {
         const key = !t.due_date ? 'No date' : new Date(t.due_date).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
         (acc[key] ??= []).push(t);
         return acc;
       }, {});
+
+  const totalMonthlyValue = contractItems.filter(i => i.is_active).reduce((sum, i) => sum + (i.monthly_value || 0), 0);
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -294,7 +510,6 @@ export default function ClientDetailPage() {
           </div>
         </div>
 
-        {/* Services */}
         {(client.services || []).length > 0 && (
           <div className="mb-4">
             <p className="text-[11px] text-muted-foreground/60 mb-2">Services</p>
@@ -312,7 +527,6 @@ export default function ClientDetailPage() {
           </div>
         )}
 
-        {/* Team members */}
         {members.length > 0 && (
           <div>
             <p className="text-[11px] text-muted-foreground/60 mb-2">Team</p>
@@ -334,17 +548,18 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Detail tabs */}
-      <div className="flex items-center gap-1 mb-4 border-b border-border/20">
-        {([ 
+      <div className="flex items-center gap-1 mb-4 border-b border-border/20 overflow-x-auto">
+        {([
           { id: 'overview', label: 'Overview', icon: <Tag size={13} /> },
           { id: 'contract', label: 'Contract', icon: <FileText size={13} /> },
+          { id: 'billing', label: 'Billing', icon: <BadgePoundSterling size={13} /> },
           { id: 'sale', label: 'Sale Details', icon: <BadgePoundSterling size={13} /> },
           { id: 'notes', label: 'Notes', icon: <Edit2 size={13} /> },
         ] as const).map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors duration-150 ${
+            className={`flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors duration-150 whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -363,7 +578,7 @@ export default function ClientDetailPage() {
             <div className="flex items-center gap-3">
               <h2 className="text-[13px] font-semibold">Tasks ({tasks.length})</h2>
               <button
-                onClick={() => setShowNewTask(!showNewTask)}
+                onClick={openNewTask}
                 className="h-7 px-2.5 text-[11px] font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-150 flex items-center gap-1"
               >
                 <Plus size={12} /> New Task
@@ -384,44 +599,12 @@ export default function ClientDetailPage() {
             </div>
           </div>
 
-          {showNewTask && (
-            <div className="mb-4 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
-              <input
-                autoFocus
-                value={newTaskTitle}
-                onChange={e => setNewTaskTitle(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') handleCreateTask(); if (e.key === 'Escape') setShowNewTask(false); }}
-                placeholder="Task title..."
-                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
-              />
-              <div className="flex items-center gap-2 flex-wrap">
-                <select value={newTaskService} onChange={e => setNewTaskService(e.target.value)} className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-lg outline-none">
-                  <option value="">No service</option>
-                  {ALL_SERVICES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-                <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value)} className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-lg outline-none">
-                  {Object.entries(PRIORITY_STYLES).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
-                </select>
-                <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)} className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-lg outline-none">
-                  <option value="">Unassigned</option>
-                  {Object.keys(NAME_TO_SLUG).map(name => <option key={name} value={NAME_TO_SLUG[name]}>{name}</option>)}
-                </select>
-                <div className="flex-1" />
-                <button onClick={() => setShowNewTask(false)} className="h-7 px-2.5 text-[11px] rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground transition-colors duration-150">Cancel</button>
-                <button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || creatingTask} className="h-7 px-3 text-[11px] font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors duration-150">
-                  {creatingTask ? 'Creating...' : 'Create'}
-                </button>
-              </div>
-            </div>
-          )}
-
           <div className="space-y-6">
             {Object.entries(groupedTasks).map(([group, groupTasks]) => {
               if (!groupTasks?.length) return null;
               const serviceStyle = view === 'service' && group !== 'none' ? SERVICE_STYLES[group] : null;
               const groupLabel = serviceStyle ? serviceStyle.label : view === 'service' ? 'No Service' : group;
               const groupIcon = serviceStyle ? serviceStyle.icon : view === 'service' ? '📋' : '📅';
-
               return (
                 <div key={group}>
                   <div className="flex items-center gap-2 mb-3">
@@ -434,9 +617,10 @@ export default function ClientDetailPage() {
                       const statusStyle = STATUS_STYLES[task.status];
                       const priorityStyle = task.priority && PRIORITY_STYLES[task.priority];
                       return (
-                        <div
+                        <button
                           key={task.id}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 transition-colors duration-150"
+                          onClick={() => handleTaskClick(task as unknown as Task)}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-border/20 bg-muted/20 hover:bg-muted/40 transition-colors duration-150 text-left"
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: statusStyle?.dot }} />
                           <div className="flex-1 min-w-0">
@@ -461,7 +645,7 @@ export default function ClientDetailPage() {
                               {formatDueDate(task.due_date)}
                             </span>
                           )}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -489,33 +673,31 @@ export default function ClientDetailPage() {
               label="Contract Value (£)"
               value={client.contract_value ? String(client.contract_value) : ''}
               onSave={v => patchClient({ contract_value: v ? parseFloat(v) : undefined })}
-              type="number"
-              placeholder="e.g. 12000"
+              type="number" placeholder="e.g. 12000"
             />
             <EditableField
               label="Start Date"
-              value={client.contract_start ? client.contract_start.split('T')[0] : ''}
+              value={toISODateString(client.contract_start)}
               onSave={v => patchClient({ contract_start: v || undefined })}
               type="date"
             />
             <EditableField
               label="End Date"
-              value={client.contract_end ? client.contract_end.split('T')[0] : ''}
+              value={toISODateString(client.contract_end)}
               onSave={v => patchClient({ contract_end: v || undefined })}
               type="date"
             />
             <EditableField
               label="Renewal Date"
-              value={client.contract_renewal ? client.contract_renewal.split('T')[0] : ''}
+              value={toISODateString(client.contract_renewal)}
               onSave={v => patchClient({ contract_renewal: v || undefined })}
               type="date"
             />
             <EditableField
               label="Sign-up Date"
-              value={client.signup_date ? client.signup_date.split('T')[0] : ''}
+              value={toISODateString(client.signup_date)}
               onSave={v => patchClient({ signup_date: v || undefined })}
-              type="date"
-              placeholder="YYYY-MM-DD"
+              type="date" placeholder="YYYY-MM-DD"
             />
             <div>
               <p className="text-[11px] text-muted-foreground/60 mb-1">Status</p>
@@ -532,15 +714,13 @@ export default function ClientDetailPage() {
             {client.status === 'churned' && (
               <EditableField
                 label="Churn Date"
-                value={client.churned_at ? client.churned_at.split('T')[0] : ''}
+                value={toISODateString(client.churned_at)}
                 onSave={v => patchClient({ churned_at: v || undefined })}
-                type="date"
-                placeholder="YYYY-MM-DD"
+                type="date" placeholder="YYYY-MM-DD"
               />
             )}
           </div>
 
-          {/* Services editor */}
           <div className="mt-5 pt-5 border-t border-border/10">
             <p className="text-[11px] text-muted-foreground/60 mb-2">Services</p>
             <div className="flex flex-wrap gap-1.5">
@@ -556,9 +736,7 @@ export default function ClientDetailPage() {
                       patchClient({ services: next });
                     }}
                     className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 flex items-center gap-1 ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/40'
+                      active ? 'border-primary bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/40'
                     }`}
                   >
                     {active && <Check size={10} />}
@@ -568,6 +746,104 @@ export default function ClientDetailPage() {
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tab: Billing (Contract Line Items) */}
+      {activeTab === 'billing' && (
+        <div className="rounded-lg border border-border/20 bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[13px] font-semibold">Contract &amp; Billing</h2>
+              {contractItems.length > 0 && (
+                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                  Active monthly total: <span className="text-emerald-400 font-semibold">£{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </p>
+              )}
+            </div>
+            <Button
+              size="sm"
+              onClick={() => { setEditingLineItem(null); setLineItemDialogOpen(true); }}
+              className="h-8 text-[13px] gap-1"
+            >
+              <Plus size={14} /> Add line item
+            </Button>
+          </div>
+
+          {contractItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <BadgePoundSterling size={32} className="text-muted-foreground/30 mb-3" />
+              <p className="text-[13px] font-medium text-muted-foreground">No billing items yet</p>
+              <p className="text-[13px] text-muted-foreground/60 mt-1">Add contract line items to track revenue for this client</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/20 hover:bg-transparent">
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Service</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Description</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Monthly (£)</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Start</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">End</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Active</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium w-20">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {contractItems.map(item => (
+                    <TableRow key={item.id} className={`border-border/20 hover:bg-secondary/30 transition-colors ${!item.is_active ? 'opacity-50' : ''}`}>
+                      <TableCell className="text-[13px] font-medium">{item.service}</TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
+                      <TableCell className="text-[13px] font-semibold text-emerald-400">
+                        £{(item.monthly_value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground">{formatDateUK(item.start_date)}</TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground">{formatDateUK(item.end_date)}</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={item.is_active}
+                          onCheckedChange={() => handleToggleActive(item)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => { setEditingLineItem(item); setLineItemDialogOpen(true); }}
+                            className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleLineItemDelete(item)}
+                            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive transition-colors"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Total row */}
+              <div className="mt-3 pt-3 border-t border-border/10 flex items-center justify-between px-1">
+                <span className="text-[12px] text-muted-foreground/60">
+                  {contractItems.filter(i => i.is_active).length} active of {contractItems.length} total
+                </span>
+                <div className="text-right">
+                  <p className="text-[11px] text-muted-foreground/60">Active monthly total</p>
+                  <p className="text-lg font-bold text-emerald-400">
+                    £{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/40">
+                    ARR £{(totalMonthlyValue * 12).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -590,7 +866,7 @@ export default function ClientDetailPage() {
             />
             <EditableField
               label="Date Closed"
-              value={client.sale_closed_at ? client.sale_closed_at.split('T')[0] : ''}
+              value={toISODateString(client.sale_closed_at)}
               onSave={v => patchClient({ sale_closed_at: v || undefined })}
               type="date"
             />
@@ -602,12 +878,31 @@ export default function ClientDetailPage() {
       {activeTab === 'notes' && (
         <div className="rounded-lg border border-border/20 bg-card p-6">
           <h2 className="text-[13px] font-semibold mb-4">Notes</h2>
-          <NotesEditor
-            value={client.notes || ''}
-            onSave={v => patchClient({ notes: v })}
-          />
+          <NotesEditor value={client.notes || ''} onSave={v => patchClient({ notes: v })} />
         </div>
       )}
+
+      {/* Task Sheet */}
+      <TaskSheet
+        task={selectedTask}
+        open={sheetOpen}
+        onClose={() => { setSheetOpen(false); setSelectedTask(null); }}
+        onSave={handleTaskSave}
+        onDelete={handleTaskDelete}
+        projects={projects}
+        isNew={isNew}
+        allTasks={tasks as unknown as Task[]}
+        onTaskClick={handleTaskClick}
+        allLabels={[]}
+      />
+
+      {/* Line item dialog */}
+      <LineItemDialog
+        open={lineItemDialogOpen}
+        onOpenChange={setLineItemDialogOpen}
+        initialData={editingLineItem}
+        onSave={handleLineItemSave}
+      />
     </div>
   );
 }
@@ -615,9 +910,7 @@ export default function ClientDetailPage() {
 function NotesEditor({ value, onSave }: { value: string; onSave: (v: string) => void }) {
   const [draft, setDraft] = useState(value);
   const [changed, setChanged] = useState(false);
-
   const handleChange = (v: string) => { setDraft(v); setChanged(v !== value); };
-
   return (
     <div className="space-y-3">
       <textarea

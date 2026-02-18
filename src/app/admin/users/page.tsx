@@ -14,6 +14,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -119,9 +129,14 @@ export default function AdminUsersPage() {
   const [form, setForm] = useState<UserFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // Deactivation confirm dialog state
+  const [deactivateTarget, setDeactivateTarget] = useState<AppUser | null>(null);
+  const [reassignTo, setReassignTo] = useState<string>('');
+  const [deactivating, setDeactivating] = useState(false);
+
   const loadData = useCallback(async () => {
     const [usersRes, rolesRes] = await Promise.all([
-      fetch('/api/users'),
+      fetch('/api/users', { cache: 'no-store' }),
       fetch('/api/roles'),
     ]);
     const [usersData, rolesData] = await Promise.all([
@@ -200,28 +215,77 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleToggleActive = async (user: AppUser) => {
+  // Open deactivation confirm dialog
+  const promptDeactivate = (user: AppUser) => {
+    setDeactivateTarget(user);
+    setReassignTo('');
+  };
+
+  // Reactivate without any confirm dialog
+  const handleReactivate = async (user: AppUser) => {
     const res = await fetch(`/api/users/${user.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !user.is_active }),
+      body: JSON.stringify({ is_active: true }),
     });
     if (res.ok) {
-      toast.success(user.is_active ? 'User deactivated' : 'User reactivated', {
-        description: `${user.full_name} has been ${user.is_active ? 'deactivated' : 'reactivated'}.`,
-      });
+      toast.success('User reactivated', { description: `${user.full_name} has been reactivated.` });
       loadData();
     } else {
-      toast.error('Failed to update user');
+      toast.error('Failed to reactivate user');
+    }
+  };
+
+  // Confirm deactivation: optionally reassign tasks, then deactivate
+  const confirmDeactivate = async () => {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
+    try {
+      // Reassign tasks if a target was chosen
+      if (reassignTo) {
+        const res = await fetch('/api/tasks/reassign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            from_assignee: deactivateTarget.full_name,
+            to_assignee: reassignTo,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to reassign tasks');
+        }
+        const { count } = await res.json();
+        if (count > 0) {
+          toast.success(`${count} task${count === 1 ? '' : 's'} reassigned to ${reassignTo}`);
+        }
+      }
+
+      // Deactivate the user
+      const res = await fetch(`/api/users/${deactivateTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: false }),
+      });
+      if (!res.ok) throw new Error('Failed to deactivate user');
+
+      toast.success('User deactivated', { description: `${deactivateTarget.full_name} has been deactivated.` });
+      setDeactivateTarget(null);
+      loadData();
+    } catch (err) {
+      toast.error('Error', { description: err instanceof Error ? err.message : 'Something went wrong' });
+    } finally {
+      setDeactivating(false);
     }
   };
 
   const teamStyle = (team: string | null) => TEAM_STYLES[team as keyof typeof TEAM_STYLES];
+  const activeUsers = users.filter(u => u.is_active);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] text-muted-foreground">{users.length} active users</p>
+        <p className="text-[13px] text-muted-foreground">{users.length} users</p>
         <Button onClick={openAdd} size="sm" className="h-8 text-[13px] gap-1.5">
           <Plus size={14} />
           Add user
@@ -297,17 +361,23 @@ export default function AdminUsersPage() {
                       >
                         <Pencil size={14} />
                       </button>
-                      <button
-                        onClick={() => handleToggleActive(user)}
-                        className={`p-1.5 rounded transition-colors ${
-                          user.is_active
-                            ? 'hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive'
-                            : 'hover:bg-status-success/10 text-muted-foreground/60 hover:text-status-success'
-                        }`}
-                        title={user.is_active ? 'Deactivate user' : 'Reactivate user'}
-                      >
-                        {user.is_active ? <UserX size={14} /> : <UserCheck size={14} />}
-                      </button>
+                      {user.is_active ? (
+                        <button
+                          onClick={() => promptDeactivate(user)}
+                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive transition-colors"
+                          title="Deactivate user"
+                        >
+                          <UserX size={14} />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleReactivate(user)}
+                          className="p-1.5 rounded hover:bg-status-success/10 text-muted-foreground/60 hover:text-status-success transition-colors"
+                          title="Reactivate user"
+                        >
+                          <UserCheck size={14} />
+                        </button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -383,6 +453,55 @@ export default function AdminUsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Deactivation confirm dialog */}
+      <AlertDialog open={!!deactivateTarget} onOpenChange={open => { if (!open) setDeactivateTarget(null); }}>
+        <AlertDialogContent className="bg-card border-border/20 sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">
+              Deactivate {deactivateTarget?.full_name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-muted-foreground space-y-2">
+              <span>This will deactivate the user&apos;s account. They will no longer be able to log in.</span>
+              {activeUsers.filter(u => u.id !== deactivateTarget?.id).length > 0 && (
+                <span className="block pt-2">
+                  Optionally reassign their open tasks to another team member:
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {activeUsers.filter(u => u.id !== deactivateTarget?.id).length > 0 && (
+            <div className="px-1 pb-2">
+              <select
+                value={reassignTo}
+                onChange={e => setReassignTo(e.target.value)}
+                className="w-full h-9 px-3 text-[13px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/50 transition-colors"
+              >
+                <option value="">— Don&apos;t reassign tasks —</option>
+                {activeUsers
+                  .filter(u => u.id !== deactivateTarget?.id)
+                  .map(u => (
+                    <option key={u.id} value={u.full_name}>{u.full_name}</option>
+                  ))}
+              </select>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px] h-8 border-border/20">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeactivate}
+              disabled={deactivating}
+              className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deactivating ? 'Deactivating…' : 'Deactivate'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

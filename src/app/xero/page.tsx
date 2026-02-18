@@ -18,6 +18,17 @@ interface Client {
   churned_at?: string;
 }
 
+interface ContractLineItem {
+  id: string;
+  client_id: string;
+  service: string;
+  description: string | null;
+  monthly_value: number;
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+}
+
 type SortKey = 'name' | 'team' | 'retainer' | 'tenure' | 'status';
 type SortDir = 'asc' | 'desc';
 
@@ -36,19 +47,31 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 
 export default function XeroPage() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const [sortKey, setSortKey] = useState<SortKey>('retainer');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [tableTeamFilter, setTableTeamFilter] = usePersistedState<string>('xero-teamFilter', '');
-  // No date picker — churn is always based on last 12 months
 
   useEffect(() => {
-    fetch('/api/clients')
-      .then(r => r.json())
-      .then(data => setClients(data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/clients').then(r => r.json()).catch(() => []),
+      // Fetch all contract line items by calling a combined endpoint
+      // We'll aggregate across all clients via the clients data
+    ]).then(([clientsData]) => {
+      setClients(clientsData || []);
+      // Fetch contract line items for all clients
+      return Promise.all(
+        (clientsData || []).map((c: Client) =>
+          fetch(`/api/clients/${c.id}/contracts`, { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : [])
+            .catch(() => [])
+        )
+      );
+    }).then(allItems => {
+      setContractItems(allItems.flat());
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const toggleSort = (key: SortKey) => {
@@ -60,7 +83,39 @@ export default function XeroPage() {
   const activeClients = allClients.filter(c => c.status === 'active');
   const churnedClients = allClients.filter(c => c.status === 'churned');
 
-  const totalRevenue = activeClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
+  // Revenue from contract_line_items (active items only), with fallback to monthly_retainer
+  const hasContractData = contractItems.length > 0;
+
+  // Build a map of client_id → active monthly contract value
+  const contractRevenueByClient = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of contractItems) {
+      if (item.is_active) {
+        map[item.client_id] = (map[item.client_id] || 0) + (item.monthly_value || 0);
+      }
+    }
+    return map;
+  }, [contractItems]);
+
+  // Revenue by service from contract line items
+  const revenueByService = useMemo(() => {
+    if (!hasContractData) return [];
+    const map: Record<string, number> = {};
+    for (const item of contractItems) {
+      if (item.is_active) {
+        map[item.service] = (map[item.service] || 0) + (item.monthly_value || 0);
+      }
+    }
+    return Object.entries(map)
+      .map(([service, revenue]) => ({ service, revenue }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [contractItems, hasContractData]);
+
+  // Total revenue: prefer contract data, fallback to retainers
+  const totalRevenue = hasContractData
+    ? activeClients.reduce((sum, c) => sum + (contractRevenueByClient[c.id] || 0), 0)
+    : activeClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
+
   const avgRetainer = activeClients.length > 0 ? Math.round(totalRevenue / activeClients.length) : 0;
 
   // Churn rate: based on clients who churned in the last 12 months
@@ -70,10 +125,12 @@ export default function XeroPage() {
     ? Math.round((recentlyChurned.length / allClients.length) * 100)
     : 0;
 
-  // Revenue by team
+  // Revenue by team (prefer contract data, fallback to retainer)
   const revenueByTeam = (['synergy', 'ignite', 'alliance'] as const).map(team => {
     const teamClients = activeClients.filter(c => c.team === team);
-    const revenue = teamClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
+    const revenue = hasContractData
+      ? teamClients.reduce((sum, c) => sum + (contractRevenueByClient[c.id] || 0), 0)
+      : teamClients.reduce((sum, c) => sum + (c.monthly_retainer || 0), 0);
     const allTeamClients = allClients.filter(c => c.team === team);
     const churnedTeam = allTeamClients.filter(c => c.status === 'churned' && c.churned_at && c.churned_at >= twelveMonthsAgo);
     const churnRate = allTeamClients.length > 0 ? Math.round((churnedTeam.length / allTeamClients.length) * 100) : 0;
@@ -81,6 +138,12 @@ export default function XeroPage() {
   });
 
   const maxTeamRevenue = Math.max(...revenueByTeam.map(t => t.revenue), 1);
+  const maxServiceRevenue = revenueByService.length > 0 ? Math.max(...revenueByService.map(s => s.revenue), 1) : 1;
+
+  // Helper: get client's effective monthly revenue
+  const clientRevenue = (c: Client) => hasContractData
+    ? (contractRevenueByClient[c.id] || 0)
+    : (c.monthly_retainer || 0);
 
   // Sorted combined table (active + churned)
   const sortedClients = useMemo(() => {
@@ -90,7 +153,7 @@ export default function XeroPage() {
       switch (sortKey) {
         case 'name': va = a.name.toLowerCase(); vb = b.name.toLowerCase(); break;
         case 'team': va = a.team; vb = b.team; break;
-        case 'retainer': va = a.monthly_retainer || 0; vb = b.monthly_retainer || 0; break;
+        case 'retainer': va = clientRevenue(a); vb = clientRevenue(b); break;
         case 'tenure':
           va = monthsBetween(a.signup_date || a.created_at, a.churned_at);
           vb = monthsBetween(b.signup_date || b.created_at, b.churned_at);
@@ -104,7 +167,8 @@ export default function XeroPage() {
     });
     if (tableTeamFilter) return sorted.filter(c => c.team === tableTeamFilter);
     return sorted;
-  }, [allClients, sortKey, sortDir, tableTeamFilter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allClients, sortKey, sortDir, tableTeamFilter, contractRevenueByClient]);
 
   if (loading) {
     return (
@@ -125,10 +189,17 @@ export default function XeroPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Xero</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">Revenue &amp; billing overview</p>
-        <p className="text-[11px] text-amber-400/60 mt-2 flex items-center gap-1">
-          <AlertCircle size={10} />
-          Not connected to Xero — showing retainer data from clients
-        </p>
+        {!hasContractData ? (
+          <p className="text-[11px] text-amber-400/60 mt-2 flex items-center gap-1">
+            <AlertCircle size={10} />
+            No contract line items found — showing retainer data from clients. Add line items in each client&apos;s Billing tab.
+          </p>
+        ) : (
+          <p className="text-[11px] text-emerald-400/60 mt-2 flex items-center gap-1">
+            <AlertCircle size={10} />
+            Revenue sourced from contract line items
+          </p>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -164,7 +235,7 @@ export default function XeroPage() {
         </div>
       </div>
 
-      {/* Revenue by Team + Churn */}
+      {/* Revenue by Team + Revenue by Service (or Churn) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* Team Billing */}
         <div className="p-4 rounded-lg border border-border/20 bg-card">
@@ -190,57 +261,75 @@ export default function XeroPage() {
           </div>
         </div>
 
-        {/* Churn by Team */}
-        <div className="p-4 rounded-lg border border-border/20 bg-card">
-          <h3 className="text-[13px] font-semibold mb-4">Churn by Team (Last 12 Months)</h3>
-          <div className="space-y-3 mb-4">
-            {revenueByTeam.map(({ team, churnRate, allCount }) => {
-              const style = TEAM_STYLES[team];
-              const churnedCount = allClients.filter(c => c.team === team && c.status === 'churned').length;
-              return (
-                <div key={team} className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 w-20 shrink-0">
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
-                    <span className="text-[13px] font-medium">{style.label}</span>
-                  </div>
-                  <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-red-500 opacity-60 transition-all duration-500"
-                      style={{ width: `${Math.max(churnRate, churnRate > 0 ? 3 : 0)}%` }}
-                    />
-                  </div>
-                  <span className="text-[13px] font-medium w-12 text-right">{churnRate}%</span>
-                  <span className="text-[11px] text-muted-foreground/40 w-16 text-right">{churnedCount}/{allCount}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Churned clients detail */}
-          {churnedClients.length > 0 && (
-            <div className="pt-3 border-t border-border/10">
-              <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Churned Clients</p>
-              <div className="space-y-1.5">
-                {churnedClients.map(c => {
-                  const style = TEAM_STYLES[c.team as keyof typeof TEAM_STYLES];
-                  const lifespan = monthsBetween(c.signup_date || c.created_at, c.churned_at);
-                  return (
-                    <div key={c.id} className="flex items-center justify-between text-[13px]">
-                      <div className="flex items-center gap-2">
-                        {style && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.color }} />}
-                        <span>{c.name}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground/60">
-                        <span>{lifespan} months as client</span>
-                        <span>£{(c.monthly_retainer || 0).toLocaleString()}/mo</span>
-                      </div>
+        {/* Revenue by Service (if contract data) or Churn by Team */}
+        {hasContractData && revenueByService.length > 0 ? (
+          <div className="p-4 rounded-lg border border-border/20 bg-card">
+            <h3 className="text-[13px] font-semibold mb-4">Revenue by Service</h3>
+            <div className="space-y-3">
+              {revenueByService.map(({ service, revenue }) => {
+                const pct = Math.max((revenue / maxServiceRevenue) * 100, 3);
+                return (
+                  <div key={service} className="flex items-center gap-3">
+                    <div className="w-28 shrink-0">
+                      <span className="text-[13px] font-medium truncate block">{service}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
+                      <div className="h-full rounded-full bg-primary/60 transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-[13px] font-semibold w-24 text-right">£{revenue.toLocaleString()}<span className="text-[11px] font-normal text-muted-foreground/40">/mo</span></span>
+                  </div>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-lg border border-border/20 bg-card">
+            <h3 className="text-[13px] font-semibold mb-4">Churn by Team (Last 12 Months)</h3>
+            <div className="space-y-3 mb-4">
+              {revenueByTeam.map(({ team, churnRate, allCount }) => {
+                const style = TEAM_STYLES[team];
+                const churnedCount = allClients.filter(c => c.team === team && c.status === 'churned').length;
+                return (
+                  <div key={team} className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 w-20 shrink-0">
+                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.color }} />
+                      <span className="text-[13px] font-medium">{style.label}</span>
+                    </div>
+                    <div className="flex-1 h-2 rounded-full bg-muted/30 overflow-hidden">
+                      <div className="h-full rounded-full bg-red-500 opacity-60 transition-all duration-500" style={{ width: `${Math.max(churnRate, churnRate > 0 ? 3 : 0)}%` }} />
+                    </div>
+                    <span className="text-[13px] font-medium w-12 text-right">{churnRate}%</span>
+                    <span className="text-[11px] text-muted-foreground/40 w-16 text-right">{churnedCount}/{allCount}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {churnedClients.length > 0 && (
+              <div className="pt-3 border-t border-border/10">
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Churned Clients</p>
+                <div className="space-y-1.5">
+                  {churnedClients.map(c => {
+                    const style = TEAM_STYLES[c.team as keyof typeof TEAM_STYLES];
+                    const lifespan = monthsBetween(c.signup_date || c.created_at, c.churned_at);
+                    return (
+                      <div key={c.id} className="flex items-center justify-between text-[13px]">
+                        <div className="flex items-center gap-2">
+                          {style && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: style.color }} />}
+                          <span>{c.name}</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground/60">
+                          <span>{lifespan} months as client</span>
+                          <span>£{(c.monthly_retainer || 0).toLocaleString()}/mo</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Sortable Client Table */}
@@ -279,7 +368,7 @@ export default function XeroPage() {
                   { key: 'name', label: 'Client' },
                   { key: 'team', label: 'Team' },
                   { key: 'status', label: 'Status' },
-                  { key: 'retainer', label: 'Monthly Retainer' },
+                  { key: 'retainer', label: hasContractData ? 'Monthly (Contract)' : 'Monthly Retainer' },
                   { key: 'tenure', label: 'Tenure' },
                 ] as { key: SortKey; label: string }[]).map(col => (
                   <th
@@ -301,6 +390,7 @@ export default function XeroPage() {
               ) : sortedClients.map(c => {
                 const style = c.team && TEAM_STYLES[c.team as keyof typeof TEAM_STYLES];
                 const tenure = monthsBetween(c.signup_date || c.created_at, c.churned_at);
+                const revenue = clientRevenue(c);
                 return (
                   <tr key={c.id} onClick={() => router.push(`/clients/${c.id}`)} className={`border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer ${c.status === 'churned' ? 'opacity-60' : ''}`}>
                     <td className="px-3 py-2.5 text-[13px] font-medium">{c.name}</td>
@@ -322,7 +412,7 @@ export default function XeroPage() {
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-[13px] font-medium">
-                      {c.monthly_retainer ? `£${c.monthly_retainer.toLocaleString()}/mo` : '—'}
+                      {revenue > 0 ? `£${revenue.toLocaleString()}/mo` : '—'}
                     </td>
                     <td className="px-3 py-2.5 text-[13px] text-muted-foreground">
                       {tenure === 1 ? '1 month' : `${tenure} months`}
@@ -339,7 +429,7 @@ export default function XeroPage() {
                     Total ({sortedClients.filter(c => c.status === 'active').length} active{tableTeamFilter ? ` · ${TEAM_STYLES[tableTeamFilter as keyof typeof TEAM_STYLES]?.label}` : ''})
                   </td>
                   <td className="px-3 py-2.5 text-[13px] font-bold text-emerald-400">
-                    £{sortedClients.reduce((sum, c) => sum + (c.status === 'active' ? (c.monthly_retainer || 0) : 0), 0).toLocaleString()}/mo
+                    £{sortedClients.reduce((sum, c) => sum + (c.status === 'active' ? clientRevenue(c) : 0), 0).toLocaleString()}/mo
                   </td>
                   <td className="px-3 py-2.5 text-[11px] text-muted-foreground/40">
                     ARR £{(totalRevenue * 12).toLocaleString()}
