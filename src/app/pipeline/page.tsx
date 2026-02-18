@@ -182,7 +182,8 @@ export default function PipelinePage() {
     const { draggableId, destination } = result;
     if (!destination) return;
     const newStage = destination.droppableId;
-    updateProspect(draggableId, { stage: newStage });
+    const clearLoss = newStage !== 'won' && newStage !== 'lost' ? { lost_reason: null, lost_reason_custom: null, lost_at: null } : {};
+    updateProspect(draggableId, { stage: newStage, ...clearLoss });
     if (newStage !== 'won' && newStage !== 'lost') {
       const stageLabel = PIPELINE_STAGES.find(s => s.id === newStage)?.label || newStage;
       toast.success(`Moved to ${stageLabel}`);
