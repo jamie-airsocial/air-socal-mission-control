@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
-import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2, User, Phone, Globe, MapPin, Mail, ChevronRight, ChevronDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NAME_TO_SLUG } from '@/lib/constants';
 import Link from 'next/link';
@@ -56,6 +56,11 @@ interface Client {
   signup_date?: string;
   churned_at?: string;
   lost_reason?: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  website?: string;
+  address?: string;
 }
 
 interface ClientTask {
@@ -123,9 +128,9 @@ function toISODateString(iso?: string | null): string {
 }
 
 function EditableField({
-  label, value, onSave, type = 'text', placeholder = '',
+  label, value, onSave, type = 'text', placeholder = '', icon,
 }: {
-  label: string; value: string; onSave: (v: string) => void; type?: string; placeholder?: string;
+  label: string; value: string; onSave: (v: string) => void; type?: string; placeholder?: string; icon?: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -169,6 +174,7 @@ function EditableField({
         )
       ) : (
         <div className="flex items-center gap-2 group">
+          {icon && <span className="shrink-0">{icon}</span>}
           <p className="text-[13px]">{displayValue || <span className="text-muted-foreground/40">{placeholder || 'Not set'}</span>}</p>
           <button onClick={() => { setDraft(value); setEditing(true); }}
             className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground">
@@ -344,7 +350,8 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'service' | 'month'>('service');
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'billing' | 'sale' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'billing' | 'sale' | 'notes'>('overview');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   // Task sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -636,6 +643,7 @@ export default function ClientDetailPage() {
       <div className="flex items-center gap-1 mb-4 border-b border-border/20 overflow-x-auto">
         {([
           { id: 'overview', label: 'Overview', icon: <Tag size={13} /> },
+          { id: 'tasks', label: 'Tasks', icon: <FileText size={13} /> },
           { id: 'billing', label: 'Billing', icon: <BadgePoundSterling size={13} /> },
           { id: 'sale', label: 'Sale Details', icon: <BadgePoundSterling size={13} /> },
           { id: 'notes', label: 'Notes', icon: <Edit2 size={13} /> },
@@ -655,12 +663,80 @@ export default function ClientDetailPage() {
         ))}
       </div>
 
-      {/* Tab: Overview → Tasks */}
+      {/* Tab: Overview — Key Details & Contact */}
       {activeTab === 'overview' && (
+        <div className="rounded-lg border border-border/20 bg-card p-6 space-y-6">
+          {/* Contact Details */}
+          <div>
+            <h3 className="text-[13px] font-semibold mb-3">Contact Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <EditableField label="Contact Name" value={client.contact_name || ''} onSave={v => patchClient({ contact_name: v || undefined })} placeholder="Primary contact" icon={<User size={13} className="text-muted-foreground/60" />} />
+              <EditableField label="Email" value={client.contact_email || ''} onSave={v => patchClient({ contact_email: v || undefined })} placeholder="email@company.com" type="email" icon={<Mail size={13} className="text-muted-foreground/60" />} />
+              <EditableField label="Phone" value={client.contact_phone || ''} onSave={v => patchClient({ contact_phone: v || undefined })} placeholder="07xxx xxxxxx" icon={<Phone size={13} className="text-muted-foreground/60" />} />
+              <EditableField label="Website" value={client.website || ''} onSave={v => patchClient({ website: v || undefined })} placeholder="https://..." icon={<Globe size={13} className="text-muted-foreground/60" />} />
+            </div>
+          </div>
+
+          {/* Key Details */}
+          <div>
+            <h3 className="text-[13px] font-semibold mb-3">Key Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-[11px] text-muted-foreground/60 mb-1">Team</p>
+                <p className="text-[13px]">{teamStyle ? teamStyle.label : '—'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground/60 mb-1">Status</p>
+                <p className={`text-[13px] font-medium ${
+                  client.status === 'active' ? 'text-emerald-400' : client.status === 'paused' ? 'text-amber-400' : 'text-red-400'
+                }`}>{client.status}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground/60 mb-1">Monthly Retainer</p>
+                <p className="text-[13px] font-semibold">£{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2 })}/mo</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground/60 mb-1">Active Since</p>
+                <p className="text-[13px]">{client.signup_date ? new Date(client.signup_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground/60 mb-1">Tenure</p>
+                <p className="text-[13px]">{tenure === 1 ? '1 month' : `${tenure} months`}</p>
+              </div>
+              {(client.assigned_members || []).length > 0 && (
+                <div>
+                  <p className="text-[11px] text-muted-foreground/60 mb-1">Assigned Members</p>
+                  <p className="text-[13px]">{client.assigned_members.map(m => toDisplayName(m)).join(', ')}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Services */}
+          {(client.services || []).length > 0 && (
+            <div>
+              <h3 className="text-[13px] font-semibold mb-3">Services</h3>
+              <div className="flex flex-wrap gap-2">
+                {client.services.map((service) => {
+                  const s = SERVICE_STYLES[service];
+                  if (!s) return null;
+                  return (
+                    <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
+                      <ServiceIcon serviceKey={service} size={12} /> {s.label}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Tasks */}
+      {activeTab === 'tasks' && (
         <div className="rounded-lg border border-border/20 bg-card p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <h2 className="text-[13px] font-semibold">Tasks ({tasks.length})</h2>
               <button
                 onClick={openNewTask}
                 className="h-7 px-2.5 text-[11px] font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-150 flex items-center gap-1"
@@ -688,18 +764,33 @@ export default function ClientDetailPage() {
               if (!groupTasks?.length) return null;
               const serviceStyle = view === 'service' && group !== 'none' ? SERVICE_STYLES[group] : null;
               const groupLabel = serviceStyle ? serviceStyle.label : view === 'service' ? 'No Service' : group;
+              const isCollapsed = collapsedGroups.has(group);
+              const toggleCollapse = () => setCollapsedGroups(prev => {
+                const next = new Set(prev);
+                if (next.has(group)) next.delete(group); else next.add(group);
+                return next;
+              });
               return (
                 <div key={group}>
                   <div className="flex items-center gap-2 mb-3">
-                    {view === 'service' && group !== 'none' ? (
-                      <ServiceIcon serviceKey={group} size={14} />
-                    ) : (
-                      <span className="text-muted-foreground/60">{view === 'service' ? <Tag size={14} /> : <Calendar size={14} />}</span>
-                    )}
-                    <h3 className="text-[13px] font-semibold">{groupLabel}</h3>
-                    <span className="text-[11px] text-muted-foreground/60">({groupTasks.length})</span>
+                    <button onClick={toggleCollapse} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                      {isCollapsed ? <ChevronRight size={14} className="text-muted-foreground/60" /> : <ChevronDown size={14} className="text-muted-foreground/60" />}
+                      {view === 'service' && group !== 'none' ? (
+                        <ServiceIcon serviceKey={group} size={14} />
+                      ) : (
+                        <span className="text-muted-foreground/60">{view === 'service' ? <Tag size={14} /> : <Calendar size={14} />}</span>
+                      )}
+                      <h3 className="text-[13px] font-semibold">{groupLabel}</h3>
+                      <span className="text-[11px] text-muted-foreground/60">({groupTasks.length})</span>
+                    </button>
+                    <button
+                      onClick={() => { setIsNew(true); setSelectedTask({ id: '', title: '', description: null, status: 'todo', priority: 'P2', assignee: null, project_id: clientId, client_id: clientId, service: view === 'service' && group !== 'none' ? group : null, parent_id: null, due_date: null, completed_at: null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as unknown as Task); setSheetOpen(true); }}
+                      className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors"
+                    >
+                      <Plus size={12} />
+                    </button>
                   </div>
-                  <div className="space-y-2">
+                  {!isCollapsed && <div className="space-y-2">
                     {groupTasks.map((task) => {
                       const statusStyle = STATUS_STYLES[task.status];
                       const priorityStyle = task.priority && PRIORITY_STYLES[task.priority];
@@ -735,7 +826,7 @@ export default function ClientDetailPage() {
                         </button>
                       );
                     })}
-                  </div>
+                  </div>}
                 </div>
               );
             })}
