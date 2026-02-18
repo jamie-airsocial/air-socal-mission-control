@@ -10,6 +10,8 @@ export interface AppUser {
   created_at: string;
   updated_at: string;
   role?: Role;
+  // Merged from Supabase Auth
+  last_sign_in_at?: string | null;
 }
 
 export interface Role {

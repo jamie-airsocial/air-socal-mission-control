@@ -2,14 +2,29 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET() {
+  // Fetch all app users (active AND inactive)
   const { data, error } = await supabaseAdmin
     .from('app_users')
     .select('*, role:roles(id, name, permissions)')
-    .eq('is_active', true)
     .order('full_name');
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Merge last_sign_in_at from Supabase Auth
+  try {
+    const { data: authData } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
+    if (authData?.users) {
+      const authMap = new Map(authData.users.map(u => [u.id, u.last_sign_in_at]));
+      const merged = (data || []).map(u => ({
+        ...u,
+        last_sign_in_at: u.auth_user_id ? (authMap.get(u.auth_user_id) ?? null) : null,
+      }));
+      return NextResponse.json(merged, { headers: { 'Cache-Control': 'no-store' } });
+    }
+  } catch {
+    // If auth lookup fails, return without last_sign_in_at
   }
 
   return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });

@@ -3,8 +3,6 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 /**
  * POST /api/users/[id] — send a password reset email for the user.
- * Looks up the user's email from app_users, then calls Supabase Auth
- * resetPasswordForEmail which triggers the configured email template.
  */
 export async function POST(
   _request: NextRequest,
@@ -12,7 +10,6 @@ export async function POST(
 ) {
   const { id } = await params;
 
-  // Look up the user's email from app_users
   const { data: appUser, error: lookupError } = await supabaseAdmin
     .from('app_users')
     .select('email, full_name')
@@ -23,7 +20,6 @@ export async function POST(
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  // Use Supabase Auth to send password recovery email
   const { error } = await supabaseAdmin.auth.resetPasswordForEmail(appUser.email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://air-social-staging.vercel.app'}/reset-password`,
   });
@@ -35,6 +31,9 @@ export async function POST(
   return NextResponse.json({ success: true, email: appUser.email });
 }
 
+/**
+ * PATCH /api/users/[id] — update user fields (name, role, team, is_active).
+ */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -43,15 +42,15 @@ export async function PATCH(
   const body = await request.json();
   const { full_name, role_id, team, is_active } = body;
 
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (full_name !== undefined) updates.full_name = full_name;
+  if (role_id !== undefined) updates.role_id = role_id;
+  if (team !== undefined) updates.team = team;
+  if (is_active !== undefined) updates.is_active = is_active;
+
   const { data, error } = await supabaseAdmin
     .from('app_users')
-    .update({ 
-      full_name, 
-      role_id, 
-      team, 
-      is_active,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq('id', id)
     .select('*, role:roles(id, name, permissions)')
     .single();
@@ -63,19 +62,44 @@ export async function PATCH(
   return NextResponse.json(data);
 }
 
+/**
+ * DELETE /api/users/[id] — permanently delete user from app_users AND Supabase Auth.
+ * Caller must have already reassigned tasks before calling this.
+ */
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
 
-  const { error } = await supabaseAdmin
+  // Fetch the user so we can get their auth_user_id
+  const { data: appUser, error: fetchError } = await supabaseAdmin
     .from('app_users')
-    .update({ is_active: false, updated_at: new Date().toISOString() })
+    .select('auth_user_id, full_name')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !appUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  // Delete from app_users first (FK constraints satisfied before auth deletion)
+  const { error: deleteError } = await supabaseAdmin
+    .from('app_users')
+    .delete()
     .eq('id', id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 });
+  }
+
+  // Delete from Supabase Auth (best-effort — don't fail if auth_user_id missing)
+  if (appUser.auth_user_id) {
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(appUser.auth_user_id);
+    if (authError) {
+      // App user is already gone; log but don't return error
+      console.error(`[users] Failed to delete auth user ${appUser.auth_user_id}:`, authError.message);
+    }
   }
 
   return NextResponse.json({ success: true });

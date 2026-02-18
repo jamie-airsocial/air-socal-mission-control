@@ -2,18 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
-  const { from_assignee, to_assignee } = await request.json();
+  const { from_assignee, to_assignee, all_statuses } = await request.json();
 
   if (!from_assignee || !to_assignee) {
     return NextResponse.json({ error: 'from_assignee and to_assignee are required' }, { status: 400 });
   }
 
-  // Find tasks assigned to the user (tasks use slug/name format — try both)
-  const { data: tasks, error: fetchError } = await supabaseAdmin
+  // Build the query — for hard deletes pass all_statuses=true to capture every task
+  let query = supabaseAdmin
     .from('tasks')
-    .select('id, assignee')
-    .eq('assignee', from_assignee)
-    .in('status', ['backlog', 'todo', 'doing']);
+    .select('id')
+    .eq('assignee', from_assignee);
+
+  if (!all_statuses) {
+    query = query.in('status', ['backlog', 'todo', 'doing']);
+  }
+
+  const { data: tasks, error: fetchError } = await query;
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 });
