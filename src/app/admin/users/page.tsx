@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, UserX, UserCheck } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -215,6 +215,21 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleResetPassword = async (user: AppUser) => {
+    try {
+      const res = await fetch(`/api/users/${user.id}`, { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send reset email');
+      toast.success('Password reset email sent', {
+        description: `Reset link sent to ${data.email}`,
+      });
+    } catch (err) {
+      toast.error('Failed to send reset email', {
+        description: err instanceof Error ? err.message : 'Something went wrong',
+      });
+    }
+  };
+
   // Open deactivation confirm dialog
   const promptDeactivate = (user: AppUser) => {
     setDeactivateTarget(user);
@@ -360,6 +375,13 @@ export default function AdminUsersPage() {
                         title="Edit user"
                       >
                         <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleResetPassword(user)}
+                        className="p-1.5 rounded hover:bg-amber-500/10 text-muted-foreground/60 hover:text-amber-400 transition-colors"
+                        title={`Send password reset to ${user.email}`}
+                      >
+                        <KeyRound size={14} />
                       </button>
                       {user.is_active ? (
                         <button
