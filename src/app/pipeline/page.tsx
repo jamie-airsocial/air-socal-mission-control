@@ -71,6 +71,8 @@ interface ProspectFormState {
   stage: string;
   assignee: string;
   notes: string;
+  lost_reason: string | null;
+  lost_reason_custom: string | null;
 }
 
 type ViewMode = 'pipeline' | 'table' | 'stats';
@@ -86,6 +88,8 @@ const emptyProspectForm: ProspectFormState = {
   stage: 'lead',
   assignee: '',
   notes: '',
+  lost_reason: null,
+  lost_reason_custom: null,
 };
 
 // ── Prospect Sheet ───────────────────────────────────────────────────────────
@@ -130,6 +134,8 @@ function ProspectSheet({
           stage: editProspect.stage || 'lead',
           assignee: editProspect.assignee || '',
           notes: editProspect.notes || '',
+          lost_reason: editProspect.lost_reason || null,
+          lost_reason_custom: editProspect.lost_reason_custom || null,
         });
       } else {
         setForm({ ...emptyProspectForm, stage: defaultStage || 'lead' });
@@ -152,6 +158,8 @@ function ProspectSheet({
         stage: form.stage,
         assignee: form.assignee || null,
         notes: form.notes.trim() || null,
+        lost_reason: form.stage === 'lost' ? (form.lost_reason || null) : null,
+        lost_reason_custom: form.stage === 'lost' ? (form.lost_reason_custom || null) : null,
       };
 
       if (editProspect) {
@@ -218,14 +226,28 @@ function ProspectSheet({
             </div>
           )}
 
-          {/* Lost reason badge */}
-          {editProspect?.stage === 'lost' && editProspect.lost_reason && (
-            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+          {/* Lost reason — editable */}
+          {form.stage === 'lost' && (
+            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 space-y-2">
               <span className="text-[11px] font-medium text-red-400 uppercase tracking-wider">Lost Reason</span>
-              <p className="text-[13px] mt-1">
-                {LOSS_REASONS.find(r => r.id === editProspect.lost_reason)?.label || editProspect.lost_reason}
-                {editProspect.lost_reason_custom && ` — ${editProspect.lost_reason_custom}`}
-              </p>
+              <select
+                value={form.lost_reason || ''}
+                onChange={e => setForm(f => ({ ...f, lost_reason: e.target.value || null }))}
+                className="w-full h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none"
+              >
+                <option value="">No reason selected</option>
+                {LOSS_REASONS.map(r => (
+                  <option key={r.id} value={r.id}>{r.label}</option>
+                ))}
+              </select>
+              {form.lost_reason === 'other' && (
+                <Input
+                  value={form.lost_reason_custom || ''}
+                  onChange={e => setForm(f => ({ ...f, lost_reason_custom: e.target.value }))}
+                  placeholder="Custom reason..."
+                  className="h-8 text-[13px] bg-secondary border-border/20"
+                />
+              )}
             </div>
           )}
 

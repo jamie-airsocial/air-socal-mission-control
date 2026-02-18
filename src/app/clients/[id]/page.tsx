@@ -54,6 +54,7 @@ interface Client {
   notes?: string;
   signup_date?: string;
   churned_at?: string;
+  lost_reason?: string;
 }
 
 interface ClientTask {
@@ -74,6 +75,7 @@ interface ContractLineItem {
   service: string;
   description: string | null;
   monthly_value: number;
+  billing_type: 'recurring' | 'one-off';
   start_date: string | null;
   end_date: string | null;
   is_active: boolean;
@@ -182,6 +184,7 @@ interface LineItemFormData {
   service: string;
   description: string;
   monthly_value: string;
+  billing_type: 'recurring' | 'one-off';
   start_date: string;
   end_date: string;
   is_active: boolean;
@@ -191,6 +194,7 @@ const emptyLineItem: LineItemFormData = {
   service: '',
   description: '',
   monthly_value: '',
+  billing_type: 'recurring',
   start_date: '',
   end_date: '',
   is_active: true,
@@ -216,6 +220,7 @@ function LineItemDialog({
         service: initialData.service,
         description: initialData.description || '',
         monthly_value: String(initialData.monthly_value),
+        billing_type: initialData.billing_type || 'recurring',
         start_date: toISODateString(initialData.start_date),
         end_date: toISODateString(initialData.end_date),
         is_active: initialData.is_active,
@@ -249,7 +254,21 @@ function LineItemDialog({
               placeholder="Brief description" className="h-9 text-[13px] bg-secondary border-border/20" />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-[13px] text-muted-foreground">Monthly value (£) *</Label>
+            <Label className="text-[13px] text-muted-foreground">Billing type *</Label>
+            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
+              {(['recurring', 'one-off'] as const).map(bt => (
+                <button key={bt} type="button" onClick={() => setForm(f => ({ ...f, billing_type: bt }))}
+                  className={`flex-1 h-8 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                    form.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {bt === 'recurring' ? 'Recurring' : 'One-off'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">{form.billing_type === 'recurring' ? 'Monthly value (£) *' : 'Project value (£) *'}</Label>
             <Input type="number" min="0" step="0.01"
               value={form.monthly_value} onChange={e => setForm(f => ({ ...f, monthly_value: e.target.value }))}
               placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
@@ -302,7 +321,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'service' | 'month'>('service');
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'contract' | 'billing' | 'sale' | 'notes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'billing' | 'sale' | 'notes'>('overview');
 
   // Task sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -432,6 +451,7 @@ export default function ClientDetailPage() {
       service: data.service,
       description: data.description || null,
       monthly_value: parseFloat(data.monthly_value) || 0,
+      billing_type: data.billing_type,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
       is_active: data.is_active,
@@ -505,7 +525,7 @@ export default function ClientDetailPage() {
         return acc;
       }, {});
 
-  const totalMonthlyValue = contractItems.filter(i => i.is_active).reduce((sum, i) => sum + (i.monthly_value || 0), 0);
+  const totalMonthlyValue = contractItems.filter(i => i.is_active && i.billing_type !== 'one-off').reduce((sum, i) => sum + (i.monthly_value || 0), 0);
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -545,22 +565,12 @@ export default function ClientDetailPage() {
             </div>
           </div>
           <div className="text-right">
-            {(() => {
-              // Prefer sum of active contract line items; fall back to monthly_retainer field
-              const fromLineItems = contractItems.filter(i => i.is_active).length > 0;
-              const displayValue = fromLineItems ? totalMonthlyValue : (client.monthly_retainer || 0);
-              if (displayValue <= 0) return null;
-              return (
-                <div className="mb-1">
-                  <p className="text-[11px] text-muted-foreground/60">
-                    Monthly Retainer{fromLineItems && <span className="ml-1 opacity-60">(from line items)</span>}
-                  </p>
-                  <p className="text-xl font-semibold">
-                    £{displayValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              );
-            })()}
+            <div className="mb-1">
+              <p className="text-[11px] text-muted-foreground/60">Monthly Retainer</p>
+              <p className="text-xl font-semibold">
+                £{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </div>
             {saving && <p className="text-[11px] text-muted-foreground/40">Saving…</p>}
           </div>
         </div>
@@ -589,7 +599,6 @@ export default function ClientDetailPage() {
       <div className="flex items-center gap-1 mb-4 border-b border-border/20 overflow-x-auto">
         {([
           { id: 'overview', label: 'Overview', icon: <Tag size={13} /> },
-          { id: 'contract', label: 'Contract', icon: <FileText size={13} /> },
           { id: 'billing', label: 'Billing', icon: <BadgePoundSterling size={13} /> },
           { id: 'sale', label: 'Sale Details', icon: <BadgePoundSterling size={13} /> },
           { id: 'notes', label: 'Notes', icon: <Edit2 size={13} /> },
@@ -706,101 +715,15 @@ export default function ClientDetailPage() {
       )}
 
       {/* Tab: Contract */}
-      {activeTab === 'contract' && (
-        <div className="rounded-lg border border-border/20 bg-card p-6">
-          <h2 className="text-[13px] font-semibold mb-4">Contract Details</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <EditableField
-              label="Contract Value (£)"
-              value={client.contract_value ? String(client.contract_value) : ''}
-              onSave={v => patchClient({ contract_value: v ? parseFloat(v) : undefined })}
-              type="number" placeholder="e.g. 12000"
-            />
-            <EditableField
-              label="Start Date"
-              value={toISODateString(client.contract_start)}
-              onSave={v => patchClient({ contract_start: v || undefined })}
-              type="date"
-            />
-            <EditableField
-              label="End Date"
-              value={toISODateString(client.contract_end)}
-              onSave={v => patchClient({ contract_end: v || undefined })}
-              type="date"
-            />
-            <EditableField
-              label="Renewal Date"
-              value={toISODateString(client.contract_renewal)}
-              onSave={v => patchClient({ contract_renewal: v || undefined })}
-              type="date"
-            />
-            <EditableField
-              label="Sign-up Date"
-              value={toISODateString(client.signup_date)}
-              onSave={v => patchClient({ signup_date: v || undefined })}
-              type="date" placeholder="YYYY-MM-DD"
-            />
-            <div>
-              <p className="text-[11px] text-muted-foreground/60 mb-1">Status</p>
-              <select
-                value={client.status}
-                onChange={e => patchClient({ status: e.target.value })}
-                className="h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none"
-              >
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="churned">Churned</option>
-              </select>
-            </div>
-            {client.status === 'churned' && (
-              <EditableField
-                label="Churn Date"
-                value={toISODateString(client.churned_at)}
-                onSave={v => patchClient({ churned_at: v || undefined })}
-                type="date" placeholder="YYYY-MM-DD"
-              />
-            )}
-          </div>
-
-          <div className="mt-5 pt-5 border-t border-border/10">
-            <p className="text-[11px] text-muted-foreground/60 mb-2">Services</p>
-            <div className="flex flex-wrap gap-1.5">
-              {ALL_SERVICES.map(s => {
-                const active = (client.services || []).includes(s.value);
-                return (
-                  <button
-                    key={s.value}
-                    type="button"
-                    onClick={() => {
-                      const current = client.services || [];
-                      const next = active ? current.filter(x => x !== s.value) : [...current, s.value];
-                      patchClient({ services: next });
-                    }}
-                    className={`h-7 px-2.5 text-[11px] rounded-md border transition-colors duration-150 flex items-center gap-1 ${
-                      active ? 'border-primary bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    {active && <Check size={10} />}
-                    {s.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab: Billing (Contract Line Items) */}
+      {/* Tab: Billing (Contract Line Items + Contract Details) */}
       {activeTab === 'billing' && (
         <div className="rounded-lg border border-border/20 bg-card p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-[13px] font-semibold">Contract &amp; Billing</h2>
-              {contractItems.length > 0 && (
-                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                  Active monthly total: <span className="text-emerald-400 font-semibold">£{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </p>
-              )}
+              <h2 className="text-[13px] font-semibold">Billing</h2>
+              <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                Monthly recurring: <span className="text-emerald-400 font-semibold">£{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </p>
             </div>
             <Button
               size="sm"
@@ -824,7 +747,8 @@ export default function ClientDetailPage() {
                   <TableRow className="border-border/20 hover:bg-transparent">
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Service</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Description</TableHead>
-                    <TableHead className="text-[12px] text-muted-foreground font-medium">Monthly (£)</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Type</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Value (£)</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Start</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">End</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Duration</TableHead>
@@ -837,8 +761,16 @@ export default function ClientDetailPage() {
                     <TableRow key={item.id} className={`border-border/20 hover:bg-secondary/30 transition-colors ${!item.is_active ? 'opacity-50' : ''}`}>
                       <TableCell className="text-[13px] font-medium">{item.service}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
+                      <TableCell>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          item.billing_type === 'one-off' ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'
+                        }`}>
+                          {item.billing_type === 'one-off' ? 'One-off' : 'Recurring'}
+                        </span>
+                      </TableCell>
                       <TableCell className="text-[13px] font-semibold text-emerald-400">
                         £{(item.monthly_value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {item.billing_type === 'recurring' && <span className="text-[10px] text-muted-foreground/60 font-normal">/mo</span>}
                       </TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{formatDateUK(item.start_date)}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{formatDateUK(item.end_date)}</TableCell>
@@ -873,22 +805,71 @@ export default function ClientDetailPage() {
               </Table>
 
               {/* Total row */}
-              <div className="mt-3 pt-3 border-t border-border/10 flex items-center justify-between px-1">
-                <span className="text-[12px] text-muted-foreground/60">
-                  {contractItems.filter(i => i.is_active).length} active of {contractItems.length} total
-                </span>
-                <div className="text-right">
-                  <p className="text-[11px] text-muted-foreground/60">Active monthly total</p>
-                  <p className="text-lg font-bold text-emerald-400">
-                    £{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/40">
-                    ARR £{(totalMonthlyValue * 12).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </p>
-                </div>
-              </div>
+              {(() => {
+                const active = contractItems.filter(i => i.is_active);
+                const recurringTotal = active.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+                const oneOffTotal = active.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+                return (
+                  <div className="mt-3 pt-3 border-t border-border/10 flex items-center justify-between px-1">
+                    <span className="text-[12px] text-muted-foreground/60">
+                      {active.length} active of {contractItems.length} total
+                    </span>
+                    <div className="flex items-center gap-6">
+                      {recurringTotal > 0 && (
+                        <div className="text-right">
+                          <p className="text-[11px] text-muted-foreground/60">Monthly recurring</p>
+                          <p className="text-lg font-bold text-emerald-400">
+                            £{recurringTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground/40">
+                            ARR £{(recurringTotal * 12).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      )}
+                      {oneOffTotal > 0 && (
+                        <div className="text-right">
+                          <p className="text-[11px] text-muted-foreground/60">Project work</p>
+                          <p className="text-lg font-bold text-amber-400">
+                            £{oneOffTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
+          {/* Contract Details */}
+          <div className="mt-6 pt-6 border-t border-border/10">
+            <h3 className="text-[13px] font-semibold mb-4">Contract Details</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <EditableField
+                label="Contract Start"
+                value={toISODateString(client.contract_start)}
+                onSave={v => patchClient({ contract_start: v || undefined })}
+                type="date"
+              />
+              <EditableField
+                label="Contract End"
+                value={toISODateString(client.contract_end)}
+                onSave={v => patchClient({ contract_end: v || undefined })}
+                type="date"
+              />
+              <EditableField
+                label="Renewal Date"
+                value={toISODateString(client.contract_renewal)}
+                onSave={v => patchClient({ contract_renewal: v || undefined })}
+                type="date"
+              />
+              <EditableField
+                label="Sign-up Date"
+                value={toISODateString(client.signup_date)}
+                onSave={v => patchClient({ signup_date: v || undefined })}
+                type="date"
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -914,6 +895,16 @@ export default function ClientDetailPage() {
               value={toISODateString(client.sale_closed_at)}
               onSave={v => patchClient({ sale_closed_at: v || undefined })}
               type="date"
+            />
+          </div>
+
+          {/* Lost Reason — always visible so you can add/edit/remove */}
+          <div className="mt-5 pt-5 border-t border-border/10">
+            <EditableField
+              label="Lost Reason"
+              value={client.lost_reason || ''}
+              onSave={v => patchClient({ lost_reason: v || undefined })}
+              placeholder="Why was this client lost? (leave empty to remove)"
             />
           </div>
         </div>

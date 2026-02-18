@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle } from '@/lib/constants';
 import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
@@ -382,6 +383,7 @@ function ClientSheet({
 /* ── Main page ─────────────────────────────────────────────────────────────── */
 
 export default function ClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -541,7 +543,7 @@ export default function ClientsPage() {
             return (
               <div
                 key={client.id}
-                onClick={() => openEditClient(client)}
+                onClick={() => router.push(`/clients/${client.id}`)}
                 className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer"
               >
                 <div className="flex items-center justify-between mb-2">
