@@ -8,13 +8,10 @@ import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
 import type { Task } from '@/lib/types';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { Button } from '@/components/ui/button';
-import { FilterProjectPopover } from '@/components/board/filter-project-popover';
-import { FilterAssigneePopover } from '@/components/board/filter-assignee-popover';
-import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
-import { FilterStatusPopover } from '@/components/board/filter-status-popover';
 import { FilterLabelPopover } from '@/components/board/filter-label-popover';
 import { FilterPopover } from '@/components/ui/filter-popover';
-import { SERVICE_STYLES, getTeamStyle } from '@/lib/constants';
+import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
+import { useUsers } from '@/hooks/use-users';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -48,6 +45,7 @@ function BoardContent() {
   const [filterService, setFilterService] = usePersistedState<string[]>('tasks-filterService', []);
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('tasks-filterTeam', []);
   const [availableTeams, setAvailableTeams] = useState<{ slug: string; name: string }[]>([]);
+  const { users } = useUsers();
 
   useEffect(() => {
     fetch('/api/teams').then(r => r.json()).then(data => {
@@ -102,6 +100,18 @@ function BoardContent() {
 
   // Controlled state for the date filter popover so "Clear range" can close it (#32)
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
+
+  // Build filter options
+  const statusOptions = [
+    { value: 'todo', label: 'To Do' },
+    { value: 'doing', label: 'In Progress' },
+    { value: 'done', label: 'Done' },
+  ];
+  const priorityOptions = Object.entries(PRIORITY_STYLES).map(([key, s]) => ({ value: key, label: `${key} · ${s.label}` }));
+  const projectOptions = projects.map(p => ({ value: p.id, label: p.name }));
+  const assigneeOptions = users.length > 0
+    ? users.map(u => ({ value: u.full_name.toLowerCase().replace(/\s+/g, '-'), label: u.full_name }))
+    : Object.entries({ 'Sophie Gore': 'sophie-gore', 'Jamie Ludlow': 'jamie-ludlow', 'Sophie Collins': 'sophie-collins', 'Chloe Taylor': 'chloe-taylor', 'Dave Gibbs': 'dave-gibbs', 'Jack Underwood': 'jack-underwood', 'Chloe Hodgetts': 'chloe-hodgetts', 'Aaron Lewis': 'aaron-lewis', 'Marcus Yeatman': 'marcus-yeatman' }).map(([name, slug]) => ({ value: slug, label: name }));
 
   // Augment hasFilters/clearAll with service filter
   const hasAnyFilters = hasFilters || filterService.length > 0 || filterTeam.length > 0;
@@ -325,16 +335,16 @@ function BoardContent() {
         </div>
 
         {!(view === 'kanban' && kanbanGroupBy === 'status') && !(view === 'table' && groupBy === 'status') && (
-          <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
+          <FilterPopover label="Status" options={statusOptions} selected={filterStatus} onSelectionChange={setFilterStatus} />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'project') && !(view === 'table' && groupBy === 'project') && (
-          <FilterProjectPopover value={filterProject} projects={projects} onChange={setFilterProject} />
+          <FilterPopover label="Client" options={projectOptions} selected={filterProject} onSelectionChange={setFilterProject} width="w-56" />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'assignee') && !(view === 'table' && groupBy === 'assignee') && (
-          <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
+          <FilterPopover label="Assignee" options={assigneeOptions} selected={filterAssignee} onSelectionChange={setFilterAssignee} width="w-56" />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'priority') && !(view === 'table' && groupBy === 'priority') && (
-          <FilterPriorityPopover value={filterPriority} onChange={setFilterPriority} />
+          <FilterPopover label="Priority" options={priorityOptions} selected={filterPriority} onSelectionChange={setFilterPriority} />
         )}
 
         <FilterLabelPopover
@@ -367,7 +377,7 @@ function BoardContent() {
             <PopoverTrigger asChild>
               <button
                 aria-label="Filter by date"
-                className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg hover:border-primary/50 transition-colors duration-150 flex items-center gap-2 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${filterDate !== 'all' ? 'border-primary text-primary' : 'border-border/20'}`}
+                className={`h-8 px-3 text-[13px] border rounded-lg transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${filterDate !== 'all' ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'}`}
               >
                 <CalendarDays className="h-3 w-3" />
                 {dateFilterLabels[filterDate]}

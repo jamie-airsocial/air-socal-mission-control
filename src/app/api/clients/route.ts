@@ -4,11 +4,27 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('clients')
-    .select('*')
+    .select('*, contract_line_items(*)')
     .order('name', { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  // Calculate retainer from active recurring line items
+  const enriched = (data || []).map(client => {
+    const items = (client.contract_line_items || []) as Array<{ is_active: boolean; billing_type: string; monthly_value: number; end_date: string | null }>;
+    // Auto-deactivate expired items
+    const now = new Date();
+    const activeItems = items.filter(i => {
+      if (!i.is_active) return false;
+      if (i.end_date && new Date(i.end_date) < now) return false;
+      return true;
+    });
+    const recurring_total = activeItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+    const { contract_line_items: _, ...rest } = client;
+    return { ...rest, calculated_retainer: recurring_total, active_services: activeItems.map(i => i.billing_type !== 'one-off' ? i : null).filter(Boolean) };
+  });
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(request: NextRequest) {

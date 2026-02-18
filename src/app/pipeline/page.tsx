@@ -119,10 +119,54 @@ function ProspectSheet({
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
 
+  // Line items
+  interface LineItem { id: string; service: string; description: string | null; monthly_value: number; billing_type: 'recurring' | 'one-off'; duration_months: number | null; }
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState<{ service: string; monthly_value: string; billing_type: 'recurring' | 'one-off'; duration_months: string }>({ service: '', monthly_value: '', billing_type: 'recurring', duration_months: '' });
+
+  const fetchLineItems = useCallback(async (prospectId: string) => {
+    try {
+      const res = await fetch(`/api/prospects/${prospectId}/line-items`);
+      if (res.ok) setLineItems(await res.json());
+    } catch { /* silent */ }
+  }, []);
+
+  const addLineItem = async () => {
+    if (!editProspect || !newItem.service.trim()) return;
+    const res = await fetch(`/api/prospects/${editProspect.id}/line-items`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        service: newItem.service.trim(),
+        monthly_value: parseFloat(newItem.monthly_value) || 0,
+        billing_type: newItem.billing_type,
+        duration_months: newItem.duration_months ? parseInt(newItem.duration_months) : null,
+      }),
+    });
+    if (res.ok) {
+      await fetchLineItems(editProspect.id);
+      setNewItem({ service: '', monthly_value: '', billing_type: 'recurring', duration_months: '' });
+      setShowAddItem(false);
+    }
+  };
+
+  const deleteLineItem = async (itemId: string) => {
+    if (!editProspect) return;
+    await fetch(`/api/prospect-line-items/${itemId}`, { method: 'DELETE' });
+    await fetchLineItems(editProspect.id);
+  };
+
+  const lineItemsTotal = lineItems.reduce((s, i) => s + (i.monthly_value || 0), 0);
+  const recurringTotal = lineItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+  const oneOffTotal = lineItems.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+
   useEffect(() => {
     if (open) {
       setConfirmDelete(false);
+      setLineItems([]);
+      setShowAddItem(false);
       if (editProspect) {
+        fetchLineItems(editProspect.id);
         setForm({
           name: editProspect.name || '',
           contact_name: editProspect.contact_name || '',
@@ -300,62 +344,142 @@ function ProspectSheet({
             />
           </div>
 
-          {/* Deal Value */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-              <Input
-                type="number"
-                value={form.value}
-                onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
-                placeholder="0"
-                className="pl-7 text-[13px] h-9"
-              />
+          {/* Services & Pricing (Line Items) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Services & Pricing</Label>
+              {lineItemsTotal > 0 && (
+                <span className="text-[13px] font-semibold text-emerald-400">
+                  £{lineItemsTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              )}
             </div>
-          </div>
 
-          {/* Service */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Service</Label>
-            <Popover open={serviceOpen} onOpenChange={setServiceOpen}>
-              <PopoverTrigger asChild>
-                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
-                  {form.service && SERVICE_STYLES[form.service] ? (
-                    <>
-                      <ServiceIcon serviceKey={form.service} size={12} />
-                      <span className="flex-1 text-left">{SERVICE_STYLES[form.service].label}</span>
-                    </>
-                  ) : (
-                    <span className="flex-1 text-left text-muted-foreground/40">Select service…</span>
-                  )}
-                  <ChevronDown size={14} className="text-muted-foreground/60 shrink-0" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-52 p-1" align="start">
-                {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                  <button
-                    key={key}
-                    onClick={() => { setForm(f => ({ ...f, service: key })); setServiceOpen(false); }}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${
-                      form.service === key ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-                    }`}
-                  >
-                    <ServiceIcon serviceKey={key} size={12} />
-                    <span className="flex-1 text-left">{s.label}</span>
-                    {form.service === key && <Check size={12} />}
-                  </button>
+            {/* Existing line items */}
+            {lineItems.length > 0 && (
+              <div className="space-y-1.5">
+                {lineItems.map(item => (
+                  <div key={item.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/20 bg-muted/20">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-medium truncate">{item.service}</p>
+                      <p className="text-[11px] text-muted-foreground/60">
+                        <span className={item.billing_type === 'one-off' ? 'text-amber-400' : 'text-emerald-400'}>
+                          £{(item.monthly_value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                        </span>
+                        {item.billing_type === 'recurring' ? '/mo' : ' one-off'}
+                        {item.duration_months && ` · ${item.duration_months}mo`}
+                      </p>
+                    </div>
+                    <button onClick={() => deleteLineItem(item.id)}
+                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+                      <X size={12} />
+                    </button>
+                  </div>
                 ))}
-                {form.service && (
-                  <button
-                    onClick={() => { setForm(f => ({ ...f, service: '' })); setServiceOpen(false); }}
-                    className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors text-left"
-                  >
-                    Clear
-                  </button>
+                {recurringTotal > 0 && oneOffTotal > 0 && (
+                  <div className="flex items-center gap-3 px-2.5 text-[11px] text-muted-foreground/60">
+                    <span>Recurring: <span className="text-emerald-400">£{recurringTotal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}/mo</span></span>
+                    <span>One-off: <span className="text-amber-400">£{oneOffTotal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
+                  </div>
                 )}
-              </PopoverContent>
-            </Popover>
+              </div>
+            )}
+
+            {/* Add new line item form */}
+            {showAddItem ? (
+              <div className="space-y-2 p-2.5 rounded-lg border border-border/20 bg-muted/10">
+                <Input
+                  autoFocus
+                  value={newItem.service}
+                  onChange={e => setNewItem(prev => ({ ...prev, service: e.target.value }))}
+                  placeholder="Service name (e.g. Paid Advertising)"
+                  className="h-8 text-[13px] bg-secondary border-border/20"
+                />
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">£</span>
+                    <Input
+                      type="number" min="0" step="0.01"
+                      value={newItem.monthly_value}
+                      onChange={e => setNewItem(prev => ({ ...prev, monthly_value: e.target.value }))}
+                      placeholder="0.00"
+                      className="h-8 pl-5 text-[13px] bg-secondary border-border/20"
+                    />
+                  </div>
+                  <div className="flex items-center rounded-md border border-border/20 bg-secondary p-0.5">
+                    {(['recurring', 'one-off'] as const).map(bt => (
+                      <button key={bt} type="button"
+                        onClick={() => setNewItem(prev => ({ ...prev, billing_type: bt }))}
+                        className={`h-6 px-2 rounded text-[11px] font-medium transition-all ${
+                          newItem.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {bt === 'recurring' ? 'Monthly' : 'One-off'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {newItem.billing_type === 'one-off' && (
+                  <Input
+                    type="number" min="1"
+                    value={newItem.duration_months}
+                    onChange={e => setNewItem(prev => ({ ...prev, duration_months: e.target.value }))}
+                    placeholder="Duration (months)"
+                    className="h-8 text-[13px] bg-secondary border-border/20"
+                  />
+                )}
+                <div className="flex items-center gap-1.5">
+                  <button onClick={addLineItem}
+                    className="h-7 px-2.5 text-[11px] font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                    Add
+                  </button>
+                  <button onClick={() => { setShowAddItem(false); setNewItem({ service: '', monthly_value: '', billing_type: 'recurring', duration_months: '' }); }}
+                    className="h-7 px-2.5 text-[11px] rounded-md text-muted-foreground hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddItem(true)}
+                className="w-full h-8 px-3 text-[11px] rounded-lg border border-dashed border-border/30 text-muted-foreground/60 hover:border-primary/40 hover:text-muted-foreground transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus size={12} /> Add service
+              </button>
+            )}
+
+            {/* Legacy single value for backwards compat - hidden if line items exist */}
+            {lineItems.length === 0 && editProspect && (
+              <div className="space-y-1.5 pt-1">
+                <Label className="text-[11px] font-medium text-muted-foreground/40 uppercase tracking-wide">Overall Deal Value (£)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+                  <Input
+                    type="number"
+                    value={form.value}
+                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                    placeholder="0"
+                    className="pl-7 text-[13px] h-9"
+                  />
+                </div>
+              </div>
+            )}
+            {!editProspect && (
+              <div className="space-y-1.5 pt-1">
+                <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
+                  <Input
+                    type="number"
+                    value={form.value}
+                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+                    placeholder="0"
+                    className="pl-7 text-[13px] h-9"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Source */}

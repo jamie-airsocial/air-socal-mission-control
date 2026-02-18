@@ -34,6 +34,7 @@ interface ClientRow {
   status: string;
   services: string[];
   monthly_retainer: number;
+  calculated_retainer?: number;
   assigned_members: string[];
   color: string | null;
   created_at: string;
@@ -568,7 +569,7 @@ export default function ClientsPage() {
                     </>
                   )}
                   <span className="text-[11px] text-muted-foreground">
-                    £{(client.monthly_retainer || 0).toLocaleString()}/mo
+                    £{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo
                   </span>
                 </div>
 

@@ -104,10 +104,11 @@ export function FilterLabelPopover({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button aria-label="Filter by label" className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
-          isActive ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
+          isActive ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
         }`}>
           <Tag className="h-3 w-3" />
           <span className="truncate max-w-[120px]">{displayText}</span>
+          {isActive && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
           <ChevronDown size={12} className="text-muted-foreground/60" />
         </button>
       </PopoverTrigger>

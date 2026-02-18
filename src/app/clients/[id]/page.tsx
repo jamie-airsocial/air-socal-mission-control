@@ -276,19 +276,41 @@ function LineItemDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">Start date</Label>
-              <DatePicker
-                value={form.start_date}
-                onChange={v => setForm(f => ({ ...f, start_date: v }))}
-                placeholder="DD/MM/YYYY"
-              />
+              <div className="flex items-center gap-1">
+                <DatePicker
+                  value={form.start_date}
+                  onChange={v => setForm(f => ({ ...f, start_date: v }))}
+                  placeholder="DD/MM/YYYY"
+                />
+                {form.start_date && (
+                  <button type="button" onClick={() => setForm(f => ({ ...f, start_date: '' }))}
+                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">End date</Label>
-              <DatePicker
-                value={form.end_date}
-                onChange={v => setForm(f => ({ ...f, end_date: v }))}
-                placeholder="DD/MM/YYYY"
-              />
+              <div className="flex items-center gap-1">
+                <DatePicker
+                  value={form.end_date}
+                  onChange={v => {
+                    if (form.start_date && v && v < form.start_date) {
+                      toast.error('End date cannot be before start date');
+                      return;
+                    }
+                    setForm(f => ({ ...f, end_date: v }));
+                  }}
+                  placeholder="DD/MM/YYYY"
+                />
+                {form.end_date && (
+                  <button type="button" onClick={() => setForm(f => ({ ...f, end_date: '' }))}
+                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -335,7 +357,21 @@ export default function ClientDetailPage() {
   const fetchContractItems = useCallback(async () => {
     try {
       const res = await fetch(`/api/clients/${clientId}/contracts`, { cache: 'no-store' });
-      if (res.ok) setContractItems(await res.json());
+      if (res.ok) {
+        const items = await res.json();
+        const now = new Date();
+        // Auto-deactivate items with expired end dates
+        const toDeactivate = items.filter((i: ContractLineItem) => i.is_active && i.end_date && new Date(i.end_date) < now);
+        if (toDeactivate.length > 0) {
+          await Promise.all(toDeactivate.map((i: ContractLineItem) =>
+            fetch(`/api/contracts/${i.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: false }) })
+          ));
+          // Re-fetch after deactivation
+          const res2 = await fetch(`/api/clients/${clientId}/contracts`, { cache: 'no-store' });
+          if (res2.ok) { setContractItems(await res2.json()); return; }
+        }
+        setContractItems(items);
+      }
     } catch { /* silent */ }
   }, [clientId]);
 
