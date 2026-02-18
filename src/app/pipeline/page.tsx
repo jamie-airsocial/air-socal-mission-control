@@ -56,7 +56,6 @@ export default function PipelinePage() {
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
 
   const [formName, setFormName] = useState('');
-  const [formCompany, setFormCompany] = useState('');
   const [formContactName, setFormContactName] = useState('');
   const [formContactEmail, setFormContactEmail] = useState('');
   const [formContactPhone, setFormContactPhone] = useState('');
@@ -97,7 +96,7 @@ export default function PipelinePage() {
   const hasFilters = filterService.length > 0 || searchQuery !== '';
 
   const resetForm = () => {
-    setFormName(''); setFormCompany(''); setFormContactName('');
+    setFormName(''); setFormContactName('');
     setFormContactEmail(''); setFormContactPhone(''); setFormValue('');
     setFormService(''); setFormSource(''); setFormStage('lead');
   };
@@ -111,7 +110,6 @@ export default function PipelinePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formName.trim(),
-          company: formCompany.trim() || null,
           contact_name: formContactName.trim() || null,
           contact_email: formContactEmail.trim() || null,
           contact_phone: formContactPhone.trim() || null,
@@ -352,8 +350,7 @@ export default function PipelinePage() {
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="Company / Deal name *" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
-            <input value={formCompany} onChange={e => setFormCompany(e.target.value)} placeholder="Company" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
+            <input autoFocus value={formName} onChange={e => setFormName(e.target.value)} placeholder="Company name *" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
             <input value={formContactName} onChange={e => setFormContactName(e.target.value)} placeholder="Contact name" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
             <input value={formContactEmail} onChange={e => setFormContactEmail(e.target.value)} placeholder="Contact email" type="email" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
             <input value={formContactPhone} onChange={e => setFormContactPhone(e.target.value)} placeholder="Contact phone" type="tel" className="h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150" />
@@ -563,7 +560,7 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, setShowNewForm
                                 </span>
                               )}
                             </div>
-                            {prospect.company && (
+                            {false && prospect.company && (
                               <div className="flex items-center gap-1 mb-1">
                                 <Building2 size={10} className="text-muted-foreground/40" />
                                 <span className="text-[11px] text-muted-foreground truncate">{prospect.company}</span>
@@ -619,7 +616,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border/20 bg-muted/30">
-              {['Name', 'Company', 'Contact', 'Stage', 'Value', 'Service', 'Source', 'Created'].map(h => (
+              {['Name', 'Contact', 'Stage', 'Value', 'Service', 'Source', 'Created'].map(h => (
                 <th key={h} className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2">{h}</th>
               ))}
             </tr>
@@ -632,7 +629,6 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
               return (
                 <tr key={p.id} onClick={() => onEdit(p)} className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer">
                   <td className="px-3 py-2.5 text-[13px] font-medium">{p.name}</td>
-                  <td className="px-3 py-2.5 text-[13px] text-muted-foreground">{p.company || '—'}</td>
                   <td className="px-3 py-2.5">
                     <div className="text-[13px]">{p.contact_name || '—'}</div>
                     {p.contact_email && <div className="text-[11px] text-muted-foreground/60">{p.contact_email}</div>}
@@ -817,7 +813,6 @@ function ProspectSheet({ prospect, onClose, onUpdate, onDelete }: {
           {/* Details grid */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Company', value: prospect.company, field: 'company', icon: Building2 },
               { label: 'Contact', value: prospect.contact_name, field: 'contact_name' },
               { label: 'Email', value: prospect.contact_email, field: 'contact_email', icon: Mail },
               { label: 'Phone', value: prospect.contact_phone, field: 'contact_phone', icon: Phone },
