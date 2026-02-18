@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
-  Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check,
+  Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, Pencil,
   BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy, UserPlus, Trash2,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/sheet';
 import { useUsers } from '@/hooks/use-users';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Switch } from '@/components/ui/switch';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -120,10 +121,13 @@ function ProspectSheet({
   const [assigneeOpen, setAssigneeOpen] = useState(false);
 
   // Line items
-  interface LineItem { id: string; service: string; description: string | null; monthly_value: number; billing_type: 'recurring' | 'one-off'; duration_months: number | null; }
+  interface LineItem { id: string; service: string; description: string | null; monthly_value: number; billing_type: 'recurring' | 'one-off'; start_date: string | null; end_date: string | null; is_active: boolean; }
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [showAddItem, setShowAddItem] = useState(false);
-  const [newItem, setNewItem] = useState<{ service: string; monthly_value: string; billing_type: 'recurring' | 'one-off'; duration_months: string }>({ service: '', monthly_value: '', billing_type: 'recurring', duration_months: '' });
+  const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
+  const [editingLineItem, setEditingLineItem] = useState<LineItem | null>(null);
+  interface LineItemForm { service: string; description: string; monthly_value: string; billing_type: 'recurring' | 'one-off'; start_date: string; end_date: string; is_active: boolean; }
+  const emptyLIForm: LineItemForm = { service: '', description: '', monthly_value: '', billing_type: 'recurring', start_date: '', end_date: '', is_active: true };
+  const [liForm, setLiForm] = useState<LineItemForm>(emptyLIForm);
 
   const fetchLineItems = useCallback(async (prospectId: string) => {
     try {
@@ -132,22 +136,23 @@ function ProspectSheet({
     } catch { /* silent */ }
   }, []);
 
-  const addLineItem = async () => {
-    if (!editProspect || !newItem.service.trim()) return;
-    const res = await fetch(`/api/prospects/${editProspect.id}/line-items`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        service: newItem.service.trim(),
-        monthly_value: parseFloat(newItem.monthly_value) || 0,
-        billing_type: newItem.billing_type,
-        duration_months: newItem.duration_months ? parseInt(newItem.duration_months) : null,
-      }),
-    });
-    if (res.ok) {
-      await fetchLineItems(editProspect.id);
-      setNewItem({ service: '', monthly_value: '', billing_type: 'recurring', duration_months: '' });
-      setShowAddItem(false);
+  const openAddLineItem = () => { setEditingLineItem(null); setLiForm(emptyLIForm); setLineItemDialogOpen(true); };
+  const openEditLineItem = (item: LineItem) => {
+    setEditingLineItem(item);
+    setLiForm({ service: item.service, description: item.description || '', monthly_value: String(item.monthly_value), billing_type: item.billing_type, start_date: item.start_date || '', end_date: item.end_date || '', is_active: item.is_active });
+    setLineItemDialogOpen(true);
+  };
+
+  const saveLineItem = async () => {
+    if (!editProspect || !liForm.service.trim()) { toast.error('Service is required'); return; }
+    const payload = { service: liForm.service.trim(), description: liForm.description || null, monthly_value: parseFloat(liForm.monthly_value) || 0, billing_type: liForm.billing_type, start_date: liForm.start_date || null, end_date: liForm.end_date || null, is_active: liForm.is_active };
+    if (editingLineItem) {
+      await fetch(`/api/prospect-line-items/${editingLineItem.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    } else {
+      await fetch(`/api/prospects/${editProspect.id}/line-items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     }
+    await fetchLineItems(editProspect.id);
+    setLineItemDialogOpen(false);
   };
 
   const deleteLineItem = async (itemId: string) => {
@@ -156,15 +161,22 @@ function ProspectSheet({
     await fetchLineItems(editProspect.id);
   };
 
-  const lineItemsTotal = lineItems.reduce((s, i) => s + (i.monthly_value || 0), 0);
-  const recurringTotal = lineItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
-  const oneOffTotal = lineItems.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+  const toggleLineItemActive = async (item: LineItem) => {
+    if (!editProspect) return;
+    await fetch(`/api/prospect-line-items/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !item.is_active }) });
+    await fetchLineItems(editProspect.id);
+  };
+
+  const activeLineItems = lineItems.filter(i => i.is_active && (!i.end_date || new Date(i.end_date) >= new Date()));
+  const recurringTotal = activeLineItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+  const oneOffTotal = activeLineItems.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+  const lineItemsTotal = recurringTotal + oneOffTotal;
 
   useEffect(() => {
     if (open) {
       setConfirmDelete(false);
       setLineItems([]);
-      setShowAddItem(false);
+      setLineItemDialogOpen(false);
       if (editProspect) {
         fetchLineItems(editProspect.id);
         setForm({
@@ -241,6 +253,7 @@ function ProspectSheet({
   const currentStage = PIPELINE_STAGES.find(s => s.id === form.stage);
 
   return (
+    <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
         <SheetHeader className="px-6 py-5 border-b border-border/20">
@@ -358,24 +371,32 @@ function ProspectSheet({
             {/* Existing line items */}
             {lineItems.length > 0 && (
               <div className="space-y-1.5">
-                {lineItems.map(item => (
-                  <div key={item.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/20 bg-muted/20">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-medium truncate">{item.service}</p>
-                      <p className="text-[11px] text-muted-foreground/60">
-                        <span className={item.billing_type === 'one-off' ? 'text-amber-400' : 'text-emerald-400'}>
-                          £{(item.monthly_value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
-                        </span>
-                        {item.billing_type === 'recurring' ? '/mo' : ' one-off'}
-                        {item.duration_months && ` · ${item.duration_months}mo`}
-                      </p>
+                {lineItems.map(item => {
+                  const expired = item.end_date && new Date(item.end_date) < new Date();
+                  return (
+                    <div key={item.id} className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/20 bg-muted/20 ${!item.is_active || expired ? 'opacity-50' : ''}`}>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium truncate">{item.service}</p>
+                        <p className="text-[11px] text-muted-foreground/60">
+                          <span className={item.billing_type === 'one-off' ? 'text-amber-400' : 'text-emerald-400'}>
+                            £{(item.monthly_value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                          </span>
+                          {item.billing_type === 'recurring' ? '/mo' : ' one-off'}
+                          {!item.is_active && ' · Inactive'}
+                          {expired && ' · Expired'}
+                        </p>
+                      </div>
+                      <button onClick={() => openEditLineItem(item)}
+                        className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors">
+                        <Pencil size={12} />
+                      </button>
+                      <button onClick={() => deleteLineItem(item.id)}
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+                        <X size={12} />
+                      </button>
                     </div>
-                    <button onClick={() => deleteLineItem(item.id)}
-                      className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
                 {recurringTotal > 0 && oneOffTotal > 0 && (
                   <div className="flex items-center gap-3 px-2.5 text-[11px] text-muted-foreground/60">
                     <span>Recurring: <span className="text-emerald-400">£{recurringTotal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}/mo</span></span>
@@ -385,86 +406,15 @@ function ProspectSheet({
               </div>
             )}
 
-            {/* Add new line item form */}
-            {showAddItem ? (
-              <div className="space-y-2 p-2.5 rounded-lg border border-border/20 bg-muted/10">
-                <Input
-                  autoFocus
-                  value={newItem.service}
-                  onChange={e => setNewItem(prev => ({ ...prev, service: e.target.value }))}
-                  placeholder="Service name (e.g. Paid Advertising)"
-                  className="h-8 text-[13px] bg-secondary border-border/20"
-                />
-                <div className="flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">£</span>
-                    <Input
-                      type="number" min="0" step="0.01"
-                      value={newItem.monthly_value}
-                      onChange={e => setNewItem(prev => ({ ...prev, monthly_value: e.target.value }))}
-                      placeholder="0.00"
-                      className="h-8 pl-5 text-[13px] bg-secondary border-border/20"
-                    />
-                  </div>
-                  <div className="flex items-center rounded-md border border-border/20 bg-secondary p-0.5">
-                    {(['recurring', 'one-off'] as const).map(bt => (
-                      <button key={bt} type="button"
-                        onClick={() => setNewItem(prev => ({ ...prev, billing_type: bt }))}
-                        className={`h-6 px-2 rounded text-[11px] font-medium transition-all ${
-                          newItem.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                        }`}
-                      >
-                        {bt === 'recurring' ? 'Monthly' : 'One-off'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {newItem.billing_type === 'one-off' && (
-                  <Input
-                    type="number" min="1"
-                    value={newItem.duration_months}
-                    onChange={e => setNewItem(prev => ({ ...prev, duration_months: e.target.value }))}
-                    placeholder="Duration (months)"
-                    className="h-8 text-[13px] bg-secondary border-border/20"
-                  />
-                )}
-                <div className="flex items-center gap-1.5">
-                  <button onClick={addLineItem}
-                    className="h-7 px-2.5 text-[11px] font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                    Add
-                  </button>
-                  <button onClick={() => { setShowAddItem(false); setNewItem({ service: '', monthly_value: '', billing_type: 'recurring', duration_months: '' }); }}
-                    className="h-7 px-2.5 text-[11px] rounded-md text-muted-foreground hover:text-foreground transition-colors">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowAddItem(true)}
-                className="w-full h-8 px-3 text-[11px] rounded-lg border border-dashed border-border/30 text-muted-foreground/60 hover:border-primary/40 hover:text-muted-foreground transition-colors flex items-center justify-center gap-1"
-              >
-                <Plus size={12} /> Add service
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openAddLineItem}
+              className="w-full h-8 px-3 text-[11px] rounded-lg border border-dashed border-border/30 text-muted-foreground/60 hover:border-primary/40 hover:text-muted-foreground transition-colors flex items-center justify-center gap-1"
+            >
+              <Plus size={12} /> Add line item
+            </button>
 
-            {/* Legacy single value for backwards compat - hidden if line items exist */}
-            {lineItems.length === 0 && editProspect && (
-              <div className="space-y-1.5 pt-1">
-                <Label className="text-[11px] font-medium text-muted-foreground/40 uppercase tracking-wide">Overall Deal Value (£)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-                  <Input
-                    type="number"
-                    value={form.value}
-                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
-                    placeholder="0"
-                    className="pl-7 text-[13px] h-9"
-                  />
-                </div>
-              </div>
-            )}
+            {/* Legacy single value for new prospects without line items */}
             {!editProspect && (
               <div className="space-y-1.5 pt-1">
                 <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
@@ -626,6 +576,87 @@ function ProspectSheet({
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Line Item Dialog */}
+    <Dialog open={lineItemDialogOpen} onOpenChange={setLineItemDialogOpen}>
+      <DialogContent className="sm:max-w-md bg-card border-border/20">
+        <DialogHeader>
+          <DialogTitle className="text-[15px]">{editingLineItem ? 'Edit line item' : 'Add line item'}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Service *</Label>
+            <Input value={liForm.service} onChange={e => setLiForm(f => ({ ...f, service: e.target.value }))}
+              placeholder="e.g. SEO, Paid Ads, Social Media" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Description</Label>
+            <Input value={liForm.description} onChange={e => setLiForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Brief description" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Billing type *</Label>
+            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
+              {(['recurring', 'one-off'] as const).map(bt => (
+                <button key={bt} type="button" onClick={() => setLiForm(f => ({ ...f, billing_type: bt }))}
+                  className={`flex-1 h-8 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                    liForm.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {bt === 'recurring' ? 'Recurring' : 'One-off'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">{liForm.billing_type === 'recurring' ? 'Monthly value (£) *' : 'Project value (£) *'}</Label>
+            <Input type="number" min="0" step="0.01"
+              value={liForm.monthly_value} onChange={e => setLiForm(f => ({ ...f, monthly_value: e.target.value }))}
+              placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Start date</Label>
+              <div className="flex items-center gap-1">
+                <DatePicker value={liForm.start_date} onChange={v => setLiForm(f => ({ ...f, start_date: v }))} placeholder="DD/MM/YYYY" />
+                {liForm.start_date && (
+                  <button type="button" onClick={() => setLiForm(f => ({ ...f, start_date: '' }))}
+                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">End date</Label>
+              <div className="flex items-center gap-1">
+                <DatePicker value={liForm.end_date} onChange={v => {
+                  if (liForm.start_date && v && v < liForm.start_date) { toast.error('End date cannot be before start date'); return; }
+                  setLiForm(f => ({ ...f, end_date: v }));
+                }} placeholder="DD/MM/YYYY" />
+                {liForm.end_date && (
+                  <button type="button" onClick={() => setLiForm(f => ({ ...f, end_date: '' }))}
+                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch checked={liForm.is_active} onCheckedChange={v => setLiForm(f => ({ ...f, is_active: v }))} />
+            <Label className="text-[13px] text-muted-foreground">Active</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setLineItemDialogOpen(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
+          <Button onClick={saveLineItem} className="text-[13px] h-8">
+            {editingLineItem ? 'Save changes' : 'Add line item'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

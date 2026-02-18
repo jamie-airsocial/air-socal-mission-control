@@ -32,6 +32,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Client {
   id: string;
@@ -814,10 +815,28 @@ export default function ClientDetailPage() {
                         {contractDuration(item.start_date, item.end_date)}
                       </TableCell>
                       <TableCell>
-                        <Switch
-                          checked={item.is_active}
-                          onCheckedChange={() => handleToggleActive(item)}
-                        />
+                        {(() => {
+                          const expired = item.end_date && new Date(item.end_date) < new Date();
+                          return expired ? (
+                            <TooltipProvider delayDuration={0}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-block">
+                                    <Switch checked={false} disabled />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[12px]">
+                                  End date has passed — cannot reactivate
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <Switch
+                              checked={item.is_active}
+                              onCheckedChange={() => handleToggleActive(item)}
+                            />
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
