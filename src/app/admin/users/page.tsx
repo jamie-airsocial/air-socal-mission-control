@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, UserX, UserCheck, KeyRound, Trash2, Clock } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, KeyRound, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { Check, ChevronDown } from 'lucide-react';
+// Check + ChevronDown consolidated into top import
 import { ASSIGNEE_COLORS, TEAM_STYLES, getTeamStyle } from '@/lib/constants';
 import type { AppUser, Role } from '@/lib/auth-types';
 
@@ -147,6 +147,27 @@ export default function AdminUsersPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Search, filter, sort
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTeamSlug, setFilterTeamSlug] = useState<string>('');
+  const [filterRoleId, setFilterRoleId] = useState<string>('');
+  const [sortField, setSortField] = useState<'name' | 'email' | 'team' | 'role' | 'lastActive' | 'status'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  };
+
+  const SortIcon = ({ field }: { field: typeof sortField }) => {
+    if (sortField !== field) return <ChevronsUpDown size={12} className="text-muted-foreground/30" />;
+    return sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />;
+  };
 
   // Add/Edit dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -310,6 +331,34 @@ export default function AdminUsersPage() {
   const activeUsers = users.filter(u => u.is_active);
   const otherActiveUsers = (excludeId: string) => activeUsers.filter(u => u.id !== excludeId);
 
+  // Filter
+  const filteredUsers = users.filter(u => {
+    if (searchQuery && !u.full_name.toLowerCase().includes(searchQuery.toLowerCase()) && !u.email.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (filterTeamSlug && (u.team || '') !== filterTeamSlug) return false;
+    if (filterRoleId && (u.role_id || '') !== filterRoleId) return false;
+    return true;
+  });
+
+  // Sort
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    switch (sortField) {
+      case 'name': return dir * a.full_name.localeCompare(b.full_name);
+      case 'email': return dir * a.email.localeCompare(b.email);
+      case 'team': return dir * (a.team || 'zzz').localeCompare(b.team || 'zzz');
+      case 'role': return dir * ((a.role?.name || 'zzz').localeCompare(b.role?.name || 'zzz'));
+      case 'lastActive': {
+        const aTime = a.last_active_at || a.last_sign_in_at || '';
+        const bTime = b.last_active_at || b.last_sign_in_at || '';
+        return dir * aTime.localeCompare(bTime);
+      }
+      case 'status': return dir * (Number(b.is_active) - Number(a.is_active));
+      default: return 0;
+    }
+  });
+
+  const hasFilters = searchQuery || filterTeamSlug || filterRoleId;
+
   return (
     <TooltipProvider delayDuration={600}>
       <div className="space-y-4">
@@ -322,16 +371,81 @@ export default function AdminUsersPage() {
           </Button>
         </div>
 
+        {/* Filter bar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[200px] max-w-xs">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by name or email…"
+              className="h-8 pl-8 text-[13px] bg-secondary border-border/20"
+            />
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={`h-8 px-3 text-[13px] rounded-lg border flex items-center gap-1.5 transition-colors ${
+                filterTeamSlug ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
+              }`}>
+                <Filter size={12} /> Team {filterTeamSlug && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-44 p-1" align="start">
+              <button onClick={() => setFilterTeamSlug('')}
+                className={`w-full px-2 py-1.5 rounded text-[13px] text-left hover:bg-muted/60 ${!filterTeamSlug ? 'bg-muted/40' : ''}`}>
+                All teams
+              </button>
+              {teamOptions.map(t => (
+                <button key={t.value} onClick={() => setFilterTeamSlug(t.value)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${filterTeamSlug === t.value ? 'bg-muted/40' : ''}`}>
+                  {t.label}
+                  {filterTeamSlug === t.value && <Check size={14} className="text-primary" />}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={`h-8 px-3 text-[13px] rounded-lg border flex items-center gap-1.5 transition-colors ${
+                filterRoleId ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/20 bg-secondary text-muted-foreground hover:text-foreground'
+              }`}>
+                <Filter size={12} /> Role {filterRoleId && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-1" align="start">
+              <button onClick={() => setFilterRoleId('')}
+                className={`w-full px-2 py-1.5 rounded text-[13px] text-left hover:bg-muted/60 ${!filterRoleId ? 'bg-muted/40' : ''}`}>
+                All roles
+              </button>
+              {roles.map(r => (
+                <button key={r.id} onClick={() => setFilterRoleId(r.id)}
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${filterRoleId === r.id ? 'bg-muted/40' : ''}`}>
+                  {r.name}
+                  {filterRoleId === r.id && <Check size={14} className="text-primary" />}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          {hasFilters && (
+            <button onClick={() => { setSearchQuery(''); setFilterTeamSlug(''); setFilterRoleId(''); }}
+              className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1.5">
+              <X size={12} /> Clear
+            </button>
+          )}
+          <p className="text-[12px] text-muted-foreground/50 ml-auto">{sortedUsers.length} of {users.length} users</p>
+        </div>
+
         <div className="bg-card border border-border/20 rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="border-border/20 hover:bg-transparent">
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Name</TableHead>
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Email</TableHead>
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Team</TableHead>
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Role</TableHead>
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Last Active</TableHead>
-                <TableHead className="text-[12px] text-muted-foreground font-medium">Status</TableHead>
+                {([['name', 'Name'], ['email', 'Email'], ['team', 'Team'], ['role', 'Role'], ['lastActive', 'Last Active'], ['status', 'Status']] as const).map(([field, label]) => (
+                  <TableHead key={field}
+                    className="text-[12px] text-muted-foreground font-medium cursor-pointer select-none hover:text-foreground transition-colors"
+                    onClick={() => toggleSort(field)}>
+                    <span className="flex items-center gap-1">{label} <SortIcon field={field} /></span>
+                  </TableHead>
+                ))}
                 <TableHead className="text-[12px] text-muted-foreground font-medium w-32">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -348,7 +462,13 @@ export default function AdminUsersPage() {
                     No users yet
                   </TableCell>
                 </TableRow>
-              ) : users.map(user => {
+              ) : sortedUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-[13px] text-muted-foreground/40">
+                    No users match filters
+                  </TableCell>
+                </TableRow>
+              ) : sortedUsers.map(user => {
                 const ts = user.team ? getTeamStyle(user.team) : null;
                 const colorClass = ASSIGNEE_COLORS[user.full_name] || 'bg-primary/20 text-primary';
                 const isInactive = !user.is_active;
