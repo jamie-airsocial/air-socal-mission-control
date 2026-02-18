@@ -109,6 +109,18 @@ export default function TeamsPage() {
   const activeClients = clients.filter(c => c.status === 'active');
   const totalMembers = teams.reduce((sum, t) => sum + (t.members?.length ?? 0), 0);
 
+  // Calculate max counts for consistent section heights across cards
+  const maxServices = Math.max(...teams.map(t => {
+    const slug = t.name.toLowerCase();
+    const tc = activeClients.filter(c => c.team === slug);
+    return Object.keys(calcRevenueByService(tc)).length;
+  }), 0);
+  const maxMembers = Math.max(...teams.map(t => t.members?.length ?? 0), 0);
+  const maxClients = Math.max(...teams.map(t => {
+    const slug = t.name.toLowerCase();
+    return activeClients.filter(c => c.team === slug).length;
+  }), 0);
+
   // Build team display data
   const teamRows = teams.map(team => {
     const slug = team.name.toLowerCase();
@@ -171,10 +183,10 @@ export default function TeamsPage() {
                 </p>
               </div>
 
-              {/* Revenue by Service */}
-              {Object.keys(revenueByService).length > 0 && (
-                <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
-                  <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Revenue by Service</p>
+              {/* Revenue by Service — consistent height across cards */}
+              <div className="px-4 py-3 border-b border-border/10 bg-muted/10" style={{ minHeight: `${28 + maxServices * 28}px` }}>
+                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Revenue by Service</p>
+                {Object.keys(revenueByService).length > 0 ? (
                   <div className="space-y-1.5">
                     {Object.entries(revenueByService)
                       .sort(([, a], [, b]) => b - a)
@@ -204,11 +216,13 @@ export default function TeamsPage() {
                         );
                       })}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <p className="text-[12px] text-muted-foreground/40 italic">No revenue data</p>
+                )}
+              </div>
 
-              {/* Members — live from DB with name + role */}
-              <div className="p-4 border-b border-border/10">
+              {/* Members — consistent height across cards */}
+              <div className="p-4 border-b border-border/10" style={{ minHeight: `${28 + maxMembers * 48}px` }}>
                 <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">
                   Members ({members.length})
                 </p>
@@ -237,8 +251,8 @@ export default function TeamsPage() {
                 </div>
               </div>
 
-              {/* Clients */}
-              <div className="p-4 flex-1">
+              {/* Clients — consistent height across cards */}
+              <div className="p-4 flex-1" style={{ minHeight: `${28 + maxClients * 32}px` }}>
                 <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Active Clients</p>
                 {teamClients.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground/40">No active clients</p>
