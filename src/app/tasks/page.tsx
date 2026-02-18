@@ -331,6 +331,43 @@ function BoardContent() {
 
         <FilterServicePopover value={filterService} onChange={setFilterService} />
 
+        {/* Team filter */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap ${
+              filterTeam.length > 0 ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
+            }`}>
+              {filterTeam.length > 0 ? `Team (${filterTeam.length})` : 'All teams'}
+              <ChevronDown size={12} className="text-muted-foreground/60" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-48 p-1" align="start">
+            {Object.entries(TEAM_STYLES).map(([key, style]) => {
+              const isSelected = filterTeam.includes(key);
+              return (
+                <button
+                  key={key}
+                  onClick={() => setFilterTeam(prev => isSelected ? prev.filter(v => v !== key) : [...prev, key])}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                    isSelected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                  }`}
+                >
+                  <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                    isSelected ? 'border-primary bg-primary' : 'border-border/40'
+                  }`}>
+                    {isSelected && <Check size={10} className="text-primary-foreground" />}
+                  </div>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: style.color }} />
+                  <span className="flex-1 text-left">{style.label}</span>
+                </button>
+              );
+            })}
+            {filterTeam.length > 0 && (
+              <button onClick={() => setFilterTeam([])} className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150 text-left">Clear</button>
+            )}
+          </PopoverContent>
+        </Popover>
+
         {view !== 'calendar' && (
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
             <PopoverTrigger asChild>
