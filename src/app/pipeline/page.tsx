@@ -253,7 +253,7 @@ export default function PipelinePage() {
               <ChevronDown size={12} className="text-muted-foreground/40" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-48 p-1" align="start">
+          <PopoverContent className="w-56 p-1" align="start">
             {Object.entries(SERVICE_STYLES).map(([key, s]) => {
               const isSelected = filterService.includes(key);
               return (
@@ -270,7 +270,7 @@ export default function PipelinePage() {
                     {isSelected && <Check size={10} className="text-primary-foreground" />}
                   </div>
                   <ServiceIcon serviceKey={key} size={12} className="shrink-0" />
-                  <span className="flex-1 text-left">{s.label}</span>
+                  <span className="flex-1 text-left whitespace-nowrap">{s.label}</span>
                 </button>
               );
             })}
