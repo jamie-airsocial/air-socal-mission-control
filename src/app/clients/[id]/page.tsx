@@ -5,7 +5,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { TEAM_MEMBERS } from '@/lib/data';
 import { TEAM_STYLES, SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
-import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X } from 'lucide-react';
+import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, ChevronDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { NAME_TO_SLUG } from '@/lib/constants';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { ServiceIcon } from '@/components/ui/service-icon';
@@ -125,6 +127,44 @@ export default function ClientDetailPage() {
   const [view, setView] = useState<'service' | 'month'>('service');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'contract' | 'sale' | 'notes'>('overview');
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskService, setNewTaskService] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState('P2');
+  const [newTaskAssignee, setNewTaskAssignee] = useState('');
+  const [creatingTask, setCreatingTask] = useState(false);
+
+  const handleCreateTask = async () => {
+    if (!newTaskTitle.trim()) return;
+    setCreatingTask(true);
+    try {
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newTaskTitle.trim(),
+          client_id: clientId,
+          service: newTaskService || null,
+          priority: newTaskPriority,
+          assignee: newTaskAssignee || null,
+          status: 'todo',
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to create task');
+      const task = await res.json();
+      setTasks(prev => [task, ...prev]);
+      setNewTaskTitle('');
+      setNewTaskService('');
+      setNewTaskPriority('P2');
+      setNewTaskAssignee('');
+      setShowNewTask(false);
+      toast.success('Task created');
+    } catch {
+      toast.error('Failed to create task');
+    } finally {
+      setCreatingTask(false);
+    }
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -320,7 +360,15 @@ export default function ClientDetailPage() {
       {activeTab === 'overview' && (
         <div className="rounded-lg border border-border/20 bg-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[13px] font-semibold">Tasks ({tasks.length})</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-[13px] font-semibold">Tasks ({tasks.length})</h2>
+              <button
+                onClick={() => setShowNewTask(!showNewTask)}
+                className="h-7 px-2.5 text-[11px] font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors duration-150 flex items-center gap-1"
+              >
+                <Plus size={12} /> New Task
+              </button>
+            </div>
             <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
               {(['service', 'month'] as const).map(v => (
                 <button
@@ -335,6 +383,37 @@ export default function ClientDetailPage() {
               ))}
             </div>
           </div>
+
+          {showNewTask && (
+            <div className="mb-4 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
+              <input
+                autoFocus
+                value={newTaskTitle}
+                onChange={e => setNewTaskTitle(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleCreateTask(); if (e.key === 'Escape') setShowNewTask(false); }}
+                placeholder="Task title..."
+                className="w-full h-8 px-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150"
+              />
+              <div className="flex items-center gap-2 flex-wrap">
+                <select value={newTaskService} onChange={e => setNewTaskService(e.target.value)} className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-lg outline-none">
+                  <option value="">No service</option>
+                  {ALL_SERVICES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+                <select value={newTaskPriority} onChange={e => setNewTaskPriority(e.target.value)} className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-lg outline-none">
+                  {Object.entries(PRIORITY_STYLES).map(([k, v]) => <option key={k} value={k}>{k}</option>)}
+                </select>
+                <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value)} className="h-7 px-2 text-[11px] bg-secondary border border-border/20 rounded-lg outline-none">
+                  <option value="">Unassigned</option>
+                  {Object.keys(NAME_TO_SLUG).map(name => <option key={name} value={NAME_TO_SLUG[name]}>{name}</option>)}
+                </select>
+                <div className="flex-1" />
+                <button onClick={() => setShowNewTask(false)} className="h-7 px-2.5 text-[11px] rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground transition-colors duration-150">Cancel</button>
+                <button onClick={handleCreateTask} disabled={!newTaskTitle.trim() || creatingTask} className="h-7 px-3 text-[11px] font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors duration-150">
+                  {creatingTask ? 'Creating...' : 'Create'}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-6">
             {Object.entries(groupedTasks).map(([group, groupTasks]) => {
