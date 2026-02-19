@@ -53,6 +53,7 @@ interface TableViewProps {
   groupBy?: GroupBy;
   allLabels?: string[];
   hiddenColumns?: SortField[];
+  clientId?: string;
 }
 
 type SortField = 'title' | 'status' | 'priority' | 'assignee' | 'project_name' | 'due_date' | 'service';
@@ -436,7 +437,7 @@ function SortHeader({ field, sortField, sortOrder, onSort, children, className =
   );
 }
 
-export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [] }: TableViewProps) {
+export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [], clientId }: TableViewProps) {
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -487,7 +488,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
     if (creatingGroups.has(group.key)) return;
     setCreatingGroups(prev => { const next = new Set(prev); next.add(group.key); return next; });
     try {
-      const payload: Record<string, unknown> = { title: 'New task', status: 'todo' };
+      const payload: Record<string, unknown> = { title: 'New task', status: 'todo', ...(clientId ? { client_id: clientId } : {}) };
       if (groupBy === 'status' && !group.key.startsWith('no-')) payload.status = group.key;
       else if (groupBy === 'priority' && !group.key.startsWith('no-')) payload.priority = group.key;
       else if (groupBy === 'assignee' && !group.key.startsWith('no-')) payload.assignee = group.key;
@@ -512,7 +513,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
     } finally {
       setCreatingGroups(prev => { const next = new Set(prev); next.delete(group.key); return next; });
     }
-  }, [creatingGroups, groupBy, onUpdate, onTaskClick]);
+  }, [creatingGroups, groupBy, onUpdate, onTaskClick, clientId]);
 
   const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {

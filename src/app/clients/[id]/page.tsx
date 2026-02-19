@@ -901,6 +901,7 @@ export default function ClientDetailPage() {
             }}
             hiddenColumns={['project_name']}
             groupBy={taskGroupBy}
+            clientId={client.id}
           />
         </div>
         );
