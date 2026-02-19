@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { title, description, status, priority, assignee, client_id, service, due_date, parent_id, labels } = body;
+  const { title, description, status, priority, assignee, client_id, project_id, service, due_date, parent_id, labels } = body;
 
   if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 });
   if (title.length > 500) return NextResponse.json({ error: 'Title too long' }, { status: 400 });
@@ -76,6 +76,7 @@ export async function POST(request: NextRequest) {
     priority: priority || null,
     assignee: assignee || null,
     client_id: client_id || null,
+    project_id: project_id || null,
     service: service || null,
     due_date: due_date || null,
     parent_id: parent_id || null,

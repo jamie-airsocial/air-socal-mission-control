@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { Task, Project } from '@/lib/types';
 
-import { ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, X, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, X, ChevronRight, ChevronLeft, Trash2, Plus } from 'lucide-react';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EnhancedDatePicker } from '@/components/board/enhanced-date-picker';
@@ -452,6 +452,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
 
   // Group by state
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [creatingGroups, setCreatingGroups] = useState<Set<string>>(new Set());
 
   // Reset to page 1 when sort/groupBy changes
   useEffect(() => {
@@ -481,6 +482,37 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
 
   const getSubtasks = useCallback((parentId: string) =>
     allTasks.filter((t) => t.parent_id === parentId), [allTasks]);
+
+  const handleGroupAddTask = useCallback(async (group: { key: string; label: string; tasks: (Task & { project_name?: string; project_color?: string })[]; metadata?: { color?: string; avatar?: string; dot?: string; badge?: string } }) => {
+    if (creatingGroups.has(group.key)) return;
+    setCreatingGroups(prev => { const next = new Set(prev); next.add(group.key); return next; });
+    try {
+      const payload: Record<string, unknown> = { title: 'New task', status: 'todo' };
+      if (groupBy === 'status' && !group.key.startsWith('no-')) payload.status = group.key;
+      else if (groupBy === 'priority' && !group.key.startsWith('no-')) payload.priority = group.key;
+      else if (groupBy === 'assignee' && !group.key.startsWith('no-')) payload.assignee = group.key;
+      else if (groupBy === 'service' && !group.key.startsWith('no-')) payload.service = group.key;
+      else if (groupBy === 'project' && !group.key.startsWith('no-')) payload.project_id = group.key;
+      else if (groupBy === 'month' && !group.key.startsWith('no-')) payload.due_date = `${group.key}-01`;
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        toast.error('Failed to create task');
+        return;
+      }
+      const newTask = await res.json();
+      toast.success('Task created');
+      onUpdate();
+      if (newTask?.id) onTaskClick({ ...newTask });
+    } catch {
+      toast.error('Failed to create task');
+    } finally {
+      setCreatingGroups(prev => { const next = new Set(prev); next.delete(group.key); return next; });
+    }
+  }, [creatingGroups, groupBy, onUpdate, onTaskClick]);
 
   const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {
@@ -760,40 +792,57 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                   // Add group header row if not 'none'
                   if (groupBy !== 'none') {
                     groupRows.push(
-                      <tr key={`group-${group.key}`} className="border-b border-border/20">
+                      <tr key={`group-${group.key}`} className="border-b border-border/20 group/header">
                         <td colSpan={8 - hiddenColumns.length} className="py-2.5 px-5 bg-muted/20">
-                          <button
-                            onClick={() => toggleGroupCollapse(group.key)}
-                            aria-expanded={!groupCollapsed}
-                            aria-label={`${groupCollapsed ? 'Expand' : 'Collapse'} ${group.label} group`}
-                            className="flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
-                          >
-                            <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${groupCollapsed ? '' : 'rotate-90'}`} />
-                            <div className="flex items-center gap-2">
-                              {/* Group icon/badge */}
-                              {groupBy === 'project' && group.metadata?.color && (
-                                <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.metadata.color }} />
-                              )}
-                              {groupBy === 'assignee' && group.metadata?.avatar && (
-                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium shrink-0 ${ASSIGNEE_COLORS[group.label] || 'bg-muted/40 text-muted-foreground'}`}>
-                                  {group.metadata.avatar}
+                          <div className="flex items-center">
+                            <button
+                              onClick={() => toggleGroupCollapse(group.key)}
+                              aria-expanded={!groupCollapsed}
+                              aria-label={`${groupCollapsed ? 'Expand' : 'Collapse'} ${group.label} group`}
+                              className="flex items-center gap-2 flex-1 text-left hover:opacity-80 transition-opacity"
+                            >
+                              <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${groupCollapsed ? '' : 'rotate-90'}`} />
+                              <div className="flex items-center gap-2">
+                                {/* Group icon/badge */}
+                                {groupBy === 'project' && group.metadata?.color && (
+                                  <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.metadata.color }} />
+                                )}
+                                {groupBy === 'assignee' && group.metadata?.avatar && (
+                                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium shrink-0 ${ASSIGNEE_COLORS[group.label] || 'bg-muted/40 text-muted-foreground'}`}>
+                                    {group.metadata.avatar}
+                                  </span>
+                                )}
+                                {groupBy === 'status' && group.metadata?.dot && (
+                                  <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.metadata.dot }} />
+                                )}
+                                {groupBy === 'priority' && group.metadata?.badge && PRIORITY_STYLES[group.metadata.badge] && (
+                                  <span className={`px-2 py-0.5 rounded text-[13px] font-medium ${PRIORITY_STYLES[group.metadata.badge].bg} ${PRIORITY_STYLES[group.metadata.badge].text}`}>
+                                    {group.metadata.badge} · {PRIORITY_STYLES[group.metadata.badge].label}
+                                  </span>
+                                )}
+                                {/* Group label */}
+                                <span className="text-[13px] font-medium text-foreground">
+                                  {groupBy === 'priority' && group.metadata?.badge ? '' : group.label}
                                 </span>
-                              )}
-                              {groupBy === 'status' && group.metadata?.dot && (
-                                <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: group.metadata.dot }} />
-                              )}
-                              {groupBy === 'priority' && group.metadata?.badge && PRIORITY_STYLES[group.metadata.badge] && (
-                                <span className={`px-2 py-0.5 rounded text-[13px] font-medium ${PRIORITY_STYLES[group.metadata.badge].bg} ${PRIORITY_STYLES[group.metadata.badge].text}`}>
-                                  {group.metadata.badge} · {PRIORITY_STYLES[group.metadata.badge].label}
-                                </span>
-                              )}
-                              {/* Group label */}
-                              <span className="text-[13px] font-medium text-foreground">
-                                {groupBy === 'priority' && group.metadata?.badge ? '' : group.label}
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground/60">({group.tasks.length} task{group.tasks.length !== 1 ? 's' : ''})</span>
-                          </button>
+                              </div>
+                              <span className="text-[11px] text-muted-foreground/60">({group.tasks.length} task{group.tasks.length !== 1 ? 's' : ''})</span>
+                            </button>
+                            <TooltipProvider delayDuration={500}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleGroupAddTask(group); }}
+                                    disabled={creatingGroups.has(group.key)}
+                                    aria-label={`Add task to ${group.label}`}
+                                    className="opacity-0 group-hover/header:opacity-100 transition-opacity duration-150 h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed"
+                                  >
+                                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="text-[13px]">Add task</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
                         </td>
                       </tr>
                     );
