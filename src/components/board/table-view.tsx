@@ -506,8 +506,8 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
       }
       const newTask = await res.json();
       toast.success('Task created');
+      if (newTask?.id) onTaskClick({ ...newTask, parent_id: newTask.parent_id || null } as Task & { project_name?: string; project_color?: string });
       onUpdate();
-      if (newTask?.id) onTaskClick({ ...newTask });
     } catch {
       toast.error('Failed to create task');
     } finally {
@@ -795,12 +795,12 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                     groupRows.push(
                       <tr key={`group-${group.key}`} className="border-b border-border/20 group/header">
                         <td colSpan={8 - hiddenColumns.length} className="py-2.5 px-5 bg-muted/20">
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-2">
                             <button
                               onClick={() => toggleGroupCollapse(group.key)}
                               aria-expanded={!groupCollapsed}
                               aria-label={`${groupCollapsed ? 'Expand' : 'Collapse'} ${group.label} group`}
-                              className="flex items-center gap-2 flex-1 text-left hover:opacity-80 transition-opacity"
+                              className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
                             >
                               <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${groupCollapsed ? '' : 'rotate-90'}`} />
                               <div className="flex items-center gap-2">
@@ -832,7 +832,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               onClick={(e) => { e.stopPropagation(); handleGroupAddTask(group); }}
                               disabled={creatingGroups.has(group.key)}
                               aria-label={`Add task to ${group.label}`}
-                              className="ml-1.5 h-5 w-5 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors duration-150 disabled:cursor-not-allowed"
+                              className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors duration-150 disabled:cursor-not-allowed"
                             >
                               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                             </button>
