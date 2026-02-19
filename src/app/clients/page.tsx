@@ -225,7 +225,7 @@ function ClientSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+      <SheetContent side="right" className="bg-card border-l border-border/20 p-0 overflow-y-auto [&>button]:hidden rounded-none md:rounded-tl-2xl md:rounded-bl-2xl !w-full md:!w-[var(--sheet-width)] md:!max-w-[600px] md:!top-3 md:!bottom-3 md:!h-auto flex flex-col">
         <SheetHeader className="px-6 py-5 border-b border-border/20">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-[15px]">

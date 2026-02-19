@@ -129,10 +129,27 @@ function ProspectSheet({
   const emptyLIForm: LineItemForm = { service: '', description: '', monthly_value: '', billing_type: 'recurring', start_date: '', end_date: '', is_active: true };
   const [liForm, setLiForm] = useState<LineItemForm>(emptyLIForm);
 
-  const fetchLineItems = useCallback(async (prospectId: string) => {
+  const fetchLineItems = useCallback(async (prospectId: string): Promise<LineItem[]> => {
     try {
       const res = await fetch(`/api/prospects/${prospectId}/line-items`);
-      if (res.ok) setLineItems(await res.json());
+      if (res.ok) {
+        const items: LineItem[] = await res.json();
+        setLineItems(items);
+        return items;
+      }
+    } catch { /* silent */ }
+    return [];
+  }, []);
+
+  const syncDealValue = useCallback(async (prospectId: string, items: LineItem[]) => {
+    const active = items.filter(i => i.is_active && (!i.end_date || new Date(i.end_date) >= new Date()));
+    const total = active.reduce((s, i) => s + (i.monthly_value || 0), 0);
+    try {
+      await fetch('/api/prospects', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: prospectId, value: total || null }),
+      });
     } catch { /* silent */ }
   }, []);
 
@@ -151,20 +168,23 @@ function ProspectSheet({
     } else {
       await fetch(`/api/prospects/${editProspect.id}/line-items`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     }
-    await fetchLineItems(editProspect.id);
+    const items = await fetchLineItems(editProspect.id);
+    await syncDealValue(editProspect.id, items);
     setLineItemDialogOpen(false);
   };
 
   const deleteLineItem = async (itemId: string) => {
     if (!editProspect) return;
     await fetch(`/api/prospect-line-items/${itemId}`, { method: 'DELETE' });
-    await fetchLineItems(editProspect.id);
+    const items = await fetchLineItems(editProspect.id);
+    await syncDealValue(editProspect.id, items);
   };
 
   const toggleLineItemActive = async (item: LineItem) => {
     if (!editProspect) return;
     await fetch(`/api/prospect-line-items/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ is_active: !item.is_active }) });
-    await fetchLineItems(editProspect.id);
+    const items = await fetchLineItems(editProspect.id);
+    await syncDealValue(editProspect.id, items);
   };
 
   const activeLineItems = lineItems.filter(i => i.is_active && (!i.end_date || new Date(i.end_date) >= new Date()));
@@ -208,7 +228,7 @@ function ProspectSheet({
         contact_name: form.contact_name.trim() || null,
         contact_email: form.contact_email.trim() || null,
         contact_phone: form.contact_phone.trim() || null,
-        value: form.value ? parseFloat(form.value) : null,
+        value: lineItemsTotal || null,
         service: form.service || null,
         source: form.source.trim() || null,
         stage: form.stage,
@@ -255,7 +275,7 @@ function ProspectSheet({
   return (
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0">
+      <SheetContent side="right" className="bg-card border-l border-border/20 p-0 overflow-y-auto [&>button]:hidden rounded-none md:rounded-tl-2xl md:rounded-bl-2xl !w-full md:!w-[var(--sheet-width)] md:!max-w-[600px] md:!top-3 md:!bottom-3 md:!h-auto flex flex-col">
         <SheetHeader className="px-6 py-5 border-b border-border/20">
           <SheetTitle className="text-[15px] truncate">
             {editProspect ? editProspect.name : 'New Prospect'}
@@ -414,22 +434,13 @@ function ProspectSheet({
               <Plus size={12} /> Add line item
             </button>
 
-            {/* Legacy single value for new prospects without line items */}
-            {!editProspect && (
-              <div className="space-y-1.5 pt-1">
-                <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Deal Value (£)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
-                  <Input
-                    type="number"
-                    value={form.value}
-                    onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
-                    placeholder="0"
-                    className="pl-7 text-[13px] h-9"
-                  />
-                </div>
-              </div>
-            )}
+            {/* Deal value — read-only, computed from active line items */}
+            <div className="flex items-center justify-between px-2.5 py-2 rounded-lg border border-border/20 bg-muted/10">
+              <span className="text-[12px] text-muted-foreground/60 uppercase tracking-wide font-medium">Deal value</span>
+              <span className="text-[13px] font-semibold text-foreground">
+                £{lineItemsTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
 
           {/* Source */}
