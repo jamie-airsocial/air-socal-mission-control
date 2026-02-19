@@ -828,21 +828,14 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               </div>
                               <span className="text-[11px] text-muted-foreground/60">({group.tasks.length} task{group.tasks.length !== 1 ? 's' : ''})</span>
                             </button>
-                            <TooltipProvider delayDuration={500}>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <button
-                                    onClick={(e) => { e.stopPropagation(); handleGroupAddTask(group); }}
-                                    disabled={creatingGroups.has(group.key)}
-                                    aria-label={`Add task to ${group.label}`}
-                                    className="opacity-0 group-hover/header:opacity-100 transition-opacity duration-150 h-6 w-6 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:cursor-not-allowed"
-                                  >
-                                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                                  </button>
-                                </TooltipTrigger>
-                                <TooltipContent side="top" className="text-[13px]">Add task</TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleGroupAddTask(group); }}
+                              disabled={creatingGroups.has(group.key)}
+                              aria-label={`Add task to ${group.label}`}
+                              className="ml-1.5 h-5 w-5 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors duration-150 disabled:cursor-not-allowed"
+                            >
+                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
                           </div>
                         </td>
                       </tr>
