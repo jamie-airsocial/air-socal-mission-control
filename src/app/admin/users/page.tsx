@@ -180,12 +180,14 @@ export default function AdminUsersPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<AppUser | null>(null);
   const [deactivateReassignTo, setDeactivateReassignTo] = useState('');
   const [deactivating, setDeactivating] = useState(false);
+  const [deactivateReassignOpen, setDeactivateReassignOpen] = useState(false);
 
   // Delete dialog (hard delete, mandatory reassignment)
   const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
   const [deleteReassignTo, setDeleteReassignTo] = useState('');
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [deleteReassignOpen, setDeleteReassignOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     const [usersRes, rolesRes, teamsRes] = await Promise.all([
@@ -631,16 +633,39 @@ export default function AdminUsersPage() {
             {deactivateTarget && otherActiveUsers(deactivateTarget.id).length > 0 && (
               <div className="px-1 pb-1 space-y-1.5">
                 <p className="text-[12px] text-muted-foreground/60">Optionally reassign their open tasks to:</p>
-                <select
-                  value={deactivateReassignTo}
-                  onChange={e => setDeactivateReassignTo(e.target.value)}
-                  className="w-full h-9 px-3 text-[13px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/50 transition-colors"
-                >
-                  <option value="">— Keep tasks assigned to them —</option>
-                  {otherActiveUsers(deactivateTarget.id).map(u => (
-                    <option key={u.id} value={u.full_name}>{u.full_name}</option>
-                  ))}
-                </select>
+                <Popover open={deactivateReassignOpen} onOpenChange={setDeactivateReassignOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                      <span className={deactivateReassignTo ? 'text-foreground' : 'text-muted-foreground/40'}>
+                        {deactivateReassignTo || '— Keep tasks assigned to them —'}
+                      </span>
+                      <ChevronDown size={14} className="text-muted-foreground/60" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-1" align="start">
+                    <button
+                      onClick={() => { setDeactivateReassignTo(''); setDeactivateReassignOpen(false); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                        !deactivateReassignTo ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                      }`}
+                    >
+                      <span>— Keep tasks assigned to them —</span>
+                      {!deactivateReassignTo && <Check size={12} />}
+                    </button>
+                    {otherActiveUsers(deactivateTarget.id).map(u => (
+                      <button
+                        key={u.id}
+                        onClick={() => { setDeactivateReassignTo(u.full_name); setDeactivateReassignOpen(false); }}
+                        className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                          deactivateReassignTo === u.full_name ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                        }`}
+                      >
+                        <span>{u.full_name}</span>
+                        {deactivateReassignTo === u.full_name && <Check size={12} />}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
 
@@ -683,18 +708,32 @@ export default function AdminUsersPage() {
                   Reassign all tasks to: <span className="text-destructive">*</span>
                 </p>
                 {deleteTarget && otherActiveUsers(deleteTarget.id).length > 0 ? (
-                  <select
-                    value={deleteReassignTo}
-                    onChange={e => setDeleteReassignTo(e.target.value)}
-                    className={`w-full h-9 px-3 text-[13px] bg-secondary border rounded-md outline-none transition-colors ${
-                      deleteReassignTo ? 'border-border/20 focus:border-primary/50' : 'border-destructive/40 focus:border-destructive/60'
-                    }`}
-                  >
-                    <option value="">— Select a team member —</option>
-                    {otherActiveUsers(deleteTarget.id).map(u => (
-                      <option key={u.id} value={u.full_name}>{u.full_name}</option>
-                    ))}
-                  </select>
+                  <Popover open={deleteReassignOpen} onOpenChange={setDeleteReassignOpen}>
+                    <PopoverTrigger asChild>
+                      <button className={`w-full h-9 px-3 text-[13px] rounded-md bg-secondary flex items-center justify-between transition-colors border ${
+                        deleteReassignTo ? 'border-border/20 hover:border-border/40' : 'border-destructive/40 hover:border-destructive/60'
+                      }`}>
+                        <span className={deleteReassignTo ? 'text-foreground' : 'text-muted-foreground/40'}>
+                          {deleteReassignTo || '— Select a team member —'}
+                        </span>
+                        <ChevronDown size={14} className="text-muted-foreground/60" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-1" align="start">
+                      {otherActiveUsers(deleteTarget.id).map(u => (
+                        <button
+                          key={u.id}
+                          onClick={() => { setDeleteReassignTo(u.full_name); setDeleteReassignOpen(false); }}
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                            deleteReassignTo === u.full_name ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                          }`}
+                        >
+                          <span>{u.full_name}</span>
+                          {deleteReassignTo === u.full_name && <Check size={12} />}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
                 ) : (
                   <p className="text-[12px] text-destructive/60 italic">No other active users to reassign to. Add another user first.</p>
                 )}

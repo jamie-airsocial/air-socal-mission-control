@@ -15,6 +15,19 @@ export const PRIORITY_STYLES: Record<string, { bg: string; text: string; label: 
   P4: { bg: 'bg-status-success/15', text: 'text-status-success', label: 'Low', border: 'border-status-success/20' },
 };
 
+/** Client status styling — uses semantic colour variables for theme compatibility */
+export const CLIENT_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  active: { bg: 'bg-status-success/10', text: 'text-status-success', label: 'Active' },
+  paused: { bg: 'bg-status-warning/10', text: 'text-status-warning', label: 'Paused' },
+  churned: { bg: 'bg-destructive/10', text: 'text-destructive', label: 'Churned' },
+};
+
+/** Billing type styling — recurring uses success, one-off uses warning */
+export const BILLING_TYPE_STYLES: Record<'recurring' | 'one-off', { bg: string; text: string }> = {
+  recurring: { bg: 'bg-status-success/10', text: 'text-status-success' },
+  'one-off': { bg: 'bg-status-warning/10', text: 'text-status-warning' },
+};
+
 export const PRIORITY_BADGE: Record<string, { label: string; className: string }> = {
   P1: { label: 'CRITICAL', className: 'bg-destructive/20 text-destructive border-destructive/20' },
   P2: { label: 'HIGH', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle } from '@/lib/constants';
+import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES } from '@/lib/constants';
 import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
@@ -294,11 +294,9 @@ function ClientSheet({
             <Popover open={statusOpen} onOpenChange={setStatusOpen}>
               <PopoverTrigger asChild>
                 <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
-                  <span className={
-                    form.status === 'active' ? 'text-emerald-400' :
-                    form.status === 'paused' ? 'text-amber-400' :
-                    'text-red-400'
-                  }>{STATUS_OPTIONS.find(s => s.value === form.status)?.label || 'Select status…'}</span>
+                  <span className={CLIENT_STATUS_STYLES[form.status]?.text || 'text-muted-foreground'}>
+                    {STATUS_OPTIONS.find(s => s.value === form.status)?.label || 'Select status…'}
+                  </span>
                   <ChevronDown size={14} className="text-muted-foreground/60" />
                 </button>
               </PopoverTrigger>
@@ -309,11 +307,7 @@ function ClientSheet({
                     onClick={() => { setForm(f => ({ ...f, status: s.value })); setStatusOpen(false); }}
                     className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.status === s.value ? 'bg-muted/40' : ''}`}
                   >
-                    <span className={
-                      s.value === 'active' ? 'text-emerald-400' :
-                      s.value === 'paused' ? 'text-amber-400' :
-                      'text-red-400'
-                    }>{s.label}</span>
+                    <span className={CLIENT_STATUS_STYLES[s.value]?.text || 'text-muted-foreground'}>{s.label}</span>
                     {form.status === s.value && <Check size={14} className="text-primary" />}
                   </button>
                 ))}
@@ -550,13 +544,7 @@ export default function ClientsPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${
-                      client.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
-                      client.status === 'paused' ? 'bg-amber-500/10 text-amber-400' :
-                      'bg-red-500/10 text-red-400'
-                    }`}
-                  >
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>
                     {client.status}
                   </span>
                 </div>

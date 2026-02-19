@@ -119,6 +119,7 @@ function ProspectSheet({
   const [serviceOpen, setServiceOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [lostReasonOpen, setLostReasonOpen] = useState(false);
 
   // Line items
   interface LineItem { id: string; service: string; description: string | null; monthly_value: number; billing_type: 'recurring' | 'one-off'; start_date: string | null; end_date: string | null; is_active: boolean; }
@@ -305,18 +306,32 @@ function ProspectSheet({
 
           {/* Lost reason — editable */}
           {form.stage === 'lost' && (
-            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/10 space-y-2">
-              <span className="text-[11px] font-medium text-red-400 uppercase tracking-wider">Lost Reason</span>
-              <select
-                value={form.lost_reason || ''}
-                onChange={e => setForm(f => ({ ...f, lost_reason: e.target.value || null }))}
-                className="w-full h-8 px-2 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none"
-              >
-                <option value="">No reason selected</option>
-                {LOSS_REASONS.map(r => (
-                  <option key={r.id} value={r.id}>{r.label}</option>
-                ))}
-              </select>
+            <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10 space-y-2">
+              <span className="text-[11px] font-medium text-destructive uppercase tracking-wider">Lost Reason</span>
+              <Popover open={lostReasonOpen} onOpenChange={setLostReasonOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-8 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                    <span className={form.lost_reason ? 'text-foreground' : 'text-muted-foreground/40'}>
+                      {LOSS_REASONS.find(r => r.id === form.lost_reason)?.label || 'No reason selected'}
+                    </span>
+                    <ChevronDown size={14} className="text-muted-foreground/60" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-1" align="start">
+                  {LOSS_REASONS.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => { setForm(f => ({ ...f, lost_reason: r.id })); setLostReasonOpen(false); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] transition-colors duration-150 ${
+                        form.lost_reason === r.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
+                      }`}
+                    >
+                      <span>{r.label}</span>
+                      {form.lost_reason === r.id && <Check size={12} />}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
               {form.lost_reason === 'other' && (
                 <Input
                   value={form.lost_reason_custom || ''}

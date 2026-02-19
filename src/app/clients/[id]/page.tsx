@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
+import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName, CLIENT_STATUS_STYLES, BILLING_TYPE_STYLES } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2, User, Phone, Globe, MapPin, Mail, ChevronRight, ChevronDown, Search, Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -166,8 +166,8 @@ function EditableField({
               placeholder="DD/MM/YYYY"
               className="flex-1"
             />
-            <button onClick={save} className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400"><Check size={12} /></button>
-            <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground"><X size={12} /></button>
+            <button onClick={save} className="p-1 rounded hover:bg-status-success/10 text-status-success transition-colors duration-150"><Check size={12} /></button>
+            <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground transition-colors duration-150"><X size={12} /></button>
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
@@ -176,8 +176,8 @@ function EditableField({
               placeholder={placeholder}
               className="flex-1 h-7 px-2 text-[13px] bg-secondary border border-border/30 rounded outline-none focus:border-primary/50 transition-colors"
             />
-            <button onClick={save} className="p-1 rounded hover:bg-emerald-500/10 text-emerald-400"><Check size={12} /></button>
-            <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground"><X size={12} /></button>
+            <button onClick={save} className="p-1 rounded hover:bg-status-success/10 text-status-success transition-colors duration-150"><Check size={12} /></button>
+            <button onClick={cancel} className="p-1 rounded hover:bg-muted/60 text-muted-foreground transition-colors duration-150"><X size={12} /></button>
           </div>
         )
       ) : (
@@ -671,11 +671,7 @@ export default function ClientDetailPage() {
                 </div>
               )}
               <span className="text-muted-foreground/30">·</span>
-              <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                client.status === 'active' ? 'bg-emerald-500/10 text-emerald-400' :
-                client.status === 'paused' ? 'bg-amber-500/10 text-amber-400' :
-                'bg-red-500/10 text-red-400'
-              }`}>
+              <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>
                 {client.status}
               </span>
               <span className="text-muted-foreground/30">·</span>
@@ -763,9 +759,7 @@ export default function ClientDetailPage() {
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground/60 mb-1">Status</p>
-                <p className={`text-[13px] font-medium ${
-                  client.status === 'active' ? 'text-emerald-400' : client.status === 'paused' ? 'text-amber-400' : 'text-red-400'
-                }`}>{client.status}</p>
+                <p className={`text-[13px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{client.status}</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground/60 mb-1">Monthly Retainer</p>
@@ -915,7 +909,7 @@ export default function ClientDetailPage() {
             <div>
               <h2 className="text-[13px] font-semibold">Billing</h2>
               <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                Monthly recurring: <span className="text-emerald-400 font-semibold">£{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                Monthly recurring: <span className="text-status-success font-semibold">£{totalMonthlyValue.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </p>
             </div>
             <Button
@@ -955,13 +949,11 @@ export default function ClientDetailPage() {
                       <TableCell className="text-[13px] font-medium">{SERVICE_STYLES[item.service]?.label || item.service}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
                       <TableCell>
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          item.billing_type === 'one-off' ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'
-                        }`}>
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${BILLING_TYPE_STYLES[item.billing_type]?.bg || 'bg-muted/20'} ${BILLING_TYPE_STYLES[item.billing_type]?.text || 'text-muted-foreground'}`}>
                           {item.billing_type === 'one-off' ? 'One-off' : 'Recurring'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-[13px] font-semibold text-emerald-400">
+                      <TableCell className="text-[13px] font-semibold text-status-success">
                         £{(item.monthly_value || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {item.billing_type === 'recurring' && <span className="text-[10px] text-muted-foreground/60 font-normal">/mo</span>}
                       </TableCell>
@@ -1029,7 +1021,7 @@ export default function ClientDetailPage() {
                       {recurringTotal > 0 && (
                         <div className="text-right">
                           <p className="text-[11px] text-muted-foreground/60">Monthly recurring</p>
-                          <p className="text-lg font-bold text-emerald-400">
+                          <p className="text-lg font-bold text-status-success">
                             £{recurringTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                           <p className="text-[11px] text-muted-foreground/40">
@@ -1040,7 +1032,7 @@ export default function ClientDetailPage() {
                       {oneOffTotal > 0 && (
                         <div className="text-right">
                           <p className="text-[11px] text-muted-foreground/60">Project work</p>
-                          <p className="text-lg font-bold text-amber-400">
+                          <p className="text-lg font-bold text-status-warning">
                             £{oneOffTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
                         </div>
