@@ -76,6 +76,7 @@ export function NotificationBell() {
       <PopoverTrigger asChild>
         <button
           aria-label="Notifications"
+          title="Notifications"
           className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
         >
           <Bell size={16} />
