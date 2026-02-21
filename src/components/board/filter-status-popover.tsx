@@ -49,7 +49,7 @@ export function FilterStatusPopover({
 
   const isActive = value.length > 0;
   const displayText = value.length === 0 
-    ? 'All statuses' 
+    ? 'Status' 
     : value.length === 1 
       ? STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.label || value[0]
       : `${value.length} statuses`;

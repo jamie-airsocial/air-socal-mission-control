@@ -53,7 +53,7 @@ export function FilterAssigneePopover({
   };
 
   const displayText = value.length === 0
-    ? 'Everyone'
+    ? 'Assignee'
     : value.length === 1
       ? getDisplayName(value[0])
       : `${value.length} assignees`;

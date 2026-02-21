@@ -45,7 +45,7 @@ export function FilterProjectPopover({
 
   const isActive = value.length > 0;
   const displayText = value.length === 0 
-    ? 'All clients' 
+    ? 'Client' 
     : value.length === 1 
       ? projects.find(p => p.id === value[0])?.name || 'Project'
       : `${value.length} projects`;

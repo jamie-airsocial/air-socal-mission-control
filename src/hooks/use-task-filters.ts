@@ -183,7 +183,7 @@ export function useTaskFilters(
   const customDateTo = customRange?.to;
 
   const dateFilterLabels: Record<string, string> = useMemo(() => ({
-    all: 'All dates',
+    all: 'All time',
     today: 'Today',
     tomorrow: 'Tomorrow',
     next7: 'Next 7 days',

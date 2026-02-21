@@ -92,7 +92,7 @@ export function FilterLabelPopover({
 
   const isActive = value.length > 0;
   const displayText = value.length === 0
-    ? 'All labels'
+    ? 'Label'
     : value.length === 1
       ? value[0]
       : `${value.length} labels`;

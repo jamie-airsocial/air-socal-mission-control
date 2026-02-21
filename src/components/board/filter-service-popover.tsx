@@ -19,7 +19,7 @@ export function FilterServicePopover({
   const active = value.length > 0;
 
   const label = !active
-    ? 'All services'
+    ? 'Service'
     : value.length === 1
     ? SERVICE_STYLES[value[0]]?.label || value[0]
     : `${value.length} services`;

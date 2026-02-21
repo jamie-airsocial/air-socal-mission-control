@@ -44,7 +44,7 @@ export function FilterPriorityPopover({
 
   const isActive = value.length > 0;
   const displayText = value.length === 0 
-    ? 'All priorities' 
+    ? 'Priority' 
     : value.length === 1 
       ? `${value[0]} · ${PRIORITY_STYLES[value[0]]?.label || value[0]}`
       : `${value.length} priorities`;
