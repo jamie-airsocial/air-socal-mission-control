@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -15,6 +14,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
+import { useSidebar } from '@/contexts/sidebar-context';
 import { ASSIGNEE_COLORS } from '@/lib/constants';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -28,7 +28,7 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, toggleCollapsed } = useSidebar();
   const { appUser, permissions, roleName, signOut } = useAuth();
 
   const isAdmin = roleName === 'Admin';
@@ -46,7 +46,7 @@ export function Sidebar() {
             <h1 className="text-[15px] font-semibold text-foreground">Air Social</h1>
           )}
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={toggleCollapsed}
             className="ml-auto p-1.5 rounded-md hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
