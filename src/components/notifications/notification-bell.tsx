@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Bell, BellOff } from 'lucide-react';
+import { Bell, Check, Settings, Sparkles } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -24,19 +24,32 @@ export function NotificationBell() {
       <PopoverContent align="end" className="w-80 p-0">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
-          <h3 className="text-[13px] font-semibold">Notifications</h3>
-          <button
-            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors duration-150"
-            disabled
-          >
-            Mark all read
-          </button>
+          <div>
+            <h3 className="text-[13px] font-semibold">Notifications</h3>
+            <p className="text-[11px] text-muted-foreground/60">All caught up</p>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors duration-150"
+              disabled
+            >
+              <Check size={12} />
+              Mark all read
+            </button>
+            <button
+              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-muted/40 transition-colors duration-150"
+              aria-label="Notification settings"
+            >
+              <Settings size={14} />
+            </button>
+          </div>
         </div>
 
         {/* Empty state */}
         <div className="flex flex-col items-center justify-center py-12 px-4">
-          <BellOff size={32} className="text-muted-foreground/40 mb-3" />
-          <p className="text-[13px] text-muted-foreground">No notifications</p>
+          <Sparkles size={32} className="text-muted-foreground/30 mb-3" />
+          <p className="text-[13px] font-medium text-muted-foreground">All caught up!</p>
+          <p className="text-[11px] text-muted-foreground/60 mt-0.5">No notifications to show. Enjoy the peace.</p>
         </div>
       </PopoverContent>
     </Popover>
