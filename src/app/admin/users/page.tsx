@@ -108,6 +108,8 @@ function TeamSelect({ value, onChange, teams }: { value: string; onChange: (v: s
 function RoleSelect({ value, onChange, roles }: { value: string; onChange: (v: string) => void; roles: Role[] }) {
   const [open, setOpen] = useState(false);
   const selected = roles.find(r => r.id === value);
+  // Hide Admin role from selection
+  const selectableRoles = roles.filter(r => r.name !== 'Admin');
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -119,7 +121,7 @@ function RoleSelect({ value, onChange, roles }: { value: string; onChange: (v: s
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-1" align="start">
-        {roles.map(r => (
+        {selectableRoles.map(r => (
           <button key={r.id} onClick={() => { onChange(r.id); setOpen(false); }}
             className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${value === r.id ? 'bg-muted/40' : ''}`}>
             <span>{r.name}</span>
@@ -376,13 +378,13 @@ export default function AdminUsersPage() {
 
         {/* Filter bar */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
-            <Input
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search by name or email…"
-              className="h-8 pl-8 text-[13px] bg-secondary border-border/20"
+              placeholder="Search by name or email..."
+              className="h-8 w-full sm:w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors duration-150 placeholder:text-muted-foreground/60"
             />
           </div>
           <FilterPopover
@@ -393,7 +395,7 @@ export default function AdminUsersPage() {
           />
           <FilterPopover
             label="Role"
-            options={roles.map(r => ({ value: r.id, label: r.name }))}
+            options={roles.filter(r => r.name !== 'Admin').map(r => ({ value: r.id, label: r.name }))}
             selected={filterRoles}
             onSelectionChange={setFilterRoles}
             width="w-52"

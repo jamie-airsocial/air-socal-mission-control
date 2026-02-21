@@ -38,8 +38,8 @@ const PERMISSION_GROUPS: { group: string; items: { key: keyof Permissions; label
   {
     group: 'Core Pages',
     items: [
-      { key: 'clients',   label: 'Clients',   desc: 'View client list and details' },
       { key: 'tasks',     label: 'Tasks',     desc: 'View and manage tasks' },
+      { key: 'clients',   label: 'Clients',   desc: 'View client list and details' },
       { key: 'pipeline',  label: 'Pipeline',  desc: 'View and manage the pipeline' },
       { key: 'teams',     label: 'Teams',     desc: 'View team members and structure' },
     ],
@@ -47,13 +47,13 @@ const PERMISSION_GROUPS: { group: string; items: { key: keyof Permissions; label
   {
     group: 'Finance',
     items: [
-      { key: 'xero', label: 'Xero / Billing', desc: 'Access revenue and billing data' },
+      { key: 'xero', label: 'Xero', desc: 'Access revenue and billing data' },
     ],
   },
   {
     group: 'Administration',
     items: [
-      { key: 'settings', label: 'Admin Settings', desc: 'Manage users, roles, and system settings' },
+      { key: 'settings', label: 'Settings', desc: 'Manage users, roles, and system settings' },
     ],
   },
 ];
@@ -281,10 +281,8 @@ export default function AdminRolesPage() {
     );
   }
 
-  const nonAdminRoles = roles.filter(r => r.name !== ADMIN_ROLE_NAME);
-  const adminRole = roles.find(r => r.name === ADMIN_ROLE_NAME);
-  // Display order: Admin first, then others
-  const displayRoles = [...(adminRole ? [adminRole] : []), ...nonAdminRoles];
+  // Hide Admin role from the permissions matrix
+  const displayRoles = roles.filter(r => r.name !== ADMIN_ROLE_NAME);
 
   return (
     <div className="space-y-4">

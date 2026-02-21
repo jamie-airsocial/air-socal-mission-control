@@ -24,7 +24,7 @@ export interface Role {
 
 export interface Permissions {
   // Page access
-  dashboard: boolean;
+  dashboard?: boolean;
   tasks: boolean;
   clients: boolean;
   pipeline: boolean;

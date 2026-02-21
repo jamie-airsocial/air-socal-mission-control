@@ -20,6 +20,15 @@ interface FilterPopoverProps {
   width?: string;
 }
 
+/** Simple pluralisation helper */
+const pluralise = (word: string, count: number): string => {
+  if (count <= 1) return word.toLowerCase();
+  const lower = word.toLowerCase();
+  if (lower.endsWith('y') && !['key'].includes(lower)) return lower.slice(0, -1) + 'ies';
+  if (lower.endsWith('s') || lower.endsWith('x') || lower.endsWith('ch') || lower.endsWith('sh')) return lower + 'es';
+  return lower + 's';
+};
+
 export function FilterPopover({
   label,
   options,
@@ -58,7 +67,7 @@ export function FilterPopover({
     ? label
     : selected.length === 1
       ? options.find(o => o.value === selected[0])?.label || label
-      : `${selected.length} ${label.toLowerCase()}`;
+      : `${selected.length} ${pluralise(label, selected.length)}`;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>

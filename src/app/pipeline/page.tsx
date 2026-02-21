@@ -885,7 +885,7 @@ export default function PipelinePage() {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search..."
-            className="h-8 w-full sm:w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors duration-150 placeholder:text-muted-foreground/60"
+            className="h-8 w-full sm:w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors duration-150 placeholder:text-muted-foreground/60"
           />
         </div>
 
@@ -1195,7 +1195,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search..."
-            className="h-8 w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground/60"
+            className="h-8 w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors duration-150 placeholder:text-muted-foreground/60"
           />
         </div>
         <FilterPopover label="Stage" options={stageOptions} selected={filterStage} onSelectionChange={setFilterStage} />

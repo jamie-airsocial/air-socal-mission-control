@@ -11,6 +11,7 @@ interface AuthContextValue {
   appUser: AppUser | null;
   permissions: Permissions;
   roleName: string | null;
+  isAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -20,15 +21,19 @@ const AuthContext = createContext<AuthContextValue>({
   appUser: null,
   permissions: DEFAULT_PERMISSIONS,
   roleName: null,
+  isAdmin: false,
   loading: true,
   signOut: async () => {},
 });
+
+const ADMIN_USER_IDS = ['83983bb2-3d05-4be3-97f3-fdac36929560']; // Jamie
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [permissions, setPermissions] = useState<Permissions>(DEFAULT_PERMISSIONS);
   const [roleName, setRoleName] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -46,9 +51,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (data) {
       setAppUser(data);
+      
+      // Check if user is admin via role name OR hardcoded ID list
+      const userIsAdmin = data.role?.name === 'Admin' || ADMIN_USER_IDS.includes(data.id);
+      setIsAdmin(userIsAdmin);
+      
       if (data.role?.permissions) {
         // Admin always has full access — override all permissions to true
-        if (data.role.name === 'Admin') {
+        if (userIsAdmin) {
           const fullPerms: Permissions = {
             dashboard: true, tasks: true, clients: true, pipeline: true,
             teams: true, xero: true, settings: true,
@@ -107,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAppUser(null);
         setPermissions(DEFAULT_PERMISSIONS);
         setRoleName(null);
+        setIsAdmin(false);
         stopHeartbeat();
       }
     });
@@ -134,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, appUser, permissions, roleName, loading, signOut }}>
+    <AuthContext.Provider value={{ user, appUser, permissions, roleName, isAdmin, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
