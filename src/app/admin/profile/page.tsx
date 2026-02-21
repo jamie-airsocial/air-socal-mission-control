@@ -41,9 +41,7 @@ function resizeImage(file: File): Promise<string> {
 
 export default function ProfilePage() {
   const { appUser, roleName } = useAuth();
-  const [fullName, setFullName] = useState(appUser?.full_name || '');
   const [avatarUrl, setAvatarUrl] = useState(appUser?.avatar_url || null);
-  const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   
   // Password change
@@ -111,38 +109,6 @@ export default function ProfilePage() {
       });
     } finally {
       setUploadingAvatar(false);
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    if (!fullName.trim()) {
-      toast.error('Name cannot be empty');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const res = await fetch(`/api/users/${appUser?.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ full_name: fullName }),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || 'Failed to update profile');
-      }
-
-      toast.success('Profile updated');
-      
-      // Reload page to update auth context
-      setTimeout(() => window.location.reload(), 500);
-    } catch (err) {
-      toast.error('Failed to update profile', {
-        description: err instanceof Error ? err.message : 'Something went wrong',
-      });
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -233,18 +199,15 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Full Name */}
+        {/* Full Name (read-only) */}
         <div className="space-y-1.5">
           <Label className="text-[13px] text-muted-foreground flex items-center gap-1.5">
             <User size={12} />
             Full name
           </Label>
-          <Input
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
-            placeholder="Your name"
-            className="h-9 text-[13px] bg-secondary border-border/20"
-          />
+          <div className="h-9 px-3 rounded-md border border-border/20 bg-muted/30 flex items-center">
+            <span className="text-[13px] font-medium text-foreground">{appUser.full_name}</span>
+          </div>
         </div>
 
         {/* Email (read-only) */}
@@ -289,11 +252,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="pt-2">
-          <Button onClick={handleSaveProfile} disabled={saving || fullName === appUser.full_name} className="h-8 text-[13px]">
-            {saving ? 'Saving...' : 'Save changes'}
-          </Button>
-        </div>
       </div>
 
       {/* Security Section */}
