@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, LayoutDashboard, Columns3, CalendarDays, Users, Settings as SettingsIcon } from 'lucide-react';
+import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, Users, ListChecks, TrendingUp, UsersRound, Receipt } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { NotificationBell } from '@/components/notifications/notification-bell';
+import { useAuth } from '@/contexts/auth-context';
 
 type Client = {
   id: string;
@@ -50,7 +51,17 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const MAX_RESULTS_PER_SECTION = 5;
 const MAX_HISTORY_ITEMS = 5;
 
+const NAV_ITEMS = [
+  { href: '/clients', label: 'Clients', icon: Users, permKey: 'clients' },
+  { href: '/tasks', label: 'Tasks', icon: ListChecks, permKey: 'tasks' },
+  { href: '/pipeline', label: 'Pipeline', icon: TrendingUp, permKey: 'pipeline' },
+  { href: '/teams', label: 'Teams', icon: UsersRound, permKey: 'teams' },
+  { href: '/xero', label: 'Xero', icon: Receipt, permKey: 'xero' },
+];
+
 export function TopBar() {
+  const { permissions, roleName } = useAuth();
+  const isAdmin = roleName === 'Admin';
   const [dark, setDark] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -171,11 +182,10 @@ export function TopBar() {
 
   // Navigate items
   const navigateItems: NavigateItem[] = [
-    { id: 'dashboard', label: 'Dashboard', href: '/' },
-    { id: 'board', label: 'Board', href: '/board' },
-    { id: 'calendar', label: 'Calendar', href: '/calendar' },
-    { id: 'clients', label: 'Clients', href: '/clients' },
-    { id: 'admin', label: 'Admin', href: '/admin' },
+    ...NAV_ITEMS
+      .filter(item => permissions[item.permKey as keyof typeof permissions] !== false)
+      .map(item => ({ id: item.permKey, label: item.label, href: item.href })),
+    ...(isAdmin ? [{ id: 'admin', label: 'Admin', href: '/admin' }] : []),
   ];
 
   // Filter results - only clients, tasks, and recent searches
@@ -452,13 +462,8 @@ export function TopBar() {
                     </div>
                     {filteredNavigate.map((navItem, idx) => {
                       const globalIdx = filteredActions.length + idx;
-                      const Icon = 
-                        navItem.id === 'dashboard' ? LayoutDashboard :
-                        navItem.id === 'board' ? Columns3 :
-                        navItem.id === 'calendar' ? CalendarDays :
-                        navItem.id === 'clients' ? Users :
-                        navItem.id === 'admin' ? SettingsIcon :
-                        LayoutDashboard;
+                      const navDef = NAV_ITEMS.find(n => n.permKey === navItem.id);
+                      const Icon = navDef?.icon || (navItem.id === 'admin' ? Settings : Users);
                       return (
                         <button
                           key={navItem.id}
