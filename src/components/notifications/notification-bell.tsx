@@ -7,6 +7,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 type NotificationType = 'task_assigned' | 'task_completed' | 'comment' | 'mention' | 'system';
 
@@ -73,15 +74,19 @@ export function NotificationBell() {
 
   return (
     <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setShowPreferences(false); }}>
-      <PopoverTrigger asChild>
-        <button
-          aria-label="Notifications"
-          title="Notifications"
-          className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
-        >
-          <Bell size={16} />
-        </button>
-      </PopoverTrigger>
+      <Tooltip open={open ? false : undefined}>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <button
+              aria-label="Notifications"
+              className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+            >
+              <Bell size={16} />
+            </button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-[12px]">Notifications</TooltipContent>
+      </Tooltip>
       <PopoverContent align="end" className="w-80 p-0">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">

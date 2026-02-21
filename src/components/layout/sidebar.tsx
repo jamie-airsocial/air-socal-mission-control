@@ -140,17 +140,16 @@ export function Sidebar() {
         </div>
 
         {/* User area at bottom */}
-        <div className="p-2 border-t border-border/20 shrink-0">
+        <div className={`border-t border-border/20 py-3 ${collapsed ? 'px-2' : 'px-4'}`}>
           {appUser && (
-            <div className={`flex items-center gap-2.5 px-2 py-2 rounded-md ${collapsed ? 'justify-center' : ''}`}>
-              {/* Avatar */}
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0 ${ASSIGNEE_COLORS[appUser.full_name] || 'bg-primary/20 text-primary'}`}>
+            <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/20 shrink-0">
                 {appUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </div>
               {!collapsed && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-medium text-foreground truncate">{appUser.full_name}</p>
-                  <p className="text-[11px] text-muted-foreground/60 truncate">{roleName || 'Team Member'}</p>
+                <div className="min-w-0">
+                  <p className="text-[13px] font-medium text-foreground truncate">{appUser.full_name}</p>
+                  <p className="text-[10px] text-muted-foreground">{roleName || 'Team Member'}</p>
                 </div>
               )}
             </div>
