@@ -419,6 +419,7 @@ export default function ClientDetailPage() {
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [view, setView] = useState<'service' | 'month'>('service');
   const [taskSearch, setTaskSearch] = useState('');
   const [taskGroupBy, setTaskGroupBy] = useState<'none' | 'service' | 'status' | 'priority' | 'assignee' | 'month'>('service');
@@ -462,11 +463,18 @@ export default function ClientDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [clientRes, tasksRes, projectsRes] = await Promise.all([
+      const [clientRes, tasksRes, projectsRes, usersRes] = await Promise.all([
         fetch(`/api/clients/${clientId}`),
         fetch(`/api/tasks`),
         fetch('/api/clients'),
+        fetch('/api/users'),
       ]);
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        const map: Record<string, string> = {};
+        for (const u of usersData) map[u.id] = u.full_name || u.email;
+        setUserMap(map);
+      }
       if (clientRes.ok) {
         const data = await clientRes.json();
         if (Array.isArray(data)) {
@@ -779,7 +787,7 @@ export default function ClientDetailPage() {
               {(client.assigned_members || []).length > 0 && (
                 <div>
                   <p className="text-[11px] text-muted-foreground/60 mb-1">Assigned Members</p>
-                  <p className="text-[13px]">{client.assigned_members.map(m => toDisplayName(m)).join(', ')}</p>
+                  <p className="text-[13px]">{client.assigned_members.map(m => userMap[m] || m).join(', ')}</p>
                 </div>
               )}
             </div>
