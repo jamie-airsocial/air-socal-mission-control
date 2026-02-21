@@ -578,31 +578,31 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
 
       if (groupBy === 'project') {
         key = task.project_id || 'no-project';
-        label = task.project_name || 'No Project';
+        label = task.project_name || 'No client';
         if (task.project_color) metadata.color = task.project_color;
       } else if (groupBy === 'assignee') {
         key = task.assignee || 'no-assignee';
-        label = task.assignee ? toDisplayName(task.assignee) : 'No Assignee';
+        label = task.assignee ? toDisplayName(task.assignee) : 'Unassigned';
         if (task.assignee) metadata.avatar = getInitials(task.assignee);
       } else if (groupBy === 'status') {
         key = task.status || 'no-status';
         const style = STATUS_STYLES[task.status];
-        label = style?.label || task.status || 'No Status';
+        label = style?.label || task.status || 'No status';
         if (style) metadata.dot = style.dot;
       } else if (groupBy === 'priority') {
         const normalised = task.priority ? normalisePriority(task.priority) : '';
         key = normalised || 'no-priority';
         const pStyle = normalised ? PRIORITY_STYLES[normalised] : null;
-        label = pStyle ? `${normalised} · ${pStyle.label}` : 'No Priority';
+        label = pStyle ? `${normalised} · ${pStyle.label}` : 'No priority';
         if (pStyle) metadata.badge = normalised;
       } else if (groupBy === 'service') {
         key = task.service || 'no-service';
         const sStyle = task.service ? SERVICE_STYLES[task.service] : null;
-        label = sStyle ? sStyle.label : 'No Service';
+        label = sStyle ? sStyle.label : 'No service';
       } else if (groupBy === 'team') {
         key = task.client_team || 'no-team';
         const tStyle = task.client_team ? getTeamStyle(task.client_team) : null;
-        label = tStyle ? tStyle.label : 'No Team';
+        label = tStyle ? tStyle.label : 'No team';
         if (tStyle) metadata.dot = tStyle.color;
       } else if (groupBy === 'month') {
         if (task.due_date) {
@@ -611,7 +611,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
           label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
         } else {
           key = 'no-date';
-          label = 'No Due Date';
+          label = 'No date';
         }
       }
 

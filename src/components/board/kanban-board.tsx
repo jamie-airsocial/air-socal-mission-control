@@ -146,7 +146,7 @@ export function KanbanBoard({
       }));
       // Only show "No Priority" column if at least one task has no priority
       if (tasks.some((t) => !t.priority)) {
-        cols.push({ id: 'no-priority', label: 'No Priority', dotClass: 'bg-muted-foreground/40' });
+        cols.unshift({ id: 'no-priority', label: 'No priority', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
@@ -159,7 +159,7 @@ export function KanbanBoard({
       }));
       // Only show "No Client" column if at least one task has no project
       if (tasks.some((t) => !t.project_id)) {
-        cols.push({ id: 'no-client', label: 'No Client', dotClass: 'bg-muted-foreground/40' });
+        cols.unshift({ id: 'no-client', label: 'No client', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
@@ -184,7 +184,7 @@ export function KanbanBoard({
         dotClass: ASSIGNEE_DOT_CLASSES[slug] || 'bg-muted-foreground',
       }));
       if (tasks.some((t) => !t.assignee)) {
-        cols.push({ id: 'unassigned', label: 'Unassigned', dotClass: 'bg-muted-foreground/40' });
+        cols.unshift({ id: 'unassigned', label: 'Unassigned', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
@@ -196,7 +196,7 @@ export function KanbanBoard({
         dotClass: '',
       }));
       if (tasks.some((t) => !t.service)) {
-        cols.push({ id: 'no-service', label: 'No Service', dotClass: 'bg-muted-foreground/40' });
+        cols.unshift({ id: 'no-service', label: 'No service', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
@@ -208,7 +208,7 @@ export function KanbanBoard({
         dotColor: style.color,
       }));
       if (tasks.some((t) => !t.client_team)) {
-        cols.push({ id: 'no-team', label: 'No Team', dotClass: 'bg-muted-foreground/40' });
+        cols.unshift({ id: 'no-team', label: 'No team', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
@@ -220,7 +220,7 @@ export function KanbanBoard({
       dotClass: STATUS_DOT_CLASSES[status],
     }));
     if (tasks.some((t) => !t.status)) {
-      cols.push({ id: 'no-status', label: 'No Status', dotClass: 'bg-muted-foreground/40' });
+      cols.unshift({ id: 'no-status', label: 'No status', dotClass: 'bg-muted-foreground/40' });
     }
     return cols;
   }, [groupBy, projects, tasks]);
