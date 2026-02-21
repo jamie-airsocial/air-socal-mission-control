@@ -10,6 +10,11 @@ import { TaskSheet } from '@/components/board/task-sheet';
 import { Button } from '@/components/ui/button';
 import { FilterLabelPopover } from '@/components/board/filter-label-popover';
 import { FilterPopover } from '@/components/ui/filter-popover';
+import { FilterStatusPopover } from '@/components/board/filter-status-popover';
+import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
+import { FilterAssigneePopover } from '@/components/board/filter-assignee-popover';
+import { FilterServicePopover } from '@/components/board/filter-service-popover';
+import { FilterProjectPopover } from '@/components/board/filter-project-popover';
 import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
 import { useUsers } from '@/hooks/use-users';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -335,16 +340,16 @@ function BoardContent() {
         </div>
 
         {!(view === 'kanban' && kanbanGroupBy === 'status') && !(view === 'table' && groupBy === 'status') && (
-          <FilterPopover label="Status" options={statusOptions} selected={filterStatus} onSelectionChange={setFilterStatus} />
+          <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'project') && !(view === 'table' && groupBy === 'project') && (
-          <FilterPopover label="Client" options={projectOptions} selected={filterProject} onSelectionChange={setFilterProject} width="w-56" />
+          <FilterProjectPopover value={filterProject} projects={projects} onChange={setFilterProject} />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'assignee') && !(view === 'table' && groupBy === 'assignee') && (
-          <FilterPopover label="Assignee" options={assigneeOptions} selected={filterAssignee} onSelectionChange={setFilterAssignee} width="w-56" />
+          <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'priority') && !(view === 'table' && groupBy === 'priority') && (
-          <FilterPopover label="Priority" options={priorityOptions} selected={filterPriority} onSelectionChange={setFilterPriority} />
+          <FilterPriorityPopover value={filterPriority} onChange={setFilterPriority} />
         )}
 
         <FilterLabelPopover
@@ -357,13 +362,7 @@ function BoardContent() {
           onCreateLabel={handleLabelCreate}
         />
 
-        <FilterPopover
-          label="Service"
-          options={Object.entries(SERVICE_STYLES).map(([key, s]) => ({ value: key, label: s.label }))}
-          selected={filterService}
-          onSelectionChange={setFilterService}
-          width="w-52"
-        />
+        <FilterServicePopover value={filterService} onChange={setFilterService} />
 
         <FilterPopover
           label="Team"
