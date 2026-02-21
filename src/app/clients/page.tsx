@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES } from '@/lib/constants';
 import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
@@ -378,8 +378,9 @@ function ClientSheet({
 
 /* ── Main page ─────────────────────────────────────────────────────────────── */
 
-export default function ClientsPage() {
+function ClientsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -445,6 +446,15 @@ export default function ClientsPage() {
     const ts = getTeamStyle(t.name.toLowerCase());
     return { value: t.name.toLowerCase(), label: t.name, dot: ts?.color };
   });
+
+  // ── Quick action from global search (?action=new-client) ──────────────────
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new-client' && !sheetOpen) {
+      openNewClient();
+      router.replace('/clients', { scroll: false });
+    }
+  }, [searchParams, sheetOpen, router]);
 
   // Keyboard shortcuts
   const PAGE_SHORTCUTS = [
@@ -628,5 +638,20 @@ export default function ClientsPage() {
         pageName="Clients"
       />
     </div>
+  );
+}
+
+export default function ClientsPage() {
+  return (
+    <Suspense fallback={
+      <div className="animate-in fade-in duration-200">
+        <div className="mb-6">
+          <div className="h-8 w-32 rounded bg-muted/30 animate-pulse" />
+          <div className="h-4 w-24 rounded bg-muted/20 animate-pulse mt-2" />
+        </div>
+      </div>
+    }>
+      <ClientsPageContent />
+    </Suspense>
   );
 }

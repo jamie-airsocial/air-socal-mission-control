@@ -172,12 +172,12 @@ export function TopBar() {
     {
       id: 'new-task',
       label: 'New task',
-      action: () => window.dispatchEvent(new CustomEvent('shortcut:new-task')),
+      action: () => router.push('/tasks?action=new-task'),
     },
     {
       id: 'new-client',
       label: 'New client',
-      action: () => router.push('/clients?new=true'),
+      action: () => router.push('/clients?action=new-client'),
     },
   ];
 

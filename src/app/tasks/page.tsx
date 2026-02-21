@@ -141,7 +141,7 @@ function BoardContent() {
         setSelectedTask(task);
         setIsNew(false);
         setSheetOpen(true);
-        router.replace('/board', { scroll: false });
+        router.replace('/tasks', { scroll: false });
       }
     }
   }, [searchParams, tasks, router]);
@@ -275,6 +275,15 @@ function BoardContent() {
     setSelectedTask(defaults as TaskWithProject | null ?? null);
     setSheetOpen(true);
   }, []);
+
+  // ── Quick action from global search (?action=new-task) ────────────────────
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'new-task' && !sheetOpen) {
+      openNewTask();
+      router.replace('/tasks', { scroll: false });
+    }
+  }, [searchParams, sheetOpen, router, openNewTask]);
 
   // Apply service filter on top of useTaskFilters results
   const serviceFilteredTasks = useMemo(() => {
