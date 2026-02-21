@@ -141,19 +141,22 @@ export function Sidebar() {
 
         {/* User area at bottom */}
         <div className={`border-t border-border/20 py-3 ${collapsed ? 'px-2' : 'px-4'}`}>
-          {appUser && (
-            <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-[11px] font-bold text-primary-foreground shadow-lg shadow-primary/20 shrink-0">
-                {appUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-              </div>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-foreground truncate">{appUser.full_name}</p>
-                  <p className="text-[10px] text-muted-foreground">{roleName || 'Team Member'}</p>
+          {appUser && (() => {
+            const userColor = ASSIGNEE_COLORS[appUser.full_name] || 'bg-primary/20 text-primary';
+            return (
+              <div className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'}`}>
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${userColor}`}>
+                  {appUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                 </div>
-              )}
-            </div>
-          )}
+                {!collapsed && (
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium text-foreground truncate">{appUser.full_name}</p>
+                    <p className="text-[10px] text-muted-foreground">{roleName || 'Team Member'}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </aside>
     </TooltipProvider>
