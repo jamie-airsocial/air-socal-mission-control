@@ -52,6 +52,16 @@ export function FilterServicePopover({
             <div className="border-t border-border/20 my-1" />
           </>
         )}
+        <button
+          onClick={() => toggle('__none__')}
+          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${
+            value.includes('__none__') ? 'bg-muted/50' : ''
+          }`}
+        >
+          <span className="w-4 h-4 rounded flex items-center justify-center text-[10px] text-muted-foreground/40">—</span>
+          <span className="flex-1 text-left text-muted-foreground">No service</span>
+          {value.includes('__none__') && <Check size={14} className="text-primary shrink-0" />}
+        </button>
         {SERVICES.map(([key, style]) => (
           <button
             key={key}

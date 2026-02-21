@@ -808,10 +808,22 @@ export default function ClientDetailPage() {
       {activeTab === 'tasks' && (() => {
         const filteredTasks = tasks.filter(t => {
           if (taskSearch && !t.title.toLowerCase().includes(taskSearch.toLowerCase())) return false;
-          if (taskFilterStatus.length > 0 && !taskFilterStatus.includes(t.status)) return false;
-          if (taskFilterPriority.length > 0 && !taskFilterPriority.includes(t.priority || '')) return false;
-          if (taskFilterAssignee.length > 0 && !taskFilterAssignee.includes(t.assignee || '')) return false;
-          if (taskFilterService.length > 0 && !taskFilterService.includes(t.service || '')) return false;
+          if (taskFilterStatus.length > 0) {
+            const matchNone = taskFilterStatus.includes('__none__') && !t.status;
+            if (!matchNone && !taskFilterStatus.includes(t.status)) return false;
+          }
+          if (taskFilterPriority.length > 0) {
+            const matchNone = taskFilterPriority.includes('__none__') && !t.priority;
+            if (!matchNone && !taskFilterPriority.includes(t.priority || '')) return false;
+          }
+          if (taskFilterAssignee.length > 0) {
+            const matchNone = taskFilterAssignee.includes('__none__') && !t.assignee;
+            if (!matchNone && !taskFilterAssignee.includes(t.assignee || '')) return false;
+          }
+          if (taskFilterService.length > 0) {
+            const matchNone = taskFilterService.includes('__none__') && !t.service;
+            if (!matchNone && !taskFilterService.includes(t.service || '')) return false;
+          }
           return true;
         });
         const hasTaskFilters = taskSearch || taskFilterStatus.length > 0 || taskFilterPriority.length > 0 || taskFilterAssignee.length > 0 || taskFilterService.length > 0;

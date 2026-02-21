@@ -88,6 +88,19 @@ export function FilterStatusPopover({
           className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/30 rounded-t-md"
         />
         <div className="p-1 max-h-[280px] overflow-y-auto">
+          {!search && (
+            <button
+              onClick={() => {
+                if (value.includes('__none__')) onChange(value.filter(v => v !== '__none__'));
+                else onChange([...value, '__none__']);
+              }}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value.includes('__none__') ? 'bg-muted/50' : ''}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-muted-foreground/20" />
+              <span className="flex-1 text-left text-muted-foreground">No status</span>
+              {value.includes('__none__') && <Check className="h-3.5 w-3.5 text-primary" />}
+            </button>
+          )}
           {filtered.map((status, idx) => {
             const isSelected = value.includes(status.value);
             const statusStyle = STATUS_STYLES[status.value as keyof typeof STATUS_STYLES];

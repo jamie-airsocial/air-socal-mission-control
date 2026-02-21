@@ -222,20 +222,30 @@ export function useTaskFilters(
       }
 
       if (filterProject.length > 0) {
-        if (!t.project_id || !filterProject.includes(t.project_id)) return false;
+        const matchNone = filterProject.includes('__none__') && !t.project_id;
+        const matchValue = t.project_id && filterProject.includes(t.project_id);
+        if (!matchNone && !matchValue) return false;
       }
       if (filterAssignee.length > 0) {
-        if (!t.assignee || !filterAssignee.includes(t.assignee)) return false;
+        const matchNone = filterAssignee.includes('__none__') && !t.assignee;
+        const matchValue = t.assignee && filterAssignee.includes(t.assignee);
+        if (!matchNone && !matchValue) return false;
       }
       if (filterPriority.length > 0) {
-        if (!t.priority || !filterPriority.includes(t.priority)) return false;
+        const matchNone = filterPriority.includes('__none__') && !t.priority;
+        const matchValue = t.priority && filterPriority.includes(t.priority);
+        if (!matchNone && !matchValue) return false;
       }
       if (filterStatus.length > 0) {
-        if (!filterStatus.includes(t.status)) return false;
+        const matchNone = filterStatus.includes('__none__') && !t.status;
+        const matchValue = t.status && filterStatus.includes(t.status);
+        if (!matchNone && !matchValue) return false;
       }
       if (filterLabel.length > 0) {
         const taskLabels = t.labels || [];
-        if (taskLabels.length === 0 || !filterLabel.some((l: string) => taskLabels.includes(l))) return false;
+        const matchNone = filterLabel.includes('__none__') && taskLabels.length === 0;
+        const matchValue = filterLabel.some((l: string) => l !== '__none__' && taskLabels.includes(l));
+        if (!matchNone && !matchValue) return false;
       }
 
       if (filterDate !== 'all') {
