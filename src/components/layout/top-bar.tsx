@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Sun, Moon, X, Clock, Trash2, Settings } from 'lucide-react';
+import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, LayoutDashboard, Columns3, CalendarDays, Users, Settings as SettingsIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -27,10 +27,24 @@ type SearchHistory = {
   timestamp: number;
 };
 
+type QuickAction = {
+  id: string;
+  label: string;
+  action: () => void;
+};
+
+type NavigateItem = {
+  id: string;
+  label: string;
+  href: string;
+};
+
 type SearchResult = 
   | { type: 'client'; data: Client }
   | { type: 'task'; data: Task }
-  | { type: 'recent'; data: SearchHistory };
+  | { type: 'recent'; data: SearchHistory }
+  | { type: 'action'; data: QuickAction }
+  | { type: 'navigate'; data: NavigateItem };
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const MAX_RESULTS_PER_SECTION = 5;
@@ -141,21 +155,56 @@ export function TopBar() {
     return queryIndex === q.length;
   };
 
+  // Quick actions
+  const quickActions: QuickAction[] = [
+    {
+      id: 'new-task',
+      label: 'New task',
+      action: () => window.dispatchEvent(new CustomEvent('shortcut:new-task')),
+    },
+    {
+      id: 'new-client',
+      label: 'New client',
+      action: () => router.push('/clients?new=true'),
+    },
+  ];
+
+  // Navigate items
+  const navigateItems: NavigateItem[] = [
+    { id: 'dashboard', label: 'Dashboard', href: '/' },
+    { id: 'board', label: 'Board', href: '/board' },
+    { id: 'calendar', label: 'Calendar', href: '/calendar' },
+    { id: 'clients', label: 'Clients', href: '/clients' },
+    { id: 'admin', label: 'Admin', href: '/admin' },
+  ];
+
   // Filter results
   const getFilteredResults = (): SearchResult[] => {
     const query = searchQuery.trim();
-    
+    const results: SearchResult[] = [];
+
+    // Filter quick actions
+    const matchingActions = quickActions
+      .filter(a => !query || fuzzyMatch(a.label, query))
+      .map(a => ({ type: 'action' as const, data: a }));
+
+    // Filter navigate items (show when no query, or when matching)
+    const matchingNavigate = navigateItems
+      .filter(n => !query || fuzzyMatch(n.label, query))
+      .map(n => ({ type: 'navigate' as const, data: n }));
+
+    results.push(...matchingActions, ...matchingNavigate);
+
     // Show recent searches when empty
     if (!query && historyEnabled) {
-      return searchHistory.slice(0, MAX_HISTORY_ITEMS).map(item => ({
+      const recentResults = searchHistory.slice(0, MAX_HISTORY_ITEMS).map(item => ({
         type: 'recent' as const,
         data: item,
       }));
+      results.push(...recentResults);
     }
 
-    if (!query) return [];
-
-    const results: SearchResult[] = [];
+    if (!query) return results;
 
     // Filter clients
     const matchingClients = clients
@@ -190,7 +239,17 @@ export function TopBar() {
 
   // Navigate to result
   const navigateToResult = (result: SearchResult) => {
-    if (result.type === 'client') {
+    if (result.type === 'action') {
+      result.data.action();
+      setShowSearch(false);
+      setSearchQuery('');
+      setSelectedIndex(0);
+    } else if (result.type === 'navigate') {
+      router.push(result.data.href);
+      setShowSearch(false);
+      setSearchQuery('');
+      setSelectedIndex(0);
+    } else if (result.type === 'client') {
       saveToHistory(searchQuery);
       router.push(`/clients/${result.data.id}`);
       setShowSearch(false);
@@ -259,9 +318,11 @@ export function TopBar() {
   };
 
   // Group results by type
+  const actionResults = results.filter(r => r.type === 'action');
+  const navigateResults = results.filter(r => r.type === 'navigate');
+  const recentResults = results.filter(r => r.type === 'recent');
   const clientResults = results.filter(r => r.type === 'client');
   const taskResults = results.filter(r => r.type === 'task');
-  const recentResults = results.filter(r => r.type === 'recent');
 
   return (
     <>
@@ -345,6 +406,58 @@ export function TopBar() {
                   </div>
                 )}
 
+                {/* Quick Actions */}
+                {actionResults.length > 0 && (
+                  <div className="py-2">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                      Quick Actions
+                    </div>
+                    {actionResults.map((result, idx) => (
+                      <button
+                        key={result.data.id}
+                        onClick={() => navigateToResult(result)}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
+                          idx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
+                        }`}
+                      >
+                        <Plus size={14} className="text-muted-foreground/40 shrink-0" />
+                        <span className="text-foreground truncate">{result.data.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Navigate */}
+                {navigateResults.length > 0 && (
+                  <div className="py-2">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                      Navigate
+                    </div>
+                    {navigateResults.map((result, idx) => {
+                      const globalIdx = actionResults.length + idx;
+                      const Icon = 
+                        result.data.id === 'dashboard' ? LayoutDashboard :
+                        result.data.id === 'board' ? Columns3 :
+                        result.data.id === 'calendar' ? CalendarDays :
+                        result.data.id === 'clients' ? Users :
+                        result.data.id === 'admin' ? SettingsIcon :
+                        LayoutDashboard;
+                      return (
+                        <button
+                          key={result.data.id}
+                          onClick={() => navigateToResult(result)}
+                          className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
+                            globalIdx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
+                          }`}
+                        >
+                          <Icon size={14} className="text-muted-foreground/40 shrink-0" />
+                          <span className="text-foreground truncate">{result.data.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Recent searches */}
                 {recentResults.length > 0 && (
                   <div className="py-2">
@@ -359,18 +472,21 @@ export function TopBar() {
                         Clear all
                       </button>
                     </div>
-                    {recentResults.map((result, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => navigateToResult(result)}
-                        className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
-                          idx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
-                        }`}
-                      >
-                        <Clock size={14} className="text-muted-foreground/40 shrink-0" />
-                        <span className="text-foreground truncate">{result.data.query}</span>
-                      </button>
-                    ))}
+                    {recentResults.map((result, idx) => {
+                      const globalIdx = actionResults.length + navigateResults.length + idx;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => navigateToResult(result)}
+                          className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
+                            globalIdx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
+                          }`}
+                        >
+                          <Clock size={14} className="text-muted-foreground/40 shrink-0" />
+                          <span className="text-foreground truncate">{result.data.query}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -381,7 +497,7 @@ export function TopBar() {
                       Clients
                     </div>
                     {clientResults.map((result, idx) => {
-                      const globalIdx = recentResults.length + idx;
+                      const globalIdx = actionResults.length + navigateResults.length + recentResults.length + idx;
                       return (
                         <button
                           key={result.data.id}
@@ -408,7 +524,7 @@ export function TopBar() {
                       Tasks
                     </div>
                     {taskResults.map((result, idx) => {
-                      const globalIdx = recentResults.length + clientResults.length + idx;
+                      const globalIdx = actionResults.length + navigateResults.length + recentResults.length + clientResults.length + idx;
                       return (
                         <button
                           key={result.data.id}
