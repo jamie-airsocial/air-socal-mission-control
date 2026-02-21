@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, Users, ListChecks, TrendingUp, UsersRound, Receipt } from 'lucide-react';
+import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, Users, ListChecks, TrendingUp, UsersRound, Receipt, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -60,7 +60,7 @@ const NAV_ITEMS = [
 ];
 
 export function TopBar() {
-  const { permissions, roleName } = useAuth();
+  const { permissions, roleName, signOut } = useAuth();
   const isAdmin = roleName === 'Admin';
   const [dark, setDark] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
@@ -393,10 +393,14 @@ export function TopBar() {
           {dark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
 
-        {/* User avatar */}
-        <div className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-600 text-[11px] font-bold text-primary-foreground">
-          JL
-        </div>
+        {/* Sign out */}
+        <button
+          aria-label="Sign out"
+          onClick={signOut}
+          className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+        >
+          <LogOut size={16} />
+        </button>
       </header>
 
       {/* Search overlay */}

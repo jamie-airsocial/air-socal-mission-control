@@ -10,7 +10,6 @@ import {
   TrendingUp,
   ChevronLeft,
   ChevronRight,
-  LogOut,
   Settings,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
@@ -29,7 +28,7 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggleCollapsed } = useSidebar();
-  const { appUser, permissions, roleName, signOut } = useAuth();
+  const { appUser, permissions, roleName } = useAuth();
 
   const isAdmin = roleName === 'Admin';
 
@@ -155,29 +154,6 @@ export function Sidebar() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* Logout */}
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={signOut}
-                  className="w-full flex items-center justify-center p-2 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 mt-0.5"
-                >
-                  <LogOut size={16} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="text-[13px]">Sign out</TooltipContent>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={signOut}
-              className="flex items-center gap-2 px-2 py-2 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 mt-0.5"
-            >
-              <LogOut size={16} className="shrink-0" />
-              <span className="text-[13px]">Sign out</span>
-            </button>
           )}
         </div>
       </aside>
