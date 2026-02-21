@@ -1,14 +1,50 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Bell, Sun, Moon, X } from 'lucide-react';
+import { Search, Bell, Sun, Moon, X, Clock, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+
+type Client = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
+type Task = {
+  id: string;
+  title: string;
+  status: string;
+  client_name: string | null;
+  client_color: string | null;
+  client_id: string | null;
+};
+
+type SearchHistory = {
+  query: string;
+  timestamp: number;
+};
+
+type SearchResult = 
+  | { type: 'client'; data: Client }
+  | { type: 'task'; data: Task }
+  | { type: 'recent'; data: SearchHistory };
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const MAX_RESULTS_PER_SECTION = 5;
+const MAX_HISTORY_ITEMS = 5;
+
 export function TopBar() {
   const [dark, setDark] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+  const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
+  const [historyEnabled, setHistoryEnabled] = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
@@ -30,33 +66,201 @@ export function TopBar() {
     document.documentElement.classList.toggle('dark', isDark);
   }, []);
 
+  // Load search history and settings
+  useEffect(() => {
+    const enabled = localStorage.getItem('air-social-search-history-enabled');
+    if (enabled !== null) setHistoryEnabled(enabled === 'true');
+    
+    if (enabled !== 'false') {
+      const history = localStorage.getItem('air-social-search-history');
+      if (history) {
+        try {
+          setSearchHistory(JSON.parse(history));
+        } catch {}
+      }
+    }
+  }, []);
+
+  // Fetch clients and tasks when search opens
+  const fetchData = useCallback(async () => {
+    const now = Date.now();
+    if (lastFetch && now - lastFetch < CACHE_DURATION) return;
+
+    try {
+      const [clientsRes, tasksRes] = await Promise.all([
+        fetch('/api/clients'),
+        fetch('/api/tasks'),
+      ]);
+
+      if (clientsRes.ok) {
+        const clientsData = await clientsRes.json();
+        setClients(clientsData);
+      }
+
+      if (tasksRes.ok) {
+        const tasksData = await tasksRes.json();
+        setTasks(tasksData);
+      }
+
+      setLastFetch(now);
+    } catch (error) {
+      toast.error('Failed to load search data');
+    }
+  }, [lastFetch]);
+
   // ⌘K handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setShowSearch(true);
+        fetchData();
         setTimeout(() => searchRef.current?.focus(), 50);
       }
-      if (e.key === 'Escape') setShowSearch(false);
+      if (e.key === 'Escape') {
+        setShowSearch(false);
+        setSearchQuery('');
+        setSelectedIndex(0);
+      }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, []);
+  }, [fetchData]);
 
-  // Simple search navigation
-  const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    const q = searchQuery.toLowerCase();
-    if (q.includes('client')) router.push('/clients');
-    else if (q.includes('task')) router.push('/tasks');
-    else if (q.includes('pipeline') || q.includes('prospect')) router.push('/pipeline');
-    else if (q.includes('team')) router.push('/teams');
-    else if (q.includes('xero') || q.includes('revenue')) router.push('/xero');
-    else toast.info(`No results for "${searchQuery}"`);
-    setSearchQuery('');
-    setShowSearch(false);
+  // Fuzzy match helper
+  const fuzzyMatch = (text: string, query: string): boolean => {
+    const t = text.toLowerCase();
+    const q = query.toLowerCase();
+    let queryIndex = 0;
+    
+    for (let i = 0; i < t.length && queryIndex < q.length; i++) {
+      if (t[i] === q[queryIndex]) queryIndex++;
+    }
+    
+    return queryIndex === q.length;
   };
+
+  // Filter results
+  const getFilteredResults = (): SearchResult[] => {
+    const query = searchQuery.trim();
+    
+    // Show recent searches when empty
+    if (!query && historyEnabled) {
+      return searchHistory.slice(0, MAX_HISTORY_ITEMS).map(item => ({
+        type: 'recent' as const,
+        data: item,
+      }));
+    }
+
+    if (!query) return [];
+
+    const results: SearchResult[] = [];
+
+    // Filter clients
+    const matchingClients = clients
+      .filter(c => fuzzyMatch(c.name, query))
+      .slice(0, MAX_RESULTS_PER_SECTION)
+      .map(c => ({ type: 'client' as const, data: c }));
+
+    // Filter tasks
+    const matchingTasks = tasks
+      .filter(t => fuzzyMatch(t.title, query))
+      .slice(0, MAX_RESULTS_PER_SECTION)
+      .map(t => ({ type: 'task' as const, data: t }));
+
+    results.push(...matchingClients, ...matchingTasks);
+    return results;
+  };
+
+  const results = getFilteredResults();
+
+  // Save search to history
+  const saveToHistory = (query: string) => {
+    if (!historyEnabled || !query.trim()) return;
+
+    const newHistory = [
+      { query: query.trim(), timestamp: Date.now() },
+      ...searchHistory.filter(h => h.query !== query.trim()),
+    ].slice(0, MAX_HISTORY_ITEMS);
+
+    setSearchHistory(newHistory);
+    localStorage.setItem('air-social-search-history', JSON.stringify(newHistory));
+  };
+
+  // Navigate to result
+  const navigateToResult = (result: SearchResult) => {
+    if (result.type === 'client') {
+      saveToHistory(searchQuery);
+      router.push(`/clients/${result.data.id}`);
+      setShowSearch(false);
+      setSearchQuery('');
+      setSelectedIndex(0);
+    } else if (result.type === 'task') {
+      saveToHistory(searchQuery);
+      // Tasks don't have detail pages yet, show toast
+      toast.info(`Task: ${result.data.title}`);
+      setShowSearch(false);
+      setSearchQuery('');
+      setSelectedIndex(0);
+    } else if (result.type === 'recent') {
+      setSearchQuery(result.data.query);
+      setSelectedIndex(0);
+    }
+  };
+
+  // Keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(i => (i + 1) % Math.max(1, results.length));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(i => (i - 1 + results.length) % Math.max(1, results.length));
+    } else if (e.key === 'Enter' && results[selectedIndex]) {
+      e.preventDefault();
+      navigateToResult(results[selectedIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSearch(false);
+      setSearchQuery('');
+      setSelectedIndex(0);
+    }
+  };
+
+  // Clear history
+  const clearHistory = () => {
+    setSearchHistory([]);
+    localStorage.removeItem('air-social-search-history');
+    toast.success('Search history cleared');
+  };
+
+  // Toggle history
+  const toggleHistory = () => {
+    const newEnabled = !historyEnabled;
+    setHistoryEnabled(newEnabled);
+    localStorage.setItem('air-social-search-history-enabled', String(newEnabled));
+    
+    if (!newEnabled) {
+      setSearchHistory([]);
+      localStorage.removeItem('air-social-search-history');
+    }
+    
+    toast.success(newEnabled ? 'Search history enabled' : 'Search history disabled');
+  };
+
+  // Get status dot color
+  const getStatusColor = (status: string): string => {
+    switch (status) {
+      case 'done': return 'bg-emerald-500';
+      case 'doing': return 'bg-indigo-500';
+      case 'todo': return 'bg-amber-500';
+      default: return 'bg-muted-foreground/40';
+    }
+  };
+
+  // Group results by type
+  const clientResults = results.filter(r => r.type === 'client');
+  const taskResults = results.filter(r => r.type === 'task');
+  const recentResults = results.filter(r => r.type === 'recent');
 
   return (
     <>
@@ -65,7 +269,11 @@ export function TopBar() {
         <div className="relative mr-2">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
           <button
-            onClick={() => { setShowSearch(true); setTimeout(() => searchRef.current?.focus(), 50); }}
+            onClick={() => { 
+              setShowSearch(true); 
+              fetchData();
+              setTimeout(() => searchRef.current?.focus(), 50); 
+            }}
             className="h-8 w-48 pl-8 pr-10 text-[13px] text-left bg-secondary border border-border/20 rounded-lg outline-none cursor-pointer hover:border-primary/30 transition-colors duration-150 text-muted-foreground/40"
           >
             Search...
@@ -98,25 +306,146 @@ export function TopBar() {
       {/* Search overlay */}
       {showSearch && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/50 animate-in fade-in duration-100" onClick={() => setShowSearch(false)} />
+          <div className="fixed inset-0 z-50 bg-black/50 animate-in fade-in duration-100" onClick={() => { setShowSearch(false); setSearchQuery(''); setSelectedIndex(0); }} />
           <div className="fixed top-[20%] left-1/2 -translate-x-1/2 z-50 w-full max-w-lg animate-in fade-in slide-in-from-top-4 duration-150">
             <div className="bg-card border border-border/20 rounded-xl shadow-2xl overflow-hidden">
+              {/* Search input */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border/10">
                 <Search size={16} className="text-muted-foreground/50 shrink-0" />
                 <input
                   ref={searchRef}
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleSearch(); if (e.key === 'Escape') setShowSearch(false); }}
-                  placeholder="Search clients, tasks, pipeline..."
+                  onChange={e => { setSearchQuery(e.target.value); setSelectedIndex(0); }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search clients, tasks..."
                   className="flex-1 text-[14px] bg-transparent outline-none placeholder:text-muted-foreground/40"
                 />
-                <button onClick={() => setShowSearch(false)} className="text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+                <button 
+                  onClick={() => { setShowSearch(false); setSearchQuery(''); setSelectedIndex(0); }} 
+                  className="text-muted-foreground/40 hover:text-muted-foreground transition-colors duration-150"
+                >
                   <X size={14} />
                 </button>
               </div>
-              <div className="px-4 py-3 text-[12px] text-muted-foreground/40">
-                Type to search or navigate — try &quot;clients&quot;, &quot;tasks&quot;, &quot;pipeline&quot;
+
+              {/* Results */}
+              <div className="max-h-[400px] overflow-y-auto">
+                {results.length === 0 && searchQuery && (
+                  <div className="px-4 py-8 text-center text-[13px] text-muted-foreground/40">
+                    No results found
+                  </div>
+                )}
+
+                {/* Recent searches */}
+                {recentResults.length > 0 && (
+                  <div className="py-2">
+                    <div className="flex items-center justify-between px-4 py-2">
+                      <div className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                        Recent searches
+                      </div>
+                      <button
+                        onClick={clearHistory}
+                        className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors duration-150"
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                    {recentResults.map((result, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => navigateToResult(result)}
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
+                          idx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
+                        }`}
+                      >
+                        <Clock size={14} className="text-muted-foreground/40 shrink-0" />
+                        <span className="text-foreground truncate">{result.data.query}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Clients section */}
+                {clientResults.length > 0 && (
+                  <div className="py-2">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                      Clients
+                    </div>
+                    {clientResults.map((result, idx) => {
+                      const globalIdx = recentResults.length + idx;
+                      return (
+                        <button
+                          key={result.data.id}
+                          onClick={() => navigateToResult(result)}
+                          className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
+                            globalIdx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
+                          }`}
+                        >
+                          <div 
+                            className="h-2 w-2 rounded-full shrink-0" 
+                            style={{ backgroundColor: result.data.color || '#94a3b8' }}
+                          />
+                          <span className="text-foreground truncate">{result.data.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Tasks section */}
+                {taskResults.length > 0 && (
+                  <div className="py-2">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                      Tasks
+                    </div>
+                    {taskResults.map((result, idx) => {
+                      const globalIdx = recentResults.length + clientResults.length + idx;
+                      return (
+                        <button
+                          key={result.data.id}
+                          onClick={() => navigateToResult(result)}
+                          className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
+                            globalIdx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
+                          }`}
+                        >
+                          <div className={`h-2 w-2 rounded-full shrink-0 ${getStatusColor(result.data.status)}`} />
+                          <div className="flex-1 flex items-center gap-2 min-w-0">
+                            <span className="text-foreground truncate">{result.data.title}</span>
+                            {result.data.client_name && (
+                              <span className="text-muted-foreground/60 text-[12px] shrink-0">
+                                · {result.data.client_name}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer with history toggle */}
+              <div className="flex items-center justify-between px-4 py-2 border-t border-border/10 bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleHistory}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-150 ${
+                      historyEnabled ? 'bg-primary' : 'bg-muted-foreground/20'
+                    }`}
+                    role="switch"
+                    aria-checked={historyEnabled}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition-transform duration-150 ${
+                        historyEnabled ? 'translate-x-4' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                  <span className="text-[12px] text-muted-foreground">Save search history</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground/40">
+                  ↑↓ to navigate · ↵ to select
+                </div>
               </div>
             </div>
           </div>
