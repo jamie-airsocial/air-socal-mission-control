@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, UserX, UserCheck, KeyRound, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, KeyRound, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, Key } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 // Check + ChevronDown consolidated into top import
 import { ASSIGNEE_COLORS, TEAM_STYLES, getTeamStyle } from '@/lib/constants';
 import type { AppUser, Role } from '@/lib/auth-types';
@@ -191,6 +192,12 @@ export default function AdminUsersPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteReassignOpen, setDeleteReassignOpen] = useState(false);
 
+  // Permissions dialog
+  const [permissionsTarget, setPermissionsTarget] = useState<AppUser | null>(null);
+  const [permissionsOpen, setPermissionsOpen] = useState(false);
+  const [customPermissions, setCustomPermissions] = useState<Partial<Record<string, boolean>>>({});
+  const [savingPermissions, setSavingPermissions] = useState(false);
+
   const loadData = useCallback(async () => {
     const [usersRes, rolesRes, teamsRes] = await Promise.all([
       fetch('/api/users', { cache: 'no-store' }),
@@ -330,6 +337,94 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error('Delete failed', { description: err instanceof Error ? err.message : 'Something went wrong' });
     } finally { setDeleting(false); }
+  };
+
+  // ── Admin toggle ───────────────────────────────────────────────────────────
+  const handleToggleAdmin = async (user: AppUser) => {
+    const newAdminState = !user.is_admin;
+    try {
+      const res = await fetch(`/api/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_admin: newAdminState }),
+      });
+      if (!res.ok) throw new Error('Failed to update admin status');
+      toast.success(
+        newAdminState ? 'Admin access granted' : 'Admin access revoked',
+        { description: `${user.full_name} ${newAdminState ? 'now has' : 'no longer has'} full admin access.` }
+      );
+      loadData();
+    } catch (err) {
+      toast.error('Failed to update admin status', {
+        description: err instanceof Error ? err.message : 'Something went wrong',
+      });
+    }
+  };
+
+  // ── Permissions dialog ─────────────────────────────────────────────────────
+  const openPermissions = (user: AppUser) => {
+    setPermissionsTarget(user);
+    // Load current effective permissions (role + overrides)
+    const rolePerms = user.role?.permissions || {};
+    const userOverrides = user.permission_overrides || {};
+    setCustomPermissions({ ...rolePerms, ...userOverrides });
+    setPermissionsOpen(true);
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionsTarget) return;
+    setSavingPermissions(true);
+    try {
+      // Only send overrides that differ from role defaults
+      const rolePerms = (permissionsTarget.role?.permissions || {}) as Record<string, boolean | undefined>;
+      const overrides: Record<string, boolean> = {};
+      Object.keys(customPermissions).forEach((key) => {
+        if (customPermissions[key] !== rolePerms[key]) {
+          overrides[key] = customPermissions[key] || false;
+        }
+      });
+
+      const res = await fetch(`/api/users/${permissionsTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          permission_overrides: Object.keys(overrides).length > 0 ? overrides : null,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to update permissions');
+      toast.success('Permissions updated', {
+        description: `Custom permissions set for ${permissionsTarget.full_name}.`,
+      });
+      setPermissionsOpen(false);
+      loadData();
+    } catch (err) {
+      toast.error('Failed to update permissions', {
+        description: err instanceof Error ? err.message : 'Something went wrong',
+      });
+    } finally {
+      setSavingPermissions(false);
+    }
+  };
+
+  const handleResetPermissions = async () => {
+    if (!permissionsTarget) return;
+    try {
+      const res = await fetch(`/api/users/${permissionsTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ permission_overrides: null }),
+      });
+      if (!res.ok) throw new Error('Failed to reset permissions');
+      toast.success('Permissions reset', {
+        description: `${permissionsTarget.full_name} now uses their role defaults.`,
+      });
+      setPermissionsOpen(false);
+      loadData();
+    } catch (err) {
+      toast.error('Failed to reset permissions', {
+        description: err instanceof Error ? err.message : 'Something went wrong',
+      });
+    }
   };
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -525,6 +620,40 @@ export default function AdminUsersPage() {
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-[12px]">Edit</TooltipContent>
+                        </Tooltip>
+
+                        {/* Admin toggle */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button onClick={() => handleToggleAdmin(user)}
+                              className={`p-1.5 rounded transition-colors ${
+                                user.is_admin
+                                  ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                  : 'text-muted-foreground/60 hover:bg-blue-500/10 hover:text-blue-400'
+                              }`}>
+                              <ShieldCheck size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-[12px]">
+                            {user.is_admin ? 'Remove admin access' : 'Grant admin access'}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        {/* Custom permissions */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button onClick={() => openPermissions(user)}
+                              className={`p-1.5 rounded transition-colors ${
+                                user.permission_overrides
+                                  ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
+                                  : 'text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground'
+                              }`}>
+                              <Key size={14} />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-[12px]">
+                            {user.permission_overrides ? 'Edit custom permissions' : 'Set custom permissions'}
+                          </TooltipContent>
                         </Tooltip>
 
                         {/* Reset password */}
@@ -777,6 +906,107 @@ export default function AdminUsersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* ── Permissions dialog ────────────────────────────────────────────── */}
+        <Dialog open={permissionsOpen} onOpenChange={setPermissionsOpen}>
+          <DialogContent className="sm:max-w-lg bg-card border-border/20">
+            <DialogHeader>
+              <DialogTitle className="text-[15px] flex items-center gap-2">
+                <Key size={16} />
+                Custom permissions for {permissionsTarget?.full_name}
+              </DialogTitle>
+              <p className="text-[12px] text-muted-foreground/60 mt-1">
+                {permissionsTarget?.is_admin ? (
+                  <span className="text-primary font-medium">Admin users have full access to everything.</span>
+                ) : permissionsTarget?.role ? (
+                  <>Role: <span className="font-medium text-foreground">{permissionsTarget.role.name}</span> · Overrides apply on top of role defaults</>
+                ) : (
+                  <>No role assigned · Set custom permissions below</>
+                )}
+              </p>
+            </DialogHeader>
+
+            {permissionsTarget && !permissionsTarget.is_admin && (
+              <div className="space-y-4 py-2">
+                {/* Page access */}
+                <div className="space-y-2">
+                  <p className="text-[12px] font-medium text-muted-foreground">Page access</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['dashboard', 'tasks', 'clients', 'pipeline', 'teams', 'xero', 'settings'].map((perm) => {
+                      const overrides = permissionsTarget.permission_overrides as Record<string, boolean | undefined> | null | undefined;
+                      const isOverridden = overrides && overrides[perm] !== undefined;
+                      return (
+                        <div key={perm} className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-secondary/40 border border-border/20">
+                          <div className="flex items-center gap-2">
+                            {isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" title="Custom override" />}
+                            <span className="text-[13px] capitalize">{perm}</span>
+                          </div>
+                          <Switch
+                            checked={customPermissions[perm] || false}
+                            onCheckedChange={(checked) => setCustomPermissions(p => ({ ...p, [perm]: checked }))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Action permissions */}
+                <div className="space-y-2">
+                  <p className="text-[12px] font-medium text-muted-foreground">Action permissions</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { key: 'manage_users', label: 'Manage users' },
+                      { key: 'manage_clients', label: 'Manage clients' },
+                      { key: 'manage_tasks', label: 'Manage tasks' },
+                      { key: 'manage_prospects', label: 'Manage prospects' },
+                      { key: 'manage_billing', label: 'Manage billing' },
+                    ].map(({ key, label }) => {
+                      const overrides = permissionsTarget.permission_overrides as Record<string, boolean | undefined> | null | undefined;
+                      const isOverridden = overrides && overrides[key] !== undefined;
+                      return (
+                        <div key={key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-secondary/40 border border-border/20">
+                          <div className="flex items-center gap-2">
+                            {isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" title="Custom override" />}
+                            <span className="text-[13px]">{label}</span>
+                          </div>
+                          <Switch
+                            checked={customPermissions[key] || false}
+                            onCheckedChange={(checked) => setCustomPermissions(p => ({ ...p, [key]: checked }))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {permissionsTarget?.is_admin && (
+              <div className="py-6 text-center">
+                <p className="text-[13px] text-muted-foreground/60">
+                  Admin users have unrestricted access. Remove admin status to set custom permissions.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter className="flex items-center gap-2">
+              {permissionsTarget?.permission_overrides && !permissionsTarget.is_admin && (
+                <Button variant="outline" onClick={handleResetPermissions} className="text-[13px] h-8 border-border/20 mr-auto">
+                  Reset to role defaults
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setPermissionsOpen(false)} className="text-[13px] h-8 border-border/20">
+                Cancel
+              </Button>
+              {!permissionsTarget?.is_admin && (
+                <Button onClick={handleSavePermissions} disabled={savingPermissions} className="text-[13px] h-8">
+                  {savingPermissions ? 'Saving…' : 'Save permissions'}
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

@@ -7,6 +7,8 @@ export interface AppUser {
   team: string | null;
   avatar_url: string | null;
   is_active: boolean;
+  is_admin?: boolean;
+  permission_overrides?: Partial<Permissions> | null;
   created_at: string;
   updated_at: string;
   last_active_at?: string | null;

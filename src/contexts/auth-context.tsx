@@ -59,11 +59,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setAppUser(data);
       
-      // Check if user is admin via role name OR hardcoded ID list
-      const userIsAdmin = data.role?.name === 'Admin' || ADMIN_USER_IDS.includes(data.id);
+      // Check if user is admin: is_admin flag (DB) OR hardcoded fallback OR role name
+      const userIsAdmin = data.is_admin === true || ADMIN_USER_IDS.includes(data.id) || data.role?.name === 'Admin';
       setIsAdmin(userIsAdmin);
       
-      if (data.role?.permissions) {
+      if (data.role?.permissions || userIsAdmin) {
         // Admin always has full access — override all permissions to true
         if (userIsAdmin) {
           const fullPerms: Permissions = {
@@ -74,12 +74,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
           setPermissions(fullPerms);
         } else {
+          // Merge role permissions with user-specific overrides (overrides take precedence)
+          const rolePerms = data.role?.permissions || DEFAULT_PERMISSIONS;
+          const userOverrides = data.permission_overrides || {};
           setPermissions({
             ...DEFAULT_PERMISSIONS,
-            ...data.role.permissions,
+            ...rolePerms,
+            ...userOverrides,
           } as Permissions);
         }
-        setRoleName(data.role.name);
+        setRoleName(data.role?.name || null);
       }
     }
   };
