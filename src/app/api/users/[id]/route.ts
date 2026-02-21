@@ -69,6 +69,29 @@ export async function PATCH(
     }
   }
 
+  // If deactivating/reactivating, also ban/unban in Supabase Auth
+  if (is_active !== undefined) {
+    const { data: existing } = await supabaseAdmin
+      .from('app_users')
+      .select('auth_user_id')
+      .eq('id', id)
+      .single();
+
+    if (existing?.auth_user_id) {
+      if (!is_active) {
+        // Ban the user so they can't log in
+        await supabaseAdmin.auth.admin.updateUserById(existing.auth_user_id, {
+          ban_duration: 'none', // permanent ban
+        });
+      } else {
+        // Unban the user
+        await supabaseAdmin.auth.admin.updateUserById(existing.auth_user_id, {
+          ban_duration: '0', // remove ban
+        });
+      }
+    }
+  }
+
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (full_name !== undefined) updates.full_name = full_name;
   if (email !== undefined) updates.email = email;

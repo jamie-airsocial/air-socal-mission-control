@@ -50,6 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .single();
 
     if (data) {
+      // Block inactive users — sign them out immediately
+      if (!data.is_active) {
+        await supabase.auth.signOut();
+        window.location.href = '/login';
+        return;
+      }
+
       setAppUser(data);
       
       // Check if user is admin via role name OR hardcoded ID list
