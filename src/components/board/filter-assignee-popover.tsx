@@ -48,6 +48,7 @@ export function FilterAssigneePopover({
 
   const isActive = value.length > 0;
   const getDisplayName = (slug: string) => {
+    if (slug === '__none__') return 'No assignee';
     const user = users.find(u => u.full_name.toLowerCase().replace(/\s+/g, '-') === slug);
     return user?.full_name || SLUG_TO_NAME[slug] || slug;
   };
