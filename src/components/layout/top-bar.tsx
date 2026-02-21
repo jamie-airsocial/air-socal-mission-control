@@ -178,22 +178,10 @@ export function TopBar() {
     { id: 'admin', label: 'Admin', href: '/admin' },
   ];
 
-  // Filter results
+  // Filter results - only clients, tasks, and recent searches
   const getFilteredResults = (): SearchResult[] => {
     const query = searchQuery.trim();
     const results: SearchResult[] = [];
-
-    // Filter quick actions
-    const matchingActions = quickActions
-      .filter(a => !query || fuzzyMatch(a.label, query))
-      .map(a => ({ type: 'action' as const, data: a }));
-
-    // Filter navigate items (show when no query, or when matching)
-    const matchingNavigate = navigateItems
-      .filter(n => !query || fuzzyMatch(n.label, query))
-      .map(n => ({ type: 'navigate' as const, data: n }));
-
-    results.push(...matchingActions, ...matchingNavigate);
 
     // Show recent searches when empty
     if (!query && historyEnabled) {
@@ -202,6 +190,7 @@ export function TopBar() {
         data: item,
       }));
       results.push(...recentResults);
+      return results;
     }
 
     if (!query) return results;
@@ -223,6 +212,16 @@ export function TopBar() {
   };
 
   const results = getFilteredResults();
+
+  // Filtered quick actions (show all when no query, filtered when searching)
+  const filteredActions = searchQuery.trim()
+    ? quickActions.filter(a => fuzzyMatch(a.label, searchQuery))
+    : quickActions;
+
+  // Filtered navigate items (show all when no query, filtered when searching)
+  const filteredNavigate = searchQuery.trim()
+    ? navigateItems.filter(n => fuzzyMatch(n.label, searchQuery))
+    : navigateItems;
 
   // Save search to history
   const saveToHistory = (query: string) => {
@@ -317,9 +316,7 @@ export function TopBar() {
     }
   };
 
-  // Group results by type
-  const actionResults = results.filter(r => r.type === 'action');
-  const navigateResults = results.filter(r => r.type === 'navigate');
+  // Group results by type (excluding actions and navigate - they're rendered separately)
   const recentResults = results.filter(r => r.type === 'recent');
   const clientResults = results.filter(r => r.type === 'client');
   const taskResults = results.filter(r => r.type === 'task');
@@ -400,58 +397,59 @@ export function TopBar() {
 
               {/* Results */}
               <div className="max-h-[400px] overflow-y-auto">
-                {results.length === 0 && searchQuery && (
+                {/* Empty state when searching */}
+                {searchQuery && filteredActions.length === 0 && filteredNavigate.length === 0 && clientResults.length === 0 && taskResults.length === 0 && (
                   <div className="px-4 py-8 text-center text-[13px] text-muted-foreground/40">
                     No results found
                   </div>
                 )}
 
-                {/* Quick Actions */}
-                {actionResults.length > 0 && (
+                {/* Quick Actions - always show when available (all or filtered) */}
+                {filteredActions.length > 0 && (
                   <div className="py-2">
                     <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
                       Quick Actions
                     </div>
-                    {actionResults.map((result, idx) => (
+                    {filteredActions.map((action, idx) => (
                       <button
-                        key={result.data.id}
-                        onClick={() => navigateToResult(result)}
+                        key={action.id}
+                        onClick={() => navigateToResult({ type: 'action', data: action })}
                         className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
                           idx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
                         }`}
                       >
                         <Plus size={14} className="text-muted-foreground/40 shrink-0" />
-                        <span className="text-foreground truncate">{result.data.label}</span>
+                        <span className="text-foreground truncate">{action.label}</span>
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* Navigate */}
-                {navigateResults.length > 0 && (
+                {/* Navigate - always show when available (all or filtered) */}
+                {filteredNavigate.length > 0 && (
                   <div className="py-2">
                     <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
                       Navigate
                     </div>
-                    {navigateResults.map((result, idx) => {
-                      const globalIdx = actionResults.length + idx;
+                    {filteredNavigate.map((navItem, idx) => {
+                      const globalIdx = filteredActions.length + idx;
                       const Icon = 
-                        result.data.id === 'dashboard' ? LayoutDashboard :
-                        result.data.id === 'board' ? Columns3 :
-                        result.data.id === 'calendar' ? CalendarDays :
-                        result.data.id === 'clients' ? Users :
-                        result.data.id === 'admin' ? SettingsIcon :
+                        navItem.id === 'dashboard' ? LayoutDashboard :
+                        navItem.id === 'board' ? Columns3 :
+                        navItem.id === 'calendar' ? CalendarDays :
+                        navItem.id === 'clients' ? Users :
+                        navItem.id === 'admin' ? SettingsIcon :
                         LayoutDashboard;
                       return (
                         <button
-                          key={result.data.id}
-                          onClick={() => navigateToResult(result)}
+                          key={navItem.id}
+                          onClick={() => navigateToResult({ type: 'navigate', data: navItem })}
                           className={`w-full flex items-center gap-3 px-4 py-2 text-[13px] transition-colors duration-150 ${
                             globalIdx === selectedIndex ? 'bg-muted/60' : 'hover:bg-muted/40'
                           }`}
                         >
                           <Icon size={14} className="text-muted-foreground/40 shrink-0" />
-                          <span className="text-foreground truncate">{result.data.label}</span>
+                          <span className="text-foreground truncate">{navItem.label}</span>
                         </button>
                       );
                     })}
@@ -473,7 +471,7 @@ export function TopBar() {
                       </button>
                     </div>
                     {recentResults.map((result, idx) => {
-                      const globalIdx = actionResults.length + navigateResults.length + idx;
+                      const globalIdx = filteredActions.length + filteredNavigate.length + idx;
                       return (
                         <button
                           key={idx}
@@ -497,7 +495,7 @@ export function TopBar() {
                       Clients
                     </div>
                     {clientResults.map((result, idx) => {
-                      const globalIdx = actionResults.length + navigateResults.length + recentResults.length + idx;
+                      const globalIdx = filteredActions.length + filteredNavigate.length + recentResults.length + idx;
                       return (
                         <button
                           key={result.data.id}
@@ -524,7 +522,7 @@ export function TopBar() {
                       Tasks
                     </div>
                     {taskResults.map((result, idx) => {
-                      const globalIdx = actionResults.length + navigateResults.length + recentResults.length + clientResults.length + idx;
+                      const globalIdx = filteredActions.length + filteredNavigate.length + recentResults.length + clientResults.length + idx;
                       return (
                         <button
                           key={result.data.id}
