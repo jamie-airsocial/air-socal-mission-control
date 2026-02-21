@@ -196,6 +196,30 @@ export default function ProfilePage() {
             <p className="text-[12px] text-muted-foreground/60">
               Click the avatar to upload a new photo. Images are resized to 128×128 and must be under 100KB.
             </p>
+            {avatarUrl && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/users/${appUser?.id}`, {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ avatar_url: null }),
+                    });
+                    if (res.ok) {
+                      setAvatarUrl(null);
+                      toast.success('Profile photo removed');
+                      setTimeout(() => window.location.reload(), 500);
+                    }
+                  } catch {
+                    toast.error('Failed to remove photo');
+                  }
+                }}
+                className="text-[12px] text-destructive hover:text-destructive/80 transition-colors"
+              >
+                Remove photo
+              </button>
+            )}
           </div>
         </div>
 

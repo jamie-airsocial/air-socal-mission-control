@@ -40,7 +40,7 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { full_name, email, role_id, team, is_active } = body;
+  const { full_name, email, role_id, team, is_active, avatar_url } = body;
 
   // If email is changing, sync to Supabase Auth first
   if (email !== undefined) {
@@ -98,6 +98,7 @@ export async function PATCH(
   if (role_id !== undefined) updates.role_id = role_id;
   if (team !== undefined) updates.team = team;
   if (is_active !== undefined) updates.is_active = is_active;
+  if (avatar_url !== undefined) updates.avatar_url = avatar_url;
 
   const { data, error } = await supabaseAdmin
     .from('app_users')
