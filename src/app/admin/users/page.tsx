@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, UserX, UserCheck, KeyRound, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, Key } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, LockKeyhole, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, Key } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -686,7 +686,7 @@ export default function AdminUsersPage() {
                           <TooltipTrigger asChild>
                             <button onClick={() => handleResetPassword(user)}
                               className="p-1.5 rounded hover:bg-amber-500/10 text-muted-foreground/60 hover:text-amber-400 transition-colors">
-                              <KeyRound size={14} />
+                              <LockKeyhole size={14} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-[12px]">Send password reset</TooltipContent>
