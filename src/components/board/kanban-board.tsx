@@ -94,6 +94,7 @@ const PRIORITY_DOT_CLASSES: Record<string, string> = {
 const STATUS_DOT_CLASSES: Record<string, string> = {
   todo: 'bg-amber-500',
   doing: 'bg-purple-500',
+  review: 'bg-blue-500',
   done: 'bg-emerald-500',
 };
 
@@ -213,11 +214,15 @@ export function KanbanBoard({
     }
 
     // Default: status
-    return STATUSES.map((status) => ({
+    const cols: KanbanColumn[] = STATUSES.map((status) => ({
       id: status,
       label: STATUS_STYLES[status]?.label || status,
       dotClass: STATUS_DOT_CLASSES[status],
     }));
+    if (tasks.some((t) => !t.status)) {
+      cols.push({ id: 'no-status', label: 'No Status', dotClass: 'bg-muted-foreground/40' });
+    }
+    return cols;
   }, [groupBy, projects, tasks]);
 
   const getColumnTasks = useCallback(
@@ -252,7 +257,9 @@ export function KanbanBoard({
       } else {
         // Status grouping — merge backlog into todo
         columnTasks =
-          columnId === 'todo'
+          columnId === 'no-status'
+            ? tasks.filter((t) => !t.status)
+            : columnId === 'todo'
             ? tasks.filter((t) => t.status === 'todo' || (t.status as string) === 'backlog')
             : tasks.filter((t) => t.status === columnId);
       }

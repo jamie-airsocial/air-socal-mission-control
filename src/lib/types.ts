@@ -83,7 +83,7 @@ export interface AgentStatus {
 }
 
 // 'backlog' intentionally excluded — merged into 'todo' in UI
-export const STATUSES = ['todo', 'doing', 'done'] as const;
+export const STATUSES = ['todo', 'doing', 'review', 'done'] as const;
 export type TaskStatusAll = 'backlog' | 'todo' | 'doing' | 'done';
 export const PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const;
 

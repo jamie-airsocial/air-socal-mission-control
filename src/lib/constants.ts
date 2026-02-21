@@ -5,6 +5,7 @@ export const STATUS_STYLES: Record<string, { dot: string; bg: string; text: stri
   backlog: { dot: 'var(--status-warning)', bg: 'bg-status-warning/10', text: 'text-amber-400', label: 'To Do' },
   todo: { dot: 'var(--status-warning)', bg: 'bg-status-warning/10', text: 'text-amber-400', label: 'To Do' },
   doing: { dot: 'var(--status-doing)', bg: 'bg-purple-500/10', text: 'text-purple-400', label: 'In Progress' },
+  review: { dot: 'var(--status-doing)', bg: 'bg-blue-500/10', text: 'text-blue-400', label: 'Review' },
   done: { dot: 'var(--status-success)', bg: 'bg-status-success/10', text: 'text-status-success', label: 'Done' },
 };
 

@@ -8,6 +8,7 @@ import { STATUS_STYLES } from '@/lib/constants';
 const STATUSES = [
   { value: 'todo', label: 'To Do' },
   { value: 'doing', label: 'In Progress' },
+  { value: 'review', label: 'Review' },
   { value: 'done', label: 'Done' },
 ] as const;
 
