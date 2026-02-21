@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const ADMIN_TABS = [
+  { href: '/admin/profile', label: 'My Profile' },
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/roles', label: 'Roles & Permissions' },
   { href: '/admin/teams', label: 'Teams' },

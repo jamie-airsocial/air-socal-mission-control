@@ -453,9 +453,17 @@ export default function AdminUsersPage() {
                   >
                     <TableCell className="text-[13px]">
                       <div className="flex items-center gap-2.5">
-                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0 ${colorClass}`}>
-                          {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                        </div>
+                        {user.avatar_url ? (
+                          <img
+                            src={user.avatar_url}
+                            alt={user.full_name}
+                            className="w-7 h-7 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-medium shrink-0 ${colorClass}`}>
+                            {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                        )}
                         <span className={`font-medium ${isInactive ? 'text-muted-foreground' : 'text-foreground'}`}>
                           {user.full_name}
                         </span>
