@@ -11,6 +11,7 @@ import { SearchableStatusPopover } from '@/components/board/searchable-status-po
 import { SearchablePriorityPopover } from '@/components/board/searchable-priority-popover';
 import { SearchableAssigneePopover } from '@/components/board/searchable-assignee-popover';
 import { SearchableProjectPopover } from '@/components/board/searchable-project-popover';
+import { SearchableServicePopover } from '@/components/board/searchable-service-popover';
 import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, SERVICE_STYLES, getTeamStyle, normalisePriority, toSlug, toDisplayName, getInitials } from '@/lib/constants';
 import { LabelCombobox } from '@/components/board/label-combobox';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -419,6 +420,50 @@ function ServiceCell({ service }: { service?: string | null }) {
   );
 }
 
+function InlineServiceCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
+  const [open, setOpen] = useState(false);
+  const update = async (service: string | null) => {
+    const prevService = task.service;
+    onUpdate(task.id, { service: service as Task['service'] });
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ service }),
+      });
+      if (!res.ok) {
+        toast.error('Failed to update service');
+        onUpdate(task.id, { service: prevService });
+      }
+    } catch {
+      toast.error('Failed to update service');
+      onUpdate(task.id, { service: prevService });
+    }
+  };
+  const style = task.service ? SERVICE_STYLES[task.service] : null;
+  return (
+    <div onClick={(e) => e.stopPropagation()}>
+      <SearchableServicePopover
+        value={task.service}
+        onChange={update}
+        open={open}
+        onOpenChange={setOpen}
+        trigger={
+          <button className={`inline-flex items-center gap-1 ${CELL_BASE} ${open ? CELL_ACTIVE : CELL_HOVER}`}>
+            {style ? (
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${style.bg} ${style.text}`}>
+                {style.label}
+              </span>
+            ) : (
+              <span className="text-[13px] text-muted-foreground/30">No service</span>
+            )}
+          </button>
+        }
+      />
+    </div>
+  );
+}
+
 function SortHeader({ field, sortField, sortOrder, onSort, children, className = '' }: { field: SortField; sortField: SortField; sortOrder: SortOrder; onSort: (field: SortField) => void; children: React.ReactNode; className?: string }) {
   const isActive = sortField === field;
   return (
@@ -582,7 +627,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
         if (task.client_color) metadata.color = task.client_color;
       } else if (groupBy === 'assignee') {
         key = task.assignee || 'no-assignee';
-        label = task.assignee ? toDisplayName(task.assignee) : 'Unassigned';
+        label = task.assignee ? toDisplayName(task.assignee) : 'No assignee';
         if (task.assignee) metadata.avatar = getInitials(task.assignee);
       } else if (groupBy === 'status') {
         key = task.status || 'no-status';
@@ -912,7 +957,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                             <InlineDueDateCell task={task} onUpdate={onUpdate} />
                           </td>}
                           {!hiddenColumns.includes('service') && <td className="py-2.5 px-5">
-                            <ServiceCell service={task.service} />
+                            <InlineServiceCell task={task} onUpdate={onUpdate} />
                           </td>}
                           {!hiddenColumns.includes('assignee') && <td className="py-2.5 px-5">
                             <InlineAssigneeCell task={task} onUpdate={onUpdate} />
@@ -952,7 +997,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               <InlineDueDateCell task={sub} onUpdate={onUpdate} />
                             </td>}
                             {!hiddenColumns.includes('service') && <td className="py-2.5 px-5">
-                              <ServiceCell service={sub.service} />
+                              <InlineServiceCell task={sub} onUpdate={onUpdate} />
                             </td>}
                             {!hiddenColumns.includes('assignee') && <td className="py-2.5 px-5">
                               <InlineAssigneeCell task={sub} onUpdate={onUpdate} />

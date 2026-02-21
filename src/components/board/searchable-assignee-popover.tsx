@@ -60,7 +60,7 @@ export function SearchableAssigneePopover({
                 </span>
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[13px]">{value || 'Unassigned'}</TooltipContent>
+            <TooltipContent side="bottom" className="text-[13px]">{value || 'No assignee'}</TooltipContent>
           </Tooltip>
         ) : (
           <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
@@ -101,7 +101,7 @@ export function SearchableAssigneePopover({
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-muted-foreground/30 hover:text-muted-foreground/60 hover:bg-muted/40 transition-colors duration-150"
                 >
                   <span className="w-5 h-5 rounded-full border border-dashed border-muted-foreground/20 flex-shrink-0" />
-                  Unassigned
+                  No assignee
                 </button>
               </PopoverClose>
               <div className="border-t border-border/20 my-1" />

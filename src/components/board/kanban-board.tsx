@@ -184,7 +184,7 @@ export function KanbanBoard({
         dotClass: ASSIGNEE_DOT_CLASSES[slug] || 'bg-muted-foreground',
       }));
       if (tasks.some((t) => !t.assignee)) {
-        cols.unshift({ id: 'unassigned', label: 'Unassigned', dotClass: 'bg-muted-foreground/40' });
+        cols.unshift({ id: 'unassigned', label: 'No assignee', dotClass: 'bg-muted-foreground/40' });
       }
       return cols;
     }
