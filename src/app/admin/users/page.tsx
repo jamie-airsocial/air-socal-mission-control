@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, UserX, UserCheck, LockKeyhole, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, Key } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, LockKeyhole, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, KeyRound } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -673,7 +673,7 @@ export default function AdminUsersPage() {
                                     ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
                                     : 'text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground'
                               }`}>
-                              <Key size={14} />
+                              <KeyRound size={14} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-[12px]">
@@ -937,7 +937,7 @@ export default function AdminUsersPage() {
           <DialogContent className="sm:max-w-lg bg-card border-border/20">
             <DialogHeader>
               <DialogTitle className="text-[15px] flex items-center gap-2">
-                <Key size={16} />
+                <KeyRound size={16} />
                 Custom permissions for {permissionsTarget?.full_name}
               </DialogTitle>
               <p className="text-[12px] text-muted-foreground/60 mt-1">
