@@ -102,14 +102,18 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
         {/* Bottom row: project, due date, assignee */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span
-              className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: task.project_color || 'var(--muted-foreground)' }}
-            />
-            {task.project_name && (
-              <span className="text-[11px] text-muted-foreground/60 truncate">
-                {task.project_name}
-              </span>
+            {task.project_name ? (
+              <>
+                <span
+                  className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
+                  style={{ backgroundColor: task.project_color || 'var(--muted-foreground)' }}
+                />
+                <span className="text-[11px] text-muted-foreground/60 truncate">
+                  {task.project_name}
+                </span>
+              </>
+            ) : (
+              <span className="text-[11px] text-muted-foreground/30 truncate">No client</span>
             )}
             {task.priority && PRIORITY_BADGE[task.priority] && (
               <span className={`text-[10px] px-1.5 py-0 rounded border font-medium ${PRIORITY_BADGE[task.priority].className}`}>

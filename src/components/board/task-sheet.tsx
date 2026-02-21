@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import type { Task, Project, Comment } from '@/lib/types';
-import { STATUS_STYLES, SERVICE_STYLES, toSlug, toDisplayName, getInitials } from '@/lib/constants';
+import { STATUS_STYLES, SERVICE_STYLES, toSlug, toDisplayName, getInitials, getTeamStyle } from '@/lib/constants';
 import { ServiceIcon } from '@/components/ui/service-icon';
 // Note: ASSIGNEE_COLORS / NAME_TO_SLUG are used in subtask-list.tsx, not here.
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -13,7 +13,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Trash2, X, Send, Paperclip,
-  Activity, Flag, User, Folder, Briefcase, Calendar as CalendarIcon, Tag,
+  Activity, Flag, User, Users, Folder, Briefcase, Calendar as CalendarIcon, Tag,
   Zap, Link2, Copy, Pencil, Check,
   ChevronLeft, ArrowRight, Plus, MessageSquare,
 } from 'lucide-react';
@@ -113,6 +113,7 @@ export function TaskSheet({
     priority: '' as string,
     assignee: '' as string,
     project_id: '' as string,
+    client_team: '' as string,
     service: '' as string,
     due_date: null as Date | null,
     due_time: '' as string,
@@ -262,6 +263,7 @@ export function TaskSheet({
         priority: task.priority || '',
         assignee: toDisplayName(task.assignee || ''),
         project_id: task.client_id || task.project_id || '',
+        client_team: task.client_team || '',
         service: task.service || '',
         due_date: dueDate,
         due_time: dueTime,
@@ -302,6 +304,7 @@ export function TaskSheet({
         priority: task?.priority || '',
         assignee: task?.assignee ? toDisplayName(task.assignee) : '',
         project_id: task?.client_id || task?.project_id || '',
+        client_team: task?.client_team || '',
         service: task?.service || '',
         due_date: newDueDate,
         due_time: newDueTime,
@@ -1047,6 +1050,17 @@ export function TaskSheet({
                 open={assigneeOpen}
                 onOpenChange={setAssigneeOpen}
               />
+            </PropertyRow>
+            
+            <PropertyRow icon={<Users size={13} />} label="Team">
+              {form.client_team ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamStyle(form.client_team).color }} />
+                  <span className="text-[13px]">{getTeamStyle(form.client_team).label}</span>
+                </div>
+              ) : (
+                <span className="text-[13px] text-muted-foreground/30">—</span>
+              )}
             </PropertyRow>
             
             <PropertyRow icon={<Folder size={13} />} label="Client">
