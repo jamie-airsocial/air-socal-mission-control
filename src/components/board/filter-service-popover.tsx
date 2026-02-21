@@ -32,8 +32,8 @@ export function FilterServicePopover({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className={`h-8 px-3 text-[13px] bg-secondary border rounded-lg hover:border-primary/50 transition-colors duration-150 flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
-            active ? 'border-primary text-primary' : 'border-border/20 text-muted-foreground'
+          className={`h-8 px-3 text-[13px] border rounded-lg transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
+            active ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
           }`}
         >
           {label}
@@ -41,17 +41,6 @@ export function FilterServicePopover({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-52 p-1" align="start">
-        {active && (
-          <>
-            <button
-              onClick={() => { onChange([]); }}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:bg-muted/40 transition-colors duration-150"
-            >
-              All services
-            </button>
-            <div className="border-t border-border/20 my-1" />
-          </>
-        )}
         <button
           onClick={() => toggle('__none__')}
           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${
@@ -75,6 +64,17 @@ export function FilterServicePopover({
             {value.includes(key) && <Check size={14} className="text-primary shrink-0" />}
           </button>
         ))}
+        {active && (
+          <>
+            <div className="border-t border-border/20 my-1" />
+            <button
+              onClick={() => { onChange([]); }}
+              className="w-full px-2 py-1.5 text-[13px] text-destructive hover:bg-destructive/10 rounded transition-colors duration-150 text-left"
+            >
+              Clear selection
+            </button>
+          </>
+        )}
       </PopoverContent>
     </Popover>
   );
