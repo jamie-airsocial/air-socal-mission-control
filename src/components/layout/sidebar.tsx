@@ -41,17 +41,10 @@ export function Sidebar() {
         }`}
       >
         {/* Header */}
-        <div className="h-14 flex items-center px-4 border-b border-border/20 shrink-0">
+        <div className={`h-[72px] flex items-center border-b border-border/20 shrink-0 ${collapsed ? 'justify-center px-0' : 'px-4'}`}>
           {!collapsed && (
             <h1 className="text-[15px] font-semibold text-foreground">Air Social</h1>
           )}
-          <button
-            onClick={toggleCollapsed}
-            className="ml-auto p-1.5 rounded-md hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
         </div>
 
         {/* Navigation */}
@@ -131,6 +124,18 @@ export function Sidebar() {
             </>
           )}
         </nav>
+
+        {/* Collapse button */}
+        <div className={`border-t border-border/20 ${collapsed ? 'px-2' : 'px-4'}`}>
+          <button
+            onClick={toggleCollapsed}
+            className={`w-full flex items-center py-2.5 rounded-md hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground ${collapsed ? 'justify-center' : 'gap-2 px-2'}`}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            {!collapsed && <span className="text-[12px]">Collapse</span>}
+          </button>
+        </div>
 
         {/* User area at bottom */}
         <div className="p-2 border-t border-border/20 shrink-0">
