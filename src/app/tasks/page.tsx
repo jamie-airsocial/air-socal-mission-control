@@ -339,14 +339,21 @@ function BoardContent() {
           />
         </div>
 
-        {!(view === 'kanban' && kanbanGroupBy === 'status') && !(view === 'table' && groupBy === 'status') && (
-          <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
-        )}
-        {!(view === 'kanban' && kanbanGroupBy === 'project') && !(view === 'table' && groupBy === 'project') && (
-          <FilterProjectPopover value={filterProject} projects={projects} onChange={setFilterProject} />
-        )}
+        <FilterPopover
+          label="Team"
+          options={availableTeams.map(t => ({ value: t.slug, label: t.name, dot: getTeamStyle(t.slug).color }))}
+          selected={filterTeam}
+          onSelectionChange={setFilterTeam}
+        />
+
         {!(view === 'kanban' && kanbanGroupBy === 'assignee') && !(view === 'table' && groupBy === 'assignee') && (
           <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
+        )}
+
+        <FilterServicePopover value={filterService} onChange={setFilterService} />
+
+        {!(view === 'kanban' && kanbanGroupBy === 'project') && !(view === 'table' && groupBy === 'project') && (
+          <FilterProjectPopover value={filterProject} projects={projects} onChange={setFilterProject} />
         )}
         {!(view === 'kanban' && kanbanGroupBy === 'priority') && !(view === 'table' && groupBy === 'priority') && (
           <FilterPriorityPopover value={filterPriority} onChange={setFilterPriority} />
@@ -362,14 +369,9 @@ function BoardContent() {
           onCreateLabel={handleLabelCreate}
         />
 
-        <FilterServicePopover value={filterService} onChange={setFilterService} />
-
-        <FilterPopover
-          label="Team"
-          options={availableTeams.map(t => ({ value: t.slug, label: t.name, dot: getTeamStyle(t.slug).color }))}
-          selected={filterTeam}
-          onSelectionChange={setFilterTeam}
-        />
+        {!(view === 'kanban' && kanbanGroupBy === 'status') && !(view === 'table' && groupBy === 'status') && (
+          <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
+        )}
 
         {view !== 'calendar' && (
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
