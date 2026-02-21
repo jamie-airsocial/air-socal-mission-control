@@ -146,6 +146,9 @@ interface UserFormData {
 const emptyForm: UserFormData = { email: '', full_name: '', role_id: '', team: '', password: '' };
 
 // ── Main page ────────────────────────────────────────────────────────────────
+// Owner accounts — permissions cannot be changed by anyone
+const OWNER_USER_IDS = ['83983bb2-3d05-4be3-97f3-fdac36929560']; // Jamie
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -625,34 +628,38 @@ export default function AdminUsersPage() {
                         {/* Admin toggle */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => handleToggleAdmin(user)}
+                            <button onClick={() => !OWNER_USER_IDS.includes(user.id) && handleToggleAdmin(user)}
                               className={`p-1.5 rounded transition-colors ${
-                                user.is_admin
-                                  ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                                  : 'text-muted-foreground/60 hover:bg-blue-500/10 hover:text-blue-400'
+                                OWNER_USER_IDS.includes(user.id)
+                                  ? 'bg-primary/10 text-primary cursor-not-allowed opacity-60'
+                                  : user.is_admin
+                                    ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                                    : 'text-muted-foreground/60 hover:bg-blue-500/10 hover:text-blue-400'
                               }`}>
                               <ShieldCheck size={14} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-[12px]">
-                            {user.is_admin ? 'Remove admin access' : 'Grant admin access'}
+                            {OWNER_USER_IDS.includes(user.id) ? 'Owner — cannot be changed' : user.is_admin ? 'Remove admin access' : 'Grant admin access'}
                           </TooltipContent>
                         </Tooltip>
 
                         {/* Custom permissions */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => openPermissions(user)}
+                            <button onClick={() => !OWNER_USER_IDS.includes(user.id) && openPermissions(user)}
                               className={`p-1.5 rounded transition-colors ${
-                                user.permission_overrides
-                                  ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
-                                  : 'text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground'
+                                OWNER_USER_IDS.includes(user.id)
+                                  ? 'text-muted-foreground/30 cursor-not-allowed'
+                                  : user.permission_overrides
+                                    ? 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
+                                    : 'text-muted-foreground/60 hover:bg-muted/60 hover:text-foreground'
                               }`}>
                               <Key size={14} />
                             </button>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="text-[12px]">
-                            {user.permission_overrides ? 'Edit custom permissions' : 'Set custom permissions'}
+                            {OWNER_USER_IDS.includes(user.id) ? 'Owner — cannot be changed' : user.permission_overrides ? 'Edit custom permissions' : 'Set custom permissions'}
                           </TooltipContent>
                         </Tooltip>
 
@@ -671,8 +678,8 @@ export default function AdminUsersPage() {
                         {user.is_active ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <button onClick={() => promptDeactivate(user)}
-                                className="p-1.5 rounded hover:bg-orange-500/10 text-muted-foreground/60 hover:text-orange-400 transition-colors">
+                              <button onClick={() => !OWNER_USER_IDS.includes(user.id) && promptDeactivate(user)}
+                                className={`p-1.5 rounded transition-colors ${OWNER_USER_IDS.includes(user.id) ? 'text-muted-foreground/30 cursor-not-allowed' : 'hover:bg-orange-500/10 text-muted-foreground/60 hover:text-orange-400'}`}>
                                 <UserX size={14} />
                               </button>
                             </TooltipTrigger>

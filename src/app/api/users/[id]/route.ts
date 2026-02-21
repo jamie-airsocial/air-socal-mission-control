@@ -42,6 +42,12 @@ export async function PATCH(
   const body = await request.json();
   const { full_name, email, role_id, team, is_active, avatar_url, is_admin, permission_overrides } = body;
 
+  // Owner protection — cannot change permissions/admin/active status
+  const OWNER_USER_IDS = ['83983bb2-3d05-4be3-97f3-fdac36929560'];
+  if (OWNER_USER_IDS.includes(id) && (is_admin !== undefined || permission_overrides !== undefined || is_active === false)) {
+    return NextResponse.json({ error: 'Owner account cannot be modified' }, { status: 403 });
+  }
+
   // If email is changing, sync to Supabase Auth first
   if (email !== undefined) {
     // Fetch the auth_user_id so we can update the auth record
