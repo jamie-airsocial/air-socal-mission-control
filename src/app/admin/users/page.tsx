@@ -312,7 +312,17 @@ export default function AdminUsersPage() {
   };
 
   // ── Delete (hard) ──────────────────────────────────────────────────────────
-  const promptDelete = (user: AppUser) => { setDeleteTarget(user); setDeleteReassignTo(''); setDeleteConfirmName(''); };
+  const promptDelete = (user: AppUser) => {
+    // Prevent deleting the last admin
+    if (user.is_admin) {
+      const otherAdmins = users.filter(u => u.is_admin && u.id !== user.id && u.is_active).length;
+      if (otherAdmins === 0) {
+        toast.error('Cannot delete the only admin', { description: 'Grant admin access to another user first.' });
+        return;
+      }
+    }
+    setDeleteTarget(user); setDeleteReassignTo(''); setDeleteConfirmName('');
+  };
 
   const canConfirmDelete = deleteTarget
     ? deleteReassignTo.length > 0 && deleteConfirmName === deleteTarget.full_name
@@ -345,6 +355,14 @@ export default function AdminUsersPage() {
   // ── Admin toggle ───────────────────────────────────────────────────────────
   const handleToggleAdmin = async (user: AppUser) => {
     const newAdminState = !user.is_admin;
+    // Prevent removing the last admin
+    if (!newAdminState) {
+      const adminCount = users.filter(u => u.is_admin && u.id !== user.id && u.is_active).length;
+      if (adminCount === 0) {
+        toast.error('Cannot remove admin access', { description: 'This is the only admin. Grant admin access to another user first.' });
+        return;
+      }
+    }
     try {
       const res = await fetch(`/api/users/${user.id}`, {
         method: 'PATCH',
