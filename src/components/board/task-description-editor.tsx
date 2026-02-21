@@ -11,7 +11,7 @@ import { ResizableImage } from '@/components/editor/resizable-image';
 import { FileAttachment } from '@/components/editor/file-attachment';
 import { createSlashCommandExtension } from '@/components/editor/slash-commands';
 import { mentionSuggestion } from '@/components/editor/mention-suggestion';
-import { Bold, Italic, Underline as UnderlineIcon, Heading1, Heading2, Heading3, List, ListOrdered, Code, Link as LinkIcon, Quote, ImageIcon, Paperclip, Smile, Undo2, Redo2, X as XIcon } from 'lucide-react';
+import { Bold, Italic, Underline as UnderlineIcon, Heading1, Heading2, Heading3, List, ListOrdered, Code, Link as LinkIcon, Quote, ImageIcon, Paperclip, Smile, Undo2, Redo2, X as XIcon, MoreHorizontal } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
@@ -80,6 +80,9 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   // M4: Inline link input popover state
   const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
+  // Responsive toolbar
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [visibleCount, setVisibleCount] = useState(99); // Start with all visible
 
   const slashCommands = useMemo(
     () => createSlashCommandExtension(
@@ -145,6 +148,209 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       }
     },
   });
+
+  // Define all toolbar items in order
+  const toolbarItems = useMemo(() => {
+    if (!editor) return [];
+    
+    type ToolbarItem = {
+      id: string;
+      type: 'button' | 'separator';
+      icon?: React.ReactNode;
+      label?: string;
+      action?: () => void;
+      isActive?: boolean;
+      group?: string;
+    };
+
+    const items: ToolbarItem[] = [
+      {
+        id: 'undo',
+        type: 'button',
+        icon: <Undo2 className="h-3.5 w-3.5" />,
+        label: 'Undo (⌘Z)',
+        action: () => editor.chain().focus().undo().run(),
+        group: 'history',
+      },
+      {
+        id: 'redo',
+        type: 'button',
+        icon: <Redo2 className="h-3.5 w-3.5" />,
+        label: 'Redo (⌘⇧Z)',
+        action: () => editor.chain().focus().redo().run(),
+        group: 'history',
+      },
+      { id: 'sep-1', type: 'separator' },
+      {
+        id: 'bold',
+        type: 'button',
+        icon: <Bold className="h-3.5 w-3.5" />,
+        label: 'Bold (⌘B)',
+        action: () => editor.chain().focus().toggleBold().run(),
+        isActive: editor.isActive('bold'),
+        group: 'format',
+      },
+      {
+        id: 'italic',
+        type: 'button',
+        icon: <Italic className="h-3.5 w-3.5" />,
+        label: 'Italic (⌘I)',
+        action: () => editor.chain().focus().toggleItalic().run(),
+        isActive: editor.isActive('italic'),
+        group: 'format',
+      },
+      {
+        id: 'underline',
+        type: 'button',
+        icon: <UnderlineIcon className="h-3.5 w-3.5" />,
+        label: 'Underline (⌘U)',
+        action: () => editor.chain().focus().toggleUnderline().run(),
+        isActive: editor.isActive('underline'),
+        group: 'format',
+      },
+      { id: 'sep-2', type: 'separator' },
+      {
+        id: 'h1',
+        type: 'button',
+        icon: <Heading1 className="h-3.5 w-3.5" />,
+        label: 'Heading 1',
+        action: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+        isActive: editor.isActive('heading', { level: 1 }),
+        group: 'headings',
+      },
+      {
+        id: 'h2',
+        type: 'button',
+        icon: <Heading2 className="h-3.5 w-3.5" />,
+        label: 'Heading 2',
+        action: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+        isActive: editor.isActive('heading', { level: 2 }),
+        group: 'headings',
+      },
+      {
+        id: 'h3',
+        type: 'button',
+        icon: <Heading3 className="h-3.5 w-3.5" />,
+        label: 'Heading 3',
+        action: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+        isActive: editor.isActive('heading', { level: 3 }),
+        group: 'headings',
+      },
+      { id: 'sep-3', type: 'separator' },
+      {
+        id: 'bullet-list',
+        type: 'button',
+        icon: <List className="h-3.5 w-3.5" />,
+        label: 'Bullet List',
+        action: () => editor.chain().focus().toggleBulletList().run(),
+        isActive: editor.isActive('bulletList'),
+        group: 'lists',
+      },
+      {
+        id: 'ordered-list',
+        type: 'button',
+        icon: <ListOrdered className="h-3.5 w-3.5" />,
+        label: 'Ordered List',
+        action: () => editor.chain().focus().toggleOrderedList().run(),
+        isActive: editor.isActive('orderedList'),
+        group: 'lists',
+      },
+      { id: 'sep-4', type: 'separator' },
+      {
+        id: 'link',
+        type: 'button',
+        icon: <LinkIcon className="h-3.5 w-3.5" />,
+        label: 'Insert Link',
+        action: () => {
+          const previousUrl = editor.getAttributes('link').href || '';
+          setLinkUrl(previousUrl);
+          setLinkPopoverOpen(true);
+        },
+        isActive: editor.isActive('link'),
+        group: 'insert',
+      },
+      {
+        id: 'code-block',
+        type: 'button',
+        icon: <Code className="h-3.5 w-3.5" />,
+        label: 'Code Block',
+        action: () => editor.chain().focus().toggleCodeBlock().run(),
+        isActive: editor.isActive('codeBlock'),
+        group: 'insert',
+      },
+      {
+        id: 'quote',
+        type: 'button',
+        icon: <Quote className="h-3.5 w-3.5" />,
+        label: 'Quote',
+        action: () => editor.chain().focus().toggleBlockquote().run(),
+        isActive: editor.isActive('blockquote'),
+        group: 'insert',
+      },
+      { id: 'sep-5', type: 'separator' },
+      {
+        id: 'emoji',
+        type: 'button',
+        icon: <Smile className="h-3.5 w-3.5" />,
+        label: 'Insert Emoji',
+        action: () => setShowEmojiPicker(!showEmojiPicker),
+        isActive: showEmojiPicker,
+        group: 'media',
+      },
+      {
+        id: 'image',
+        type: 'button',
+        icon: <ImageIcon className="h-3.5 w-3.5" />,
+        label: 'Insert Image',
+        action: () => fileInputRef.current?.click(),
+        group: 'media',
+      },
+      {
+        id: 'attach-doc',
+        type: 'button',
+        icon: <Paperclip className="h-3.5 w-3.5" />,
+        label: 'Attach Document',
+        action: () => docInputRef.current?.click(),
+        group: 'media',
+      },
+    ];
+
+    return items;
+  }, [editor, showEmojiPicker]);
+
+  // Calculate how many items fit based on available width
+  useEffect(() => {
+    if (!toolbarRef.current) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const containerWidth = entry.contentRect.width;
+        // Account for padding (~20px total), More button (~30px), and some margin
+        const availableWidth = containerWidth - 60;
+        
+        let currentWidth = 0;
+        let count = 0;
+        
+        for (const item of toolbarItems) {
+          const itemWidth = item.type === 'separator' ? 13 : 30;
+          if (currentWidth + itemWidth <= availableWidth) {
+            currentWidth += itemWidth;
+            count++;
+          } else {
+            break;
+          }
+        }
+        
+        setVisibleCount(count);
+      }
+    });
+
+    resizeObserver.observe(toolbarRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [toolbarItems]);
 
   // M13: Sync editor content when the prop changes from OUTSIDE (e.g. a different task is opened).
   // Skip when isInternalUpdate is set — that means the change came from the user typing,
@@ -222,13 +428,6 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
     if (docInputRef.current) docInputRef.current.value = '';
   };
 
-  // M4: Open link popover — pre-fill with existing href if cursor is on a link
-  const openLinkPopover = () => {
-    const previousUrl = editor.getAttributes('link').href || '';
-    setLinkUrl(previousUrl);
-    setLinkPopoverOpen(true);
-  };
-
   const applyLink = (url: string) => {
     setLinkPopoverOpen(false);
     if (url === '') {
@@ -287,105 +486,31 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
     <TooltipProvider delayDuration={300}>
     <div className="flex flex-col overflow-hidden rounded-lg border border-border/20 bg-card relative">
       {/* Toolbar */}
-      <div className="flex items-center gap-0.5 border-b border-border/20 px-2.5 py-1.5 bg-muted/30">
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          title="Undo (⌘Z)"
-        >
-          <Undo2 className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          title="Redo (⌘⇧Z)"
-        >
-          <Redo2 className="h-3.5 w-3.5" />
-        </ToolbarButton>
+      <div ref={toolbarRef} className="flex items-center gap-0.5 border-b border-border/20 px-2.5 py-1.5 bg-muted/30">
+        {/* Render visible items */}
+        {toolbarItems.slice(0, visibleCount).map((item, index) => {
+          if (item.type === 'separator') {
+            // Don't render separator if it's the last visible item (before More button)
+            if (index === visibleCount - 1) return null;
+            return <div key={item.id} className="w-px h-4 bg-border mx-1.5" />;
+          }
+          
+          return (
+            <ToolbarButton
+              key={item.id}
+              onClick={item.action!}
+              active={item.isActive}
+              title={item.label!}
+            >
+              {item.icon}
+            </ToolbarButton>
+          );
+        })}
 
-        <div className="w-px h-4 bg-border mx-1.5" />
-
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive('bold')}
-          title="Bold (⌘B)"
-        >
-          <Bold className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive('italic')}
-          title="Italic (⌘I)"
-        >
-          <Italic className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          active={editor.isActive('underline')}
-          title="Underline (⌘U)"
-        >
-          <UnderlineIcon className="h-3.5 w-3.5" />
-        </ToolbarButton>
-
-        <div className="w-px h-4 bg-border mx-1.5" />
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          active={editor.isActive('heading', { level: 1 })}
-          title="Heading 1"
-        >
-          <Heading1 className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          active={editor.isActive('heading', { level: 2 })}
-          title="Heading 2"
-        >
-          <Heading2 className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          active={editor.isActive('heading', { level: 3 })}
-          title="Heading 3"
-        >
-          <Heading3 className="h-3.5 w-3.5" />
-        </ToolbarButton>
-
-        <div className="w-px h-4 bg-border mx-1.5" />
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          active={editor.isActive('bulletList')}
-          title="Bullet List"
-        >
-          <List className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive('orderedList')}
-          title="Ordered List"
-        >
-          <ListOrdered className="h-3.5 w-3.5" />
-        </ToolbarButton>
-
-        <div className="w-px h-4 bg-border mx-1.5" />
-        
-        {/* M4: Inline link popover — replaces window.prompt */}
+        {/* Link popover — triggered from More dropdown or visible toolbar */}
         <Popover open={linkPopoverOpen} onOpenChange={setLinkPopoverOpen}>
           <PopoverTrigger asChild>
-            <span>
-              <ToolbarButton
-                onClick={openLinkPopover}
-                active={editor.isActive('link')}
-                title="Insert Link (⌘K)"
-              >
-                <LinkIcon className="h-3.5 w-3.5" />
-              </ToolbarButton>
-            </span>
+            <span className="hidden" />
           </PopoverTrigger>
           <PopoverContent side="bottom" align="start" className="w-72 p-2">
             <div className="flex items-center gap-1.5">
@@ -426,39 +551,49 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
             )}
           </PopoverContent>
         </Popover>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          active={editor.isActive('codeBlock')}
-          title="Code Block"
-        >
-          <Code className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          active={editor.isActive('blockquote')}
-          title="Quote"
-        >
-          <Quote className="h-3.5 w-3.5" />
-        </ToolbarButton>
 
-        <div className="w-px h-4 bg-border mx-1.5" />
+        {/* More button — always visible, contains overflow items */}
+        {visibleCount < toolbarItems.length && (
+          <>
+            <div className="w-px h-4 bg-border mx-1.5" />
+            <Popover>
+              <PopoverTrigger asChild>
+                <span className="ml-0.5">
+                  <ToolbarButton
+                    onClick={() => {}}
+                    title="More"
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </ToolbarButton>
+                </span>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="end" className="w-auto p-1">
+                <div className="flex flex-col gap-0.5">
+                  {toolbarItems.slice(visibleCount).map((item) => {
+                    if (item.type === 'separator') {
+                      return <div key={item.id} className="h-px bg-border/20 my-0.5" />;
+                    }
+                    
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={item.action}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${
+                          item.isActive ? 'text-primary' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {item.icon}
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
 
-        <ToolbarButton
-          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          active={showEmojiPicker}
-          title="Insert Emoji"
-        >
-          <Smile className="h-3.5 w-3.5" />
-        </ToolbarButton>
-
-        <ToolbarButton
-          onClick={() => fileInputRef.current?.click()}
-          title="Insert Image"
-        >
-          <ImageIcon className="h-3.5 w-3.5" />
-        </ToolbarButton>
+        {/* Hidden file inputs */}
         <input
           ref={fileInputRef}
           type="file"
@@ -466,12 +601,6 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
           onChange={handleImageUpload}
           className="hidden"
         />
-        <ToolbarButton
-          onClick={() => docInputRef.current?.click()}
-          title="Attach Document"
-        >
-          <Paperclip className="h-3.5 w-3.5" />
-        </ToolbarButton>
         <input
           ref={docInputRef}
           type="file"

@@ -917,11 +917,17 @@ export function TaskSheet({
           <div className="px-5 pt-4 pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 text-[11px] text-muted-foreground/30">
-                {task?.created_at && <span>Created {formatTimestamp(task.created_at)}</span>}
-                {task?.updated_at && task.updated_at !== task.created_at && (
+                {task?.status === 'done' && task?.completed_at ? (
+                  <span className="text-emerald-400/60">Completed {formatTimestamp(task.completed_at)}</span>
+                ) : (
                   <>
-                    <span>·</span>
-                    <span>Updated {formatTimestamp(task.updated_at)}</span>
+                    {task?.created_at && <span>Created {formatTimestamp(task.created_at)}</span>}
+                    {task?.updated_at && task.updated_at !== task.created_at && (
+                      <>
+                        <span>·</span>
+                        <span>Updated {formatTimestamp(task.updated_at)}</span>
+                      </>
+                    )}
                   </>
                 )}
                 {!task && <span>New task</span>}
