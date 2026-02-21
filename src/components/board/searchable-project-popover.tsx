@@ -40,16 +40,13 @@ export function SearchableProjectPopover({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         {trigger || (
-          <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap text-left">
+          <button className="flex items-center gap-1 px-1 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap text-left">
             {value?.name ? (
-              <>
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: value.color }} />
-                <span className="text-[13px] truncate max-w-[120px]">{value.name}</span>
-              </>
+              <span className="text-[13px] truncate max-w-[160px]">{value.name}</span>
             ) : (
-              <span className="text-[13px] text-muted-foreground/30">No project</span>
+              <span className="text-[13px] text-muted-foreground/30">No client</span>
             )}
-            <ChevronDown size={12} className="text-muted-foreground/30" />
+            <ChevronDown size={12} className="text-muted-foreground/30 shrink-0" />
           </button>
         )}
       </PopoverTrigger>
