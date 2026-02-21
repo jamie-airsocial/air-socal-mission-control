@@ -52,7 +52,7 @@ export function FilterStatusPopover({
   const displayText = value.length === 0 
     ? 'Status' 
     : value.length === 1 
-      ? STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.label || value[0]
+      ? value[0] === '__none__' ? 'No status' : (STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.label || value[0])
       : `${value.length} statuses`;
   
   return (
@@ -64,7 +64,7 @@ export function FilterStatusPopover({
             isActive ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
           }`}
         >
-          {value.length === 1 && (
+          {value.length === 1 && value[0] !== '__none__' && (
             <span 
               className="w-1.5 h-1.5 rounded-full"
               style={{ backgroundColor: STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.dot || 'var(--muted-foreground)' }}

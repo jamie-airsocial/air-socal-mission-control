@@ -21,7 +21,7 @@ export function FilterServicePopover({
   const label = !active
     ? 'Service'
     : value.length === 1
-    ? SERVICE_STYLES[value[0]]?.label || value[0]
+    ? value[0] === '__none__' ? 'No service' : (SERVICE_STYLES[value[0]]?.label || value[0])
     : `${value.length} services`;
 
   const toggle = (key: string) => {
