@@ -47,8 +47,8 @@ export function FilterProjectPopover({
   const displayText = value.length === 0 
     ? 'Client' 
     : value.length === 1 
-      ? projects.find(p => p.id === value[0])?.name || 'Project'
-      : `${value.length} projects`;
+      ? projects.find(p => p.id === value[0])?.name || 'Client'
+      : `${value.length} clients`;
   const singleProject = value.length === 1 ? projects.find(p => p.id === value[0]) : null;
   
   return (
@@ -88,7 +88,7 @@ export function FilterProjectPopover({
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value.includes('__none__') ? 'bg-muted/50' : ''}`}
             >
               <span className="w-2 h-2 rounded-full flex-shrink-0 bg-muted-foreground/20" />
-              <span className="flex-1 text-left text-muted-foreground">No project</span>
+              <span className="flex-1 text-left text-muted-foreground">No client</span>
               {value.includes('__none__') && <Check className="h-3.5 w-3.5 text-primary" />}
             </button>
           )}
@@ -111,7 +111,7 @@ export function FilterProjectPopover({
           })}
           {filtered.length === 0 && (
             <div className="px-2 py-3 text-[13px] text-muted-foreground/30 text-center">
-              No projects found
+              No clients found
             </div>
           )}</div>
 
