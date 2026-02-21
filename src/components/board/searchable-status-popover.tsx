@@ -6,7 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/compone
 import { STATUS_STYLES } from '@/lib/constants';
 
 // Only show canonical statuses in the dropdown (exclude legacy 'backlog' fallback)
-const SELECTABLE_STATUSES = ['todo', 'doing', 'done'] as const;
+const SELECTABLE_STATUSES = ['todo', 'doing', 'review', 'done'] as const;
 
 export function SearchableStatusPopover({ 
   value, 
@@ -77,7 +77,7 @@ export function SearchableStatusPopover({
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-muted-foreground/30 hover:text-muted-foreground/60 hover:bg-muted/40 transition-colors duration-150"
                 >
                   <span className="w-2 h-2 rounded-full border border-muted-foreground/20 shrink-0" />
-                  <span className="flex-1">No status</span>
+                  <span className="flex-1 text-left">No status</span>
                 </button>
               </PopoverClose>
               <div className="border-t border-border/20 my-1" />
@@ -91,7 +91,7 @@ export function SearchableStatusPopover({
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === key ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
               >
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.dot }} />
-                <span className="flex-1">{style.label}</span>
+                <span className="flex-1 text-left">{style.label}</span>
                 {value === key && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
               </button>
             </PopoverClose>
