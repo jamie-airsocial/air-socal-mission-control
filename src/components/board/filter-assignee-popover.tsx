@@ -69,7 +69,7 @@ export function FilterAssigneePopover({
         <button aria-label="Filter by assignee" className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
           isActive ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
         }`}>
-          {value.length === 1 && (
+          {value.length === 1 && value[0] !== '__none__' && (
             <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium flex-shrink-0 ${firstColor || 'bg-muted/40 text-muted-foreground'}`}>
               {firstInitial}
             </span>

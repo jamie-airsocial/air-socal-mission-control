@@ -47,9 +47,9 @@ export function FilterProjectPopover({
   const displayText = value.length === 0 
     ? 'Client' 
     : value.length === 1 
-      ? projects.find(p => p.id === value[0])?.name || 'Client'
+      ? value[0] === '__none__' ? 'No client' : (projects.find(p => p.id === value[0])?.name || 'Client')
       : `${value.length} clients`;
-  const singleProject = value.length === 1 ? projects.find(p => p.id === value[0]) : null;
+  const singleProject = value.length === 1 && value[0] !== '__none__' ? projects.find(p => p.id === value[0]) : null;
   
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>

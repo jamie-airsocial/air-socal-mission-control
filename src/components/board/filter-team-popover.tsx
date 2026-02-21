@@ -3,13 +3,15 @@
 import { useState, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { PRIORITY_STYLES } from '@/lib/constants';
+import { TEAM_STYLES, getTeamStyle } from '@/lib/constants';
 
-export function FilterPriorityPopover({ 
-  value, 
+const TEAMS = Object.entries(TEAM_STYLES);
+
+export function FilterTeamPopover({
+  value,
   onChange,
-}: { 
-  value: string[]; // array of selected priorities (empty = all)
+}: {
+  value: string[];
   onChange: (value: string[]) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -24,17 +26,17 @@ export function FilterPriorityPopover({
       setSearch('');
     }
   };
-  
-  const filtered = Object.entries(PRIORITY_STYLES).filter(([key, style]) => 
+
+  const filtered = TEAMS.filter(([key, style]) => 
     key.toLowerCase().includes(search.toLowerCase()) || 
     style.label.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleToggle = (priority: string) => {
-    if (value.includes(priority)) {
-      onChange(value.filter(v => v !== priority));
+  const handleToggle = (team: string) => {
+    if (value.includes(team)) {
+      onChange(value.filter(v => v !== team));
     } else {
-      onChange([...value, priority]);
+      onChange([...value, team]);
     }
   };
 
@@ -44,18 +46,18 @@ export function FilterPriorityPopover({
 
   const isActive = value.length > 0;
   const displayText = value.length === 0 
-    ? 'Priority' 
+    ? 'Team' 
     : value.length === 1 
-      ? value[0] === '__none__' ? 'No priority' : (PRIORITY_STYLES[value[0]]?.label || value[0])
-      : `${value.length} priorities`;
+      ? value[0] === '__none__' ? 'No team' : (TEAM_STYLES[value[0]]?.label || value[0])
+      : `${value.length} teams`;
   
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button aria-label="Filter by priority" className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
+        <button aria-label="Filter by team" className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
           isActive ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
         }`}>
-          <span className="truncate max-w-[120px]">{displayText}</span>
+          <span className="truncate max-w-[100px]">{displayText}</span>
           <ChevronDown size={12} className="text-muted-foreground/60" />
         </button>
       </PopoverTrigger>
@@ -82,8 +84,8 @@ export function FilterPriorityPopover({
               }}
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value.includes('__none__') ? 'bg-muted/50' : ''}`}
             >
-              <span className="px-1 py-0.5 rounded text-[10px] font-medium bg-muted/30 text-muted-foreground/40">—</span>
-              <span className="flex-1 text-left text-muted-foreground">No priority</span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0 bg-muted-foreground/20" />
+              <span className="flex-1 text-left text-muted-foreground">No team</span>
               {value.includes('__none__') && <Check className="h-3.5 w-3.5 text-primary" />}
             </button>
           )}
@@ -98,17 +100,15 @@ export function FilterPriorityPopover({
                   isSelected ? 'bg-muted/50' : ''
                 } ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
               >
-                <span className={`px-2 py-0.5 rounded text-[13px] font-medium ${style.bg} ${style.text} flex-shrink-0`}>
-                  {key} · {style.label}
-                </span>
-                <span className="flex-1" />
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: style.color }} />
+                <span className="flex-1 text-left">{style.label}</span>
                 {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
               </button>
             );
           })}
           {filtered.length === 0 && (
             <div className="px-2 py-3 text-[13px] text-muted-foreground/30 text-center">
-              No priorities found
+              No teams found
             </div>
           )}</div>
 

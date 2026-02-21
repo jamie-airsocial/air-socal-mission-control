@@ -9,12 +9,12 @@ import type { Task } from '@/lib/types';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { Button } from '@/components/ui/button';
 import { FilterLabelPopover } from '@/components/board/filter-label-popover';
-import { FilterPopover } from '@/components/ui/filter-popover';
 import { FilterStatusPopover } from '@/components/board/filter-status-popover';
 import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
 import { FilterAssigneePopover } from '@/components/board/filter-assignee-popover';
 import { FilterServicePopover } from '@/components/board/filter-service-popover';
 import { FilterProjectPopover } from '@/components/board/filter-project-popover';
+import { FilterTeamPopover } from '@/components/board/filter-team-popover';
 import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName } from '@/lib/constants';
 import { useUsers } from '@/hooks/use-users';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -280,10 +280,16 @@ function BoardContent() {
   const serviceFilteredTasks = useMemo(() => {
     let result = filteredTasks;
     if (filterService.length > 0) {
-      result = result.filter(t => t.service && filterService.includes(t.service));
+      result = result.filter(t => {
+        if (filterService.includes('__none__') && !t.service) return true;
+        return t.service && filterService.includes(t.service);
+      });
     }
     if (filterTeam.length > 0) {
-      result = result.filter(t => t.client_team && filterTeam.includes(t.client_team));
+      result = result.filter(t => {
+        if (filterTeam.includes('__none__') && !t.client_team) return true;
+        return t.client_team && filterTeam.includes(t.client_team);
+      });
     }
     return result;
   }, [filteredTasks, filterService, filterTeam]);
@@ -343,12 +349,7 @@ function BoardContent() {
           <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
         )}
 
-        <FilterPopover
-          label="Team"
-          options={availableTeams.map(t => ({ value: t.slug, label: t.name, dot: getTeamStyle(t.slug).color }))}
-          selected={filterTeam}
-          onSelectionChange={setFilterTeam}
-        />
+        <FilterTeamPopover value={filterTeam} onChange={setFilterTeam} />
 
         {!(view === 'kanban' && kanbanGroupBy === 'assignee') && !(view === 'table' && groupBy === 'assignee') && (
           <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
