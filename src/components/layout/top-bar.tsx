@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { useAuth } from '@/contexts/auth-context';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type Client = {
   id: string;
@@ -371,36 +372,53 @@ export function TopBar() {
           </kbd>
         </div>
 
-        {/* Notifications */}
-        <NotificationBell />
+        <TooltipProvider delayDuration={300}>
+          {/* Notifications */}
+          <NotificationBell />
 
-        {/* Settings */}
-        <Link href="/admin">
-          <button
-            aria-label="Settings"
-            className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
-          >
-            <Settings size={16} />
-          </button>
-        </Link>
+          {/* Settings */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/admin">
+                <button
+                  aria-label="Settings"
+                  className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+                >
+                  <Settings size={16} />
+                </button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-[12px]">Settings</TooltipContent>
+          </Tooltip>
 
-        {/* Theme toggle */}
-        <button
-          aria-label="Toggle theme"
-          onClick={toggleTheme}
-          className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
-        >
-          {dark ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
+          {/* Theme toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                aria-label="Toggle theme"
+                onClick={toggleTheme}
+                className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+              >
+                {dark ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-[12px]">{dark ? 'Light mode' : 'Dark mode'}</TooltipContent>
+          </Tooltip>
 
-        {/* Sign out */}
-        <button
-          aria-label="Sign out"
-          onClick={signOut}
-          className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
-        >
-          <LogOut size={16} />
-        </button>
+          {/* Sign out */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                aria-label="Sign out"
+                onClick={signOut}
+                className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+              >
+                <LogOut size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-[12px]">Sign out</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </header>
 
       {/* Search overlay */}
