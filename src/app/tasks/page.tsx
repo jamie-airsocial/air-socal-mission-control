@@ -339,6 +339,10 @@ function BoardContent() {
           />
         </div>
 
+        {!(view === 'kanban' && kanbanGroupBy === 'status') && !(view === 'table' && groupBy === 'status') && (
+          <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
+        )}
+
         <FilterPopover
           label="Team"
           options={availableTeams.map(t => ({ value: t.slug, label: t.name, dot: getTeamStyle(t.slug).color }))}
@@ -368,10 +372,6 @@ function BoardContent() {
           onDeleteLabel={handleLabelDelete}
           onCreateLabel={handleLabelCreate}
         />
-
-        {!(view === 'kanban' && kanbanGroupBy === 'status') && !(view === 'table' && groupBy === 'status') && (
-          <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
-        )}
 
         {view !== 'calendar' && (
           <Popover open={datePopoverOpen} onOpenChange={setDatePopoverOpen}>
