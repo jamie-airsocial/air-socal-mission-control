@@ -545,7 +545,8 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
   }, [tasks, sortField, sortOrder]);
 
   // Pagination
-  const TASKS_PER_PAGE = 25;
+  const [pageSize, setPageSize] = useState(25);
+  const TASKS_PER_PAGE = pageSize;
   const totalTasks = sortedTasks.length;
   const totalPages = Math.ceil(totalTasks / TASKS_PER_PAGE);
   const startIndex = (currentPage - 1) * TASKS_PER_PAGE;
@@ -973,9 +974,26 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="mt-3 flex items-center justify-between rounded-lg border border-border/20 bg-card px-4 py-2.5">
-          <span className="text-[13px] text-muted-foreground">
-            Showing {startIndex + 1}-{Math.min(endIndex, totalTasks)} of {totalTasks} tasks
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-muted-foreground">
+              Showing {startIndex + 1}-{Math.min(endIndex, totalTasks)} of {totalTasks} tasks
+            </span>
+            <div className="flex items-center gap-1.5">
+              {[25, 50, 100].map(size => (
+                <button
+                  key={size}
+                  onClick={() => { setPageSize(size); setCurrentPage(1); }}
+                  className={`text-[12px] px-2 py-0.5 rounded transition-colors duration-150 ${
+                    pageSize === size
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/40'
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setCurrentPage(1)}
