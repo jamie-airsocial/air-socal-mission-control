@@ -27,7 +27,7 @@ export interface SavedView {
   isPreset?: boolean;
 }
 
-const STORAGE_KEY = 'mc-saved-views';
+const DEFAULT_STORAGE_KEY = 'mc-saved-views';
 
 const PRESETS: SavedView[] = [
   {
@@ -74,18 +74,18 @@ const PRESETS: SavedView[] = [
   },
 ];
 
-function getSavedViews(): SavedView[] {
+function getSavedViews(storageKey: string): SavedView[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function setSavedViews(views: SavedView[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(views));
+function setSavedViews(views: SavedView[], storageKey: string) {
+  localStorage.setItem(storageKey, JSON.stringify(views));
 }
 
 interface SavedViewsProps {
@@ -93,9 +93,10 @@ interface SavedViewsProps {
   onLoadView: (filters: ViewFilters) => void;
   clearTrigger?: number;
   currentView: 'kanban' | 'table' | 'calendar';
+  storageKey?: string;
 }
 
-export function SavedViews({ currentFilters, onLoadView, clearTrigger, currentView }: SavedViewsProps) {
+export function SavedViews({ currentFilters, onLoadView, clearTrigger, currentView, storageKey = DEFAULT_STORAGE_KEY }: SavedViewsProps) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newName, setNewName] = useState('');
@@ -103,8 +104,8 @@ export function SavedViews({ currentFilters, onLoadView, clearTrigger, currentVi
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
 
   useEffect(() => {
-    setCustomViews(getSavedViews());
-  }, []);
+    setCustomViews(getSavedViews(storageKey));
+  }, [storageKey]);
 
   useEffect(() => {
     if (clearTrigger && clearTrigger > 0) {
@@ -132,7 +133,7 @@ export function SavedViews({ currentFilters, onLoadView, clearTrigger, currentVi
     };
     const updated = [...customViews, newView];
     setCustomViews(updated);
-    setSavedViews(updated);
+    setSavedViews(updated, storageKey);
     setNewName('');
     setSaving(false);
     setActiveViewId(newView.id);
@@ -142,7 +143,7 @@ export function SavedViews({ currentFilters, onLoadView, clearTrigger, currentVi
   const handleDelete = (id: string) => {
     const updated = customViews.filter((v) => v.id !== id);
     setCustomViews(updated);
-    setSavedViews(updated);
+    setSavedViews(updated, storageKey);
     if (activeViewId === id) setActiveViewId(null);
     toast.success('View deleted');
   };

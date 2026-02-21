@@ -16,6 +16,8 @@ import { FilterStatusPopover } from '@/components/board/filter-status-popover';
 import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
 import { FilterAssigneePopover } from '@/components/board/filter-assignee-popover';
 import { FilterServicePopover } from '@/components/board/filter-service-popover';
+import { usePersistedState } from '@/hooks/use-persisted-state';
+import { SavedViews, type ViewFilters } from '@/components/board/saved-views';
 import dynamic from 'next/dynamic';
 import type { Task, Project } from '@/lib/types';
 
@@ -421,12 +423,12 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [view, setView] = useState<'service' | 'month'>('service');
-  const [taskSearch, setTaskSearch] = useState('');
+  const [taskSearch, setTaskSearch] = usePersistedState<string>(`client-${clientId}-taskSearch`, '');
   const [taskGroupBy, setTaskGroupBy] = useState<'none' | 'service' | 'status' | 'priority' | 'assignee' | 'month'>('service');
-  const [taskFilterStatus, setTaskFilterStatus] = useState<string[]>([]);
-  const [taskFilterPriority, setTaskFilterPriority] = useState<string[]>([]);
-  const [taskFilterAssignee, setTaskFilterAssignee] = useState<string[]>([]);
-  const [taskFilterService, setTaskFilterService] = useState<string[]>([]);
+  const [taskFilterStatus, setTaskFilterStatus] = usePersistedState<string[]>(`client-${clientId}-filterStatus`, []);
+  const [taskFilterPriority, setTaskFilterPriority] = usePersistedState<string[]>(`client-${clientId}-filterPriority`, []);
+  const [taskFilterAssignee, setTaskFilterAssignee] = usePersistedState<string[]>(`client-${clientId}-filterAssignee`, []);
+  const [taskFilterService, setTaskFilterService] = usePersistedState<string[]>(`client-${clientId}-filterService`, []);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'tasks' | 'billing' | 'sale' | 'notes'>('overview');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
@@ -439,6 +441,39 @@ export default function ClientDetailPage() {
   // Contract line item dialog state
   const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<ContractLineItem | null>(null);
+
+  // Saved views state
+  const [clearTrigger, setClearTrigger] = useState(0);
+
+  // Helper functions for SavedViews integration (convert array filters to/from string format)
+  const currentViewFilters: ViewFilters = {
+    filterProject: '', // Client detail doesn't filter by project
+    filterAssignee: taskFilterAssignee.join(','),
+    filterPriority: taskFilterPriority.join(','),
+    filterStatus: taskFilterStatus.join(','),
+    filterDate: 'all',
+    hideDone: false,
+    groupBy: taskGroupBy as ViewFilters['groupBy'],
+    view: 'table',
+  };
+
+  const loadView = useCallback((filters: ViewFilters) => {
+    setTaskFilterStatus(filters.filterStatus ? filters.filterStatus.split(',') : []);
+    setTaskFilterPriority(filters.filterPriority ? filters.filterPriority.split(',') : []);
+    setTaskFilterAssignee(filters.filterAssignee ? filters.filterAssignee.split(',') : []);
+    setTaskFilterService([]); // Service not in ViewFilters, reset
+    setTaskGroupBy((filters.groupBy || 'service') as typeof taskGroupBy);
+    setTaskSearch('');
+  }, [setTaskFilterStatus, setTaskFilterPriority, setTaskFilterAssignee, setTaskFilterService, setTaskSearch, setTaskGroupBy]);
+
+  const clearAllFilters = useCallback(() => {
+    setTaskSearch('');
+    setTaskFilterStatus([]);
+    setTaskFilterPriority([]);
+    setTaskFilterAssignee([]);
+    setTaskFilterService([]);
+    setClearTrigger(prev => prev + 1);
+  }, [setTaskSearch, setTaskFilterStatus, setTaskFilterPriority, setTaskFilterAssignee, setTaskFilterService]);
 
   const fetchContractItems = useCallback(async () => {
     try {
@@ -880,12 +915,21 @@ export default function ClientDetailPage() {
             </Popover>
             {hasTaskFilters && (
               <button
-                onClick={() => { setTaskSearch(''); setTaskFilterStatus([]); setTaskFilterPriority([]); setTaskFilterAssignee([]); setTaskFilterService([]); }}
+                onClick={clearAllFilters}
                 className="h-7 px-2.5 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 Clear all
               </button>
             )}
+            <TooltipProvider>
+              <SavedViews
+                currentFilters={currentViewFilters}
+                onLoadView={loadView}
+                clearTrigger={clearTrigger}
+                currentView="table"
+                storageKey="client-saved-views"
+              />
+            </TooltipProvider>
           </div>
           <TableView
             tasks={filteredTasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
