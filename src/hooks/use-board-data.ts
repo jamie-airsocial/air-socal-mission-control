@@ -188,7 +188,7 @@ export function useBoardData() {
           ? (projects.find(p => p.id === value)?.name || 'No client')
           : field === 'service'
           ? (value || 'No service')
-          : (value || 'Unassigned');
+          : (value || 'No assignee');
       toast.success(`Moved to ${label}`);
     } catch {
       // C9: Functional rollback — safe even if other optimistic updates happened concurrently
