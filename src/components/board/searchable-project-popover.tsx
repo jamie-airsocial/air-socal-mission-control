@@ -40,7 +40,7 @@ export function SearchableProjectPopover({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         {trigger || (
-          <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
+          <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap text-left">
             {value?.name ? (
               <>
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: value.color }} />
