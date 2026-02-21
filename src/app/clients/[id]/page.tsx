@@ -896,6 +896,27 @@ export default function ClientDetailPage() {
             hiddenColumns={['project_name']}
             groupBy={taskGroupBy}
             clientId={client.id}
+            onNewTask={(defaults) => {
+              setIsNew(true);
+              setSelectedTask({
+                id: '',
+                title: '',
+                description: null,
+                status: 'todo',
+                priority: 'P2',
+                assignee: null,
+                project_id: clientId,
+                client_id: clientId,
+                service: null,
+                parent_id: null,
+                due_date: null,
+                completed_at: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                ...defaults,
+              });
+              setSheetOpen(true);
+            }}
           />
         </div>
         );

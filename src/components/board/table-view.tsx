@@ -54,6 +54,7 @@ interface TableViewProps {
   allLabels?: string[];
   hiddenColumns?: SortField[];
   clientId?: string;
+  onNewTask?: (defaults: Partial<Task>) => void;
 }
 
 type SortField = 'title' | 'status' | 'priority' | 'assignee' | 'project_name' | 'due_date' | 'service';
@@ -437,7 +438,7 @@ function SortHeader({ field, sortField, sortOrder, onSort, children, className =
   );
 }
 
-export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [], clientId }: TableViewProps) {
+export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [], clientId, onNewTask }: TableViewProps) {
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -484,36 +485,38 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
   const getSubtasks = useCallback((parentId: string) =>
     allTasks.filter((t) => t.parent_id === parentId), [allTasks]);
 
-  const handleGroupAddTask = useCallback(async (group: { key: string; label: string; tasks: (Task & { project_name?: string; project_color?: string })[]; metadata?: { color?: string; avatar?: string; dot?: string; badge?: string } }) => {
-    if (creatingGroups.has(group.key)) return;
-    setCreatingGroups(prev => { const next = new Set(prev); next.add(group.key); return next; });
-    try {
-      const payload: Record<string, unknown> = { title: 'New task', status: 'todo', ...(clientId ? { client_id: clientId } : {}) };
-      if (groupBy === 'status' && !group.key.startsWith('no-')) payload.status = group.key;
-      else if (groupBy === 'priority' && !group.key.startsWith('no-')) payload.priority = group.key;
-      else if (groupBy === 'assignee' && !group.key.startsWith('no-')) payload.assignee = group.key;
-      else if (groupBy === 'service' && !group.key.startsWith('no-')) payload.service = group.key;
-      else if (groupBy === 'project' && !group.key.startsWith('no-')) payload.project_id = group.key;
-      else if (groupBy === 'month' && !group.key.startsWith('no-')) payload.due_date = `${group.key}-01`;
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        toast.error('Failed to create task');
-        return;
-      }
-      const newTask = await res.json();
-      toast.success('Task created');
-      if (newTask?.id) onTaskClick({ ...newTask, parent_id: newTask.parent_id || null } as Task & { project_name?: string; project_color?: string });
-      onUpdate();
-    } catch {
-      toast.error('Failed to create task');
-    } finally {
-      setCreatingGroups(prev => { const next = new Set(prev); next.delete(group.key); return next; });
+  const handleGroupAddTask = useCallback((group: { key: string; label: string; tasks: (Task & { project_name?: string; project_color?: string })[]; metadata?: { color?: string; avatar?: string; dot?: string; badge?: string } }) => {
+    const defaults: Partial<Task> = { title: '', status: 'todo' as Task['status'], ...(clientId ? { client_id: clientId } : {}) };
+    if (groupBy === 'status' && !group.key.startsWith('no-')) defaults.status = group.key as Task['status'];
+    else if (groupBy === 'priority' && !group.key.startsWith('no-')) defaults.priority = group.key as Task['priority'];
+    else if (groupBy === 'assignee' && !group.key.startsWith('no-')) defaults.assignee = group.key as Task['assignee'];
+    else if (groupBy === 'service' && !group.key.startsWith('no-')) defaults.service = group.key;
+    else if (groupBy === 'project' && !group.key.startsWith('no-')) defaults.project_id = group.key;
+    else if (groupBy === 'month' && !group.key.startsWith('no-')) defaults.due_date = `${group.key}-01`;
+
+    if (onNewTask) {
+      onNewTask(defaults);
+    } else {
+      // Fallback: create immediately (legacy behaviour)
+      (async () => {
+        if (creatingGroups.has(group.key)) return;
+        setCreatingGroups(prev => { const next = new Set(prev); next.add(group.key); return next; });
+        try {
+          const res = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...defaults, title: 'New task' }),
+          });
+          if (!res.ok) { toast.error('Failed to create task'); return; }
+          const newTask = await res.json();
+          toast.success('Task created');
+          if (newTask?.id) onTaskClick({ ...newTask, parent_id: newTask.parent_id || null } as Task & { project_name?: string; project_color?: string });
+          onUpdate();
+        } catch { toast.error('Failed to create task'); }
+        finally { setCreatingGroups(prev => { const next = new Set(prev); next.delete(group.key); return next; }); }
+      })();
     }
-  }, [creatingGroups, groupBy, onUpdate, onTaskClick, clientId]);
+  }, [creatingGroups, groupBy, onUpdate, onTaskClick, clientId, onNewTask]);
 
   const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {

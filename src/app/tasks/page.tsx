@@ -584,6 +584,7 @@ function BoardContent() {
                 }
               }}
               groupBy={groupBy}
+              onNewTask={(defaults) => openNewTask(defaults as Partial<TaskWithProject>)}
             />
           </ErrorBoundary>
         </div>
