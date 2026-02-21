@@ -73,7 +73,7 @@ export function SearchableProjectPopover({
                   className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-left text-muted-foreground/30 hover:text-muted-foreground/60 hover:bg-muted/40 transition-colors duration-150"
                 >
                   <span className="w-2 h-2 rounded-full border border-muted-foreground/20" />
-                  No project
+                  No client
                 </button>
               </PopoverClose>
               <div className="border-t border-border/20 my-1" />

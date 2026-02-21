@@ -208,48 +208,48 @@ function InlineAssigneeCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?
   );
 }
 
-function InlineProjectCell({ task, projects, onUpdate }: { task: Task & { project_name?: string; project_color?: string }; projects: Project[]; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
+function InlineClientCell({ task, projects, onUpdate }: { task: Task & { client_name?: string; client_color?: string }; projects: Project[]; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
   const [open, setOpen] = useState(false);
   const update = async (val: { id: string; name: string; color: string } | null) => {
-    const prevProjectId = task.project_id;
-    const prevProjectName = task.project_name;
-    const prevProjectColor = task.project_color;
-    onUpdate(task.id, { project_id: val?.id || null, project_name: val?.name, project_color: val?.color } as Partial<Task>);
+    const prevClientId = task.client_id;
+    const prevClientName = task.client_name;
+    const prevClientColor = task.client_color;
+    onUpdate(task.id, { client_id: val?.id || null, client_name: val?.name, client_color: val?.color } as Partial<Task>);
     try {
       const res = await fetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ project_id: val?.id || null }),
+        body: JSON.stringify({ client_id: val?.id || null }),
       });
       if (!res.ok) {
-        toast.error('Failed to update project');
-        onUpdate(task.id, { project_id: prevProjectId, project_name: prevProjectName, project_color: prevProjectColor } as Partial<Task>);
+        toast.error('Failed to update client');
+        onUpdate(task.id, { client_id: prevClientId, client_name: prevClientName, client_color: prevClientColor } as Partial<Task>);
       }
     } catch {
-      toast.error('Failed to update project');
-      onUpdate(task.id, { project_id: prevProjectId, project_name: prevProjectName, project_color: prevProjectColor } as Partial<Task>);
+      toast.error('Failed to update client');
+      onUpdate(task.id, { client_id: prevClientId, client_name: prevClientName, client_color: prevClientColor } as Partial<Task>);
     }
   };
-  const currentProject = task.project_id && task.project_name
-    ? { id: task.project_id, name: task.project_name, color: task.project_color || 'var(--muted-foreground)' }
+  const currentClient = task.client_id && task.client_name
+    ? { id: task.client_id, name: task.client_name, color: task.client_color || 'var(--muted-foreground)' }
     : null;
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <SearchableProjectPopover
-        value={currentProject}
+        value={currentClient}
         projects={projects}
         onChange={update}
         open={open}
         onOpenChange={setOpen}
         trigger={
           <button className={`flex items-center gap-1 ${CELL_BASE} ${open ? CELL_ACTIVE : CELL_HOVER}`}>
-            {task.project_name ? (
+            {task.client_name ? (
               <div className="flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: task.project_color || 'var(--muted-foreground)' }} />
-                <span className="text-[13px] text-muted-foreground truncate max-w-[140px]">{task.project_name}</span>
+                <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: task.client_color || 'var(--muted-foreground)' }} />
+                <span className="text-[13px] text-muted-foreground truncate max-w-[140px]">{task.client_name}</span>
               </div>
             ) : (
-              <span className="text-[13px] text-muted-foreground/30">No project</span>
+              <span className="text-[13px] text-muted-foreground/30">No client</span>
             )}
           </button>
         }
@@ -577,9 +577,9 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
       const metadata: TaskGroup['metadata'] = {};
 
       if (groupBy === 'project') {
-        key = task.project_id || 'no-project';
-        label = task.project_name || 'No client';
-        if (task.project_color) metadata.color = task.project_color;
+        key = task.client_id || 'no-client';
+        label = task.client_name || 'No client';
+        if (task.client_color) metadata.color = task.client_color;
       } else if (groupBy === 'assignee') {
         key = task.assignee || 'no-assignee';
         label = task.assignee ? toDisplayName(task.assignee) : 'Unassigned';
@@ -906,7 +906,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                             <InlinePriorityCell task={task} onUpdate={onUpdate} />
                           </td>}
                           {!hiddenColumns.includes('project_name') && <td className="py-2.5 px-5">
-                            <InlineProjectCell task={task} projects={projects} onUpdate={onUpdate} />
+                            <InlineClientCell task={task} projects={projects} onUpdate={onUpdate} />
                           </td>}
                           {!hiddenColumns.includes('due_date') && <td className="py-2.5 px-5">
                             <InlineDueDateCell task={task} onUpdate={onUpdate} />
@@ -946,7 +946,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               <InlinePriorityCell task={sub} onUpdate={onUpdate} />
                             </td>}
                             {!hiddenColumns.includes('project_name') && <td className="py-2.5 px-5">
-                              <InlineProjectCell task={sub} projects={projects} onUpdate={onUpdate} />
+                              <InlineClientCell task={sub} projects={projects} onUpdate={onUpdate} />
                             </td>}
                             {!hiddenColumns.includes('due_date') && <td className="py-2.5 px-5">
                               <InlineDueDateCell task={sub} onUpdate={onUpdate} />
