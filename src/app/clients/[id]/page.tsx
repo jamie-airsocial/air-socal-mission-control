@@ -12,7 +12,10 @@ import { toast } from 'sonner';
 import { ServiceIcon } from '@/components/ui/service-icon';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { TableView } from '@/components/board/table-view';
-import { FilterPopover } from '@/components/ui/filter-popover';
+import { FilterStatusPopover } from '@/components/board/filter-status-popover';
+import { FilterPriorityPopover } from '@/components/board/filter-priority-popover';
+import { FilterAssigneePopover } from '@/components/board/filter-assignee-popover';
+import { FilterServicePopover } from '@/components/board/filter-service-popover';
 import dynamic from 'next/dynamic';
 import type { Task, Project } from '@/lib/types';
 
@@ -812,16 +815,6 @@ export default function ClientDetailPage() {
           return true;
         });
         const hasTaskFilters = taskSearch || taskFilterStatus.length > 0 || taskFilterPriority.length > 0 || taskFilterAssignee.length > 0 || taskFilterService.length > 0;
-        const statusOptions = [...new Set(tasks.map(t => t.status))].map(s => {
-          const st = STATUS_STYLES[s]; return { value: s, label: st?.label || s, dot: st?.dot };
-        });
-        const priorityOptions = [...new Set(tasks.map(t => t.priority).filter(Boolean))].map(p => {
-          const ps = PRIORITY_STYLES[p!]; return { value: p!, label: ps ? `${p} · ${ps.label}` : p! };
-        });
-        const assigneeOptions = [...new Set(tasks.map(t => t.assignee).filter(Boolean))].map(a => ({ value: a!, label: toDisplayName(a!) }));
-        const serviceOptions = [...new Set(tasks.map(t => t.service).filter(Boolean))].map(s => {
-          const ss = SERVICE_STYLES[s!]; return { value: s!, label: ss?.label || s! };
-        });
         const groupByOptions = [
           { value: 'none', label: 'No grouping' },
           { value: 'service', label: 'Service' },
@@ -843,10 +836,10 @@ export default function ClientDetailPage() {
                 className="h-7 pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/50 transition-colors w-48"
               />
             </div>
-            <FilterPopover label="Status" options={statusOptions} selected={taskFilterStatus} onSelectionChange={setTaskFilterStatus} />
-            <FilterPopover label="Priority" options={priorityOptions} selected={taskFilterPriority} onSelectionChange={setTaskFilterPriority} />
-            <FilterPopover label="Service" options={serviceOptions} selected={taskFilterService} onSelectionChange={setTaskFilterService} />
-            <FilterPopover label="Assignee" options={assigneeOptions} selected={taskFilterAssignee} onSelectionChange={setTaskFilterAssignee} />
+            <FilterStatusPopover value={taskFilterStatus} onChange={setTaskFilterStatus} />
+            <FilterPriorityPopover value={taskFilterPriority} onChange={setTaskFilterPriority} />
+            <FilterServicePopover value={taskFilterService} onChange={setTaskFilterService} />
+            <FilterAssigneePopover value={taskFilterAssignee} onChange={setTaskFilterAssignee} />
             <Popover>
               <PopoverTrigger asChild>
                 <button className="h-7 px-2.5 text-[13px] rounded-md border border-border/20 bg-secondary hover:bg-muted/60 transition-colors flex items-center gap-1.5 text-muted-foreground">
