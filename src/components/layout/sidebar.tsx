@@ -41,7 +41,7 @@ export function Sidebar() {
       >
         {/* Header */}
         <div className={`h-[72px] flex items-center border-b border-border/20 shrink-0 ${collapsed ? 'justify-center px-0' : 'px-4 gap-3'}`}>
-          <svg viewBox="0 0 870 1005" className="w-6 h-6 shrink-0 text-[#25285d] dark:text-white" style={{ transform: 'scaleX(-1) rotate(-30deg)' }} fill="currentColor">
+          <svg viewBox="0 0 870 1005" className="w-6 h-6 shrink-0 text-[#25285d] dark:text-white" style={{ transform: 'scaleY(-1)' }} fill="currentColor">
             <path d="M870.047 0L552.605 183.277L552.578 454.656L317.543 318.992L0 502.324L870.059 1004.55L870.047 0Z"/>
           </svg>
           {!collapsed && (
