@@ -29,7 +29,7 @@ export function FilterAssigneePopover({
 
   // Build assignee list from live users, fall back to static list if not loaded
   const assignees = users.length > 0
-    ? users.map(u => ({ name: u.full_name, slug: u.full_name.toLowerCase().replace(/\s+/g, '-'), team: u.team }))
+    ? users.map(u => ({ name: u.full_name, slug: u.full_name.toLowerCase().replace(/\s+/g, '-'), team: u.team, isActive: u.is_active }))
     : [];
   
   const filtered = assignees.filter(a => 
@@ -110,6 +110,7 @@ export function FilterAssigneePopover({
           {filtered.map((a, idx) => {
             const isSelected = value.includes(a.slug);
             const colorClass = getAssigneeColor(a.name, a.team);
+            const inactive = a.isActive === false;
             return (
               <button
                 key={a.name}
@@ -117,12 +118,12 @@ export function FilterAssigneePopover({
                 data-search-item 
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${
                   isSelected ? 'bg-muted/50' : ''
-                } ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
+                } ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''} ${inactive ? 'opacity-40' : ''}`}
               >
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${colorClass}`}>
                   {a.name.charAt(0)}
                 </span>
-                <span className="flex-1 text-left">{a.name}</span>
+                <span className="flex-1 text-left">{a.name}{inactive ? ' (inactive)' : ''}</span>
                 {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
               </button>
             );

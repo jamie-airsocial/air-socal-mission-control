@@ -36,7 +36,7 @@ export function SearchableAssigneePopover({
   };
 
   const assignees = users.length > 0
-    ? users.map(u => ({ name: u.full_name, team: u.team }))
+    ? users.map(u => ({ name: u.full_name, team: u.team, isActive: u.is_active }))
     : [];
 
   const filtered = assignees.filter(a =>
@@ -109,17 +109,18 @@ export function SearchableAssigneePopover({
           )}
           {filtered.map((a, idx) => {
             const colorClass = getAssigneeColor(a.name, a.team);
+            const inactive = a.isActive === false;
             return (
               <PopoverClose asChild key={a.name}>
                 <button
                   onClick={() => { onChange(a.name); }}
                   data-search-item
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === a.name ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === a.name ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''} ${inactive ? 'opacity-40' : ''}`}
                 >
                   <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${colorClass}`}>
                     {a.name.charAt(0)}
                   </span>
-                  <span className="flex-1 text-left">{a.name}</span>
+                  <span className="flex-1 text-left">{a.name}{inactive ? ' (inactive)' : ''}</span>
                   {value === a.name && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
                 </button>
               </PopoverClose>

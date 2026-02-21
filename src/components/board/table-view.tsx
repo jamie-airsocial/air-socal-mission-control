@@ -13,6 +13,7 @@ import { SearchableAssigneePopover } from '@/components/board/searchable-assigne
 import { SearchableProjectPopover } from '@/components/board/searchable-project-popover';
 import { SearchableServicePopover } from '@/components/board/searchable-service-popover';
 import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, SERVICE_STYLES, getTeamStyle, normalisePriority, toSlug, toDisplayName, getInitials } from '@/lib/constants';
+import { useUsers } from '@/hooks/use-users';
 import { LabelCombobox } from '@/components/board/label-combobox';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -160,7 +161,7 @@ function InlinePriorityCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?
   );
 }
 
-function InlineAssigneeCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
+function InlineAssigneeCell({ task, onUpdate, inactiveUsers }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void; inactiveUsers?: Set<string> }) {
   const [open, setOpen] = useState(false);
   const update = async (assignee: string) => {
     const slug = toSlug(assignee);
@@ -183,6 +184,7 @@ function InlineAssigneeCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?
   };
   const displayName = toDisplayName(task.assignee || '');
   const colorClass = ASSIGNEE_COLORS[displayName] || 'bg-muted/40 text-muted-foreground';
+  const isInactive = inactiveUsers?.has(displayName);
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <SearchableAssigneePopover
@@ -191,7 +193,7 @@ function InlineAssigneeCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?
         open={open}
         onOpenChange={setOpen}
         trigger={
-          <button className={`flex items-center gap-1.5 ${CELL_BASE} ${open ? CELL_ACTIVE : CELL_HOVER}`}>
+          <button className={`flex items-center gap-1.5 ${CELL_BASE} ${open ? CELL_ACTIVE : CELL_HOVER} ${isInactive ? 'opacity-40' : ''}`}>
             {displayName ? (
               <>
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium shrink-0 ${colorClass}`}>
@@ -484,6 +486,8 @@ function SortHeader({ field, sortField, sortOrder, onSort, children, className =
 }
 
 export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [], clientId, onNewTask }: TableViewProps) {
+  const { users } = useUsers();
+  const inactiveUsers = useMemo(() => new Set(users.filter(u => !u.is_active).map(u => u.full_name)), [users]);
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -960,7 +964,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                             <InlineServiceCell task={task} onUpdate={onUpdate} />
                           </td>}
                           {!hiddenColumns.includes('assignee') && <td className="py-2.5 px-5">
-                            <InlineAssigneeCell task={task} onUpdate={onUpdate} />
+                            <InlineAssigneeCell task={task} onUpdate={onUpdate} inactiveUsers={inactiveUsers} />
                           </td>}
                         </tr>
                       );
@@ -1000,7 +1004,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               <InlineServiceCell task={sub} onUpdate={onUpdate} />
                             </td>}
                             {!hiddenColumns.includes('assignee') && <td className="py-2.5 px-5">
-                              <InlineAssigneeCell task={sub} onUpdate={onUpdate} />
+                              <InlineAssigneeCell task={sub} onUpdate={onUpdate} inactiveUsers={inactiveUsers} />
                             </td>}
                           </tr>
                         );
