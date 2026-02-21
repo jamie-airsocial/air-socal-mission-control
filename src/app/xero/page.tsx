@@ -446,7 +446,7 @@ export default function XeroPage() {
                       { key: 'tenure', label: 'Tenure' },
                     ] as { key: SortKey; label: string }[]).map(col => (
                       <th key={col.key} onClick={() => toggleSort(col.key)}
-                        className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2.5 cursor-pointer hover:text-foreground select-none transition-colors">
+                        className="text-left text-[11px] font-semibold text-muted-foreground/60 px-3 py-2.5 cursor-pointer hover:text-foreground select-none transition-colors">
                         <span className="inline-flex items-center">
                           {col.label}
                           <SortIcon col={col.key} sortKey={sortKey} sortDir={sortDir} />

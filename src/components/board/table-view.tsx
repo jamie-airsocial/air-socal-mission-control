@@ -470,7 +470,7 @@ function SortHeader({ field, sortField, sortOrder, onSort, children, className =
   const isActive = sortField === field;
   return (
     <th
-      className={`py-3 px-5 text-left text-[11px] uppercase tracking-widest font-medium cursor-pointer select-none transition-colors duration-150 ${isActive ? 'text-foreground' : 'text-muted-foreground/30 hover:text-muted-foreground/60'} ${className}`}
+      className={`py-3 px-5 text-left text-[11px] font-semibold cursor-pointer select-none transition-colors duration-150 ${isActive ? 'text-foreground' : 'text-muted-foreground/60 hover:text-muted-foreground'} ${className}`}
       onClick={() => onSort(field)}
     >
       <span className="inline-flex items-center gap-1">

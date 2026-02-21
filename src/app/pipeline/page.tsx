@@ -1218,7 +1218,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
                   <th
                     key={col.key}
                     onClick={col.sortable ? () => toggleSort(col.key) : undefined}
-                    className={`text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-3 py-2 ${col.sortable ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
+                    className={`text-left text-[11px] font-semibold text-muted-foreground/60 px-3 py-2 ${col.sortable ? 'cursor-pointer hover:text-foreground select-none' : ''}`}
                   >
                     {col.label}
                     {col.sortable && <SortIcon field={col.key} />}
