@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Bell, Sun, Moon, X, Clock, Trash2 } from 'lucide-react';
+import { Search, Sun, Moon, X, Clock, Trash2, Settings } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'sonner';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 
 type Client = {
   id: string;
@@ -38,7 +40,6 @@ export function TopBar() {
   const [dark, setDark] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showNotifications, setShowNotifications] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [lastFetch, setLastFetch] = useState<number>(0);
@@ -284,23 +285,31 @@ export function TopBar() {
         </div>
 
         {/* Notifications */}
-        <button
-          aria-label="Notifications"
-          onClick={() => { setShowNotifications(!showNotifications); toast('You\'re all caught up — no new notifications'); }}
-          className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-150"
-        >
-          <Bell size={15} />
-        </button>
+        <NotificationBell />
+
+        {/* Settings */}
+        <Link href="/admin">
+          <button
+            aria-label="Settings"
+            className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+          >
+            <Settings size={16} />
+          </button>
+        </Link>
 
         {/* Theme toggle */}
         <button
           aria-label="Toggle theme"
           onClick={toggleTheme}
-          className="h-8 w-8 flex items-center justify-center rounded-lg border border-border/20 bg-secondary text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-150"
+          className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
         >
-          {dark ? <Sun size={15} /> : <Moon size={15} />}
+          {dark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
 
+        {/* User avatar */}
+        <div className="ml-1 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary to-purple-600 text-[11px] font-bold text-primary-foreground">
+          JL
+        </div>
       </header>
 
       {/* Search overlay */}
