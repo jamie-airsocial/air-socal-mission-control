@@ -44,6 +44,7 @@ export function SearchableAssigneePopover({
   );
 
   const selectedUser = users.find(u => u.full_name === value);
+  const isValueInactive = selectedUser ? !selectedUser.is_active : false;
   const valueColor = value
     ? (ASSIGNEE_COLORS[value] || getAssigneeColor(value, selectedUser?.team))
     : '';
@@ -63,13 +64,13 @@ export function SearchableAssigneePopover({
             <TooltipContent side="bottom" className="text-[13px]">{value || 'No assignee'}</TooltipContent>
           </Tooltip>
         ) : (
-          <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
+          <button className={`flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap ${isValueInactive ? 'opacity-40' : ''}`}>
             {value ? (
               <>
                 <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium ${valueColor || 'bg-muted/40 text-muted-foreground'}`}>
                   {value.charAt(0)}
                 </span>
-                <span className="text-[13px] truncate max-w-[120px]">{value}</span>
+                <span className="text-[13px] truncate max-w-[120px]">{value}{isValueInactive ? ' (inactive)' : ''}</span>
               </>
             ) : (
               <span className="text-[13px] text-muted-foreground/30">No assignee</span>
