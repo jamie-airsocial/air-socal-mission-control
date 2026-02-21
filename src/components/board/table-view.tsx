@@ -625,8 +625,8 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
     return Array.from(groups.values()).sort((a, b) => {
       const aIsEmpty = a.key.startsWith('no-');
       const bIsEmpty = b.key.startsWith('no-');
-      if (aIsEmpty && !bIsEmpty) return 1;
-      if (!aIsEmpty && bIsEmpty) return -1;
+      if (aIsEmpty && !bIsEmpty) return -1;
+      if (!aIsEmpty && bIsEmpty) return 1;
       return a.label.localeCompare(b.label);
     });
   }, [paginatedTasks, groupBy]);
