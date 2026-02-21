@@ -38,9 +38,8 @@ const PERMISSION_GROUPS: { group: string; items: { key: keyof Permissions; label
   {
     group: 'Core Pages',
     items: [
-      { key: 'dashboard', label: 'Dashboard', desc: 'View the main dashboard' },
-      { key: 'tasks',     label: 'Tasks',     desc: 'View and manage tasks' },
       { key: 'clients',   label: 'Clients',   desc: 'View client list and details' },
+      { key: 'tasks',     label: 'Tasks',     desc: 'View and manage tasks' },
       { key: 'pipeline',  label: 'Pipeline',  desc: 'View and manage the pipeline' },
       { key: 'teams',     label: 'Teams',     desc: 'View team members and structure' },
     ],
@@ -62,9 +61,8 @@ const PERMISSION_GROUPS: { group: string; items: { key: keyof Permissions; label
 const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key));
 
 const DEFAULT_PERMS: Permissions = {
-  dashboard: true,
-  tasks: true,
   clients: true,
+  tasks: true,
   pipeline: false,
   teams: true,
   xero: false,
