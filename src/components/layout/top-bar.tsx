@@ -269,15 +269,34 @@ export function TopBar() {
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    const totalItems = filteredActions.length + filteredNavigate.length + recentResults.length + clientResults.length + taskResults.length;
+    
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(i => (i + 1) % Math.max(1, results.length));
+      setSelectedIndex(i => (i + 1) % Math.max(1, totalItems));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex(i => (i - 1 + results.length) % Math.max(1, results.length));
-    } else if (e.key === 'Enter' && results[selectedIndex]) {
+      setSelectedIndex(i => (i - 1 + totalItems) % Math.max(1, totalItems));
+    } else if (e.key === 'Enter' && totalItems > 0) {
       e.preventDefault();
-      navigateToResult(results[selectedIndex]);
+      // Determine which item is selected based on index
+      let currentIdx = selectedIndex;
+      
+      if (currentIdx < filteredActions.length) {
+        navigateToResult({ type: 'action', data: filteredActions[currentIdx] });
+      } else if (currentIdx < filteredActions.length + filteredNavigate.length) {
+        currentIdx -= filteredActions.length;
+        navigateToResult({ type: 'navigate', data: filteredNavigate[currentIdx] });
+      } else if (currentIdx < filteredActions.length + filteredNavigate.length + recentResults.length) {
+        currentIdx -= filteredActions.length + filteredNavigate.length;
+        navigateToResult(recentResults[currentIdx]);
+      } else if (currentIdx < filteredActions.length + filteredNavigate.length + recentResults.length + clientResults.length) {
+        currentIdx -= filteredActions.length + filteredNavigate.length + recentResults.length;
+        navigateToResult(clientResults[currentIdx]);
+      } else {
+        currentIdx -= filteredActions.length + filteredNavigate.length + recentResults.length + clientResults.length;
+        navigateToResult(taskResults[currentIdx]);
+      }
     } else if (e.key === 'Escape') {
       setShowSearch(false);
       setSearchQuery('');
