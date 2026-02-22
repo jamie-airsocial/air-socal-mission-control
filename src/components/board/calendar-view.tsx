@@ -742,7 +742,9 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         const newCell = `${dayKey}:${snapped}`;
                         if (newCell !== dragOverCell) setDragOverCell(newCell);
                       }}
-                      onDragLeave={() => setDragOverCell(null)}
+                      onDragLeave={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCell(null);
+                      }}
                       onDrop={(e) => {
                         e.preventDefault();
                         const id = e.dataTransfer.getData('text/plain');
@@ -810,18 +812,17 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         const dropIndicator = dropMinutes !== null && phantomLayout ? (
                           <div
                             key="drop-indicator"
-                            className="absolute rounded pointer-events-none z-10 transition-all duration-150 ease-out"
+                            className="absolute rounded pointer-events-none z-40 transition-all duration-100 ease-out"
                             style={{
                               top: ((dropMinutes - startHour * 60) / 60) * HOUR_HEIGHT,
                               height: (dragDuration / 60) * HOUR_HEIGHT,
                               left: `calc(${(phantomLayout.col * 100 / phantomLayout.totalCols)}% + 2px)`,
                               width: `calc(${100 / phantomLayout.totalCols}% - 4px)`,
-                              border: '1.5px dashed var(--primary)',
-                              opacity: 0.4,
-                              background: 'color-mix(in oklab, var(--primary) 6%, transparent)',
+                              border: '2px dashed var(--primary)',
+                              background: 'color-mix(in oklab, var(--primary) 10%, transparent)',
                             }}
                           >
-                            <span className="text-[10px] font-medium text-primary px-1.5 py-0.5 block truncate" style={{ opacity: 1 }}>{dropTimeLabel}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 block truncate rounded-sm" style={{ color: 'var(--primary)', background: 'color-mix(in oklab, var(--primary) 15%, var(--card))', width: 'fit-content' }}>{dropTimeLabel}</span>
                           </div>
                         ) : null;
 
@@ -856,9 +857,10 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                               backgroundColor: `color-mix(in oklab, ${dotColor} 10%, var(--card))`,
                               borderLeftColor: dotColor,
                               borderLeftWidth: '3px',
-                              transition: 'left 150ms ease-out, width 150ms ease-out',
+                              transition: 'top 150ms ease-out, left 150ms ease-out, width 150ms ease-out',
                             }}
                             draggable={!isResizing}
+                            onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
                             onDragStart={(e) => {
                               if (isResizing) { e.preventDefault(); return; }
                               e.dataTransfer.setData('text/plain', task.id);
