@@ -904,7 +904,7 @@ export default function PipelinePage() {
         {/* Service filter */}
         <FilterPopover
           label="Service"
-          options={Object.entries(SERVICE_STYLES).map(([key, s]) => ({ value: key, label: s.label }))}
+          options={Object.entries(SERVICE_STYLES).map(([key]) => { const s = getServiceStyle(key); return { value: key, label: s.label, dot: s.dot }; })}
           selected={filterService}
           onSelectionChange={setFilterService}
           width="w-52"
