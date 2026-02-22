@@ -23,7 +23,7 @@ export interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'backlog' | 'todo' | 'doing' | 'done';
+  status: 'backlog' | 'todo' | 'doing' | 'review' | 'done';
   priority: 'P1' | 'P2' | 'P3' | 'P4' | null;
   assignee: string | null;
   project_id: string | null;
@@ -84,7 +84,7 @@ export interface AgentStatus {
 
 // 'backlog' intentionally excluded — merged into 'todo' in UI
 export const STATUSES = ['todo', 'doing', 'review', 'done'] as const;
-export type TaskStatusAll = 'backlog' | 'todo' | 'doing' | 'done';
+export type TaskStatusAll = 'backlog' | 'todo' | 'doing' | 'review' | 'done';
 export const PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const;
 
 export type PipelineStage =
