@@ -13,6 +13,7 @@ import { SearchableAssigneePopover } from '@/components/board/searchable-assigne
 import { SearchableProjectPopover } from '@/components/board/searchable-project-popover';
 import { SearchableServicePopover } from '@/components/board/searchable-service-popover';
 import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, SERVICE_STYLES, getTeamStyle, normalisePriority, toSlug, toDisplayName, getInitials } from '@/lib/constants';
+import { useStatuses } from '@/hooks/use-statuses';
 import { useUsers } from '@/hooks/use-users';
 import { LabelCombobox } from '@/components/board/label-combobox';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -64,6 +65,7 @@ type SortOrder = 'asc' | 'desc';
 
 function InlineStatusCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
   const [open, setOpen] = useState(false);
+  const { statuses: dynamicStatuses } = useStatuses();
   const update = async (status: string) => {
     const prevStatus = task.status;
     onUpdate(task.id, { status: status as Task['status'] });
@@ -92,6 +94,9 @@ function InlineStatusCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: 
     }
   };
   const style = STATUS_STYLES[task.status];
+  const dynamicStatus = !style ? dynamicStatuses.find(s => s.slug === task.status) : null;
+  const dotColour = style?.dot || dynamicStatus?.dot_colour || dynamicStatus?.colour;
+  const statusLabel = style?.label || dynamicStatus?.label;
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <SearchableStatusPopover
@@ -101,10 +106,10 @@ function InlineStatusCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: 
         onOpenChange={setOpen}
         trigger={
           <button className={`flex items-center gap-1.5 ${CELL_BASE} ${open ? CELL_ACTIVE : CELL_HOVER}`}>
-            {style ? (
+            {statusLabel ? (
               <>
-                <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: style.dot }} />
-                <span className="text-[13px] text-muted-foreground whitespace-nowrap">{style.label}</span>
+                <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: dotColour }} />
+                <span className="text-[13px] text-muted-foreground whitespace-nowrap">{statusLabel}</span>
               </>
             ) : (
               <span className="text-[13px] text-muted-foreground/30">No status</span>
@@ -487,6 +492,7 @@ function SortHeader({ field, sortField, sortOrder, onSort, children, className =
 
 export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdate, groupBy = 'none', allLabels = [], hiddenColumns = [], clientId, onNewTask }: TableViewProps) {
   const { users } = useUsers();
+  const { statuses: dynamicStatusList } = useStatuses();
   const inactiveUsers = useMemo(() => new Set(users.filter(u => !u.is_active).map(u => u.full_name)), [users]);
   const [sortField, setSortField] = useState<SortField>('due_date');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -636,8 +642,10 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
       } else if (groupBy === 'status') {
         key = task.status || 'no-status';
         const style = STATUS_STYLES[task.status];
-        label = style?.label || task.status || 'No status';
-        if (style) metadata.dot = style.dot;
+        const dynStatus = !style ? dynamicStatusList.find(s => s.slug === task.status) : null;
+        label = style?.label || dynStatus?.label || task.status || 'No status';
+        const dot = style?.dot || dynStatus?.dot_colour || dynStatus?.colour;
+        if (dot) metadata.dot = dot;
       } else if (groupBy === 'priority') {
         const normalised = task.priority ? normalisePriority(task.priority) : '';
         key = normalised || 'no-priority';
