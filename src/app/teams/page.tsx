@@ -67,16 +67,29 @@ function recurringActiveInMonth(item: ContractLineItem, month: Date): boolean {
   return item.is_active || (item.end_date != null); // include ended items if they have an end_date (historical)
 }
 
+interface ServiceClientDetail {
+  clientName: string;
+  amount: number;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+interface ServiceRow {
+  service: string;
+  amount: number;
+  clients: ServiceClientDetail[];
+}
+
 interface MonthlyBreakdown {
-  recurring: { service: string; amount: number }[];
-  project: { service: string; amount: number; start_date: string | null; end_date: string | null }[];
+  recurring: ServiceRow[];
+  project: ServiceRow[];
   recurringTotal: number;
   projectTotal: number;
 }
 
 function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLineItem[], month: Date): MonthlyBreakdown {
-  const recurringByService: Record<string, number> = {};
-  const projectItems: { service: string; amount: number; start_date: string | null; end_date: string | null }[] = [];
+  const recurringByService: Record<string, ServiceClientDetail[]> = {};
+  const projectByService: Record<string, ServiceClientDetail[]> = {};
 
   for (const client of teamClients) {
     const clientItems = contractItems.filter(i => i.client_id === client.id);
@@ -85,24 +98,78 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
       if (item.billing_type === 'one-off') {
         const alloc = projectAllocationForMonth(item, month);
         if (alloc > 0) {
-          projectItems.push({ service: item.service, amount: alloc, start_date: item.start_date, end_date: item.end_date });
+          if (!projectByService[item.service]) projectByService[item.service] = [];
+          projectByService[item.service].push({ clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date });
         }
       } else {
         if (recurringActiveInMonth(item, month)) {
-          recurringByService[item.service] = (recurringByService[item.service] || 0) + (item.monthly_value || 0);
+          if (!recurringByService[item.service]) recurringByService[item.service] = [];
+          recurringByService[item.service].push({ clientName: client.name, amount: item.monthly_value || 0 });
         }
       }
     }
   }
 
-  const recurring = Object.entries(recurringByService)
-    .map(([service, amount]) => ({ service, amount }))
-    .sort((a, b) => b.amount - a.amount);
+  const toRows = (map: Record<string, ServiceClientDetail[]>): ServiceRow[] =>
+    Object.entries(map)
+      .map(([service, clients]) => ({ service, amount: clients.reduce((s, c) => s + c.amount, 0), clients: clients.sort((a, b) => b.amount - a.amount) }))
+      .sort((a, b) => b.amount - a.amount);
 
-  const recurringTotal = recurring.reduce((s, r) => s + r.amount, 0);
-  const projectTotal = projectItems.reduce((s, p) => s + p.amount, 0);
+  const recurring = toRows(recurringByService);
+  const project = toRows(projectByService);
 
-  return { recurring, project: projectItems.sort((a, b) => b.amount - a.amount), recurringTotal, projectTotal };
+  return {
+    recurring,
+    project,
+    recurringTotal: recurring.reduce((s, r) => s + r.amount, 0),
+    projectTotal: project.reduce((s, p) => s + p.amount, 0),
+  };
+}
+
+function ServiceBreakdownRow({ row, total, teamColor }: { row: ServiceRow; total: number; teamColor: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const s = getServiceStyle(row.service);
+  const pct = total > 0 ? (row.amount / total) * 100 : 0;
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full text-left group"
+      >
+        <div className="flex items-center justify-between mb-0.5">
+          <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
+            <ChevronRight size={10} className={`text-muted-foreground/30 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
+            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
+          </span>
+          <span className="text-[11px] font-medium">£{Math.round(row.amount).toLocaleString()}</span>
+        </div>
+        <div className="h-1 rounded-full bg-muted/30 overflow-hidden ml-4">
+          <div
+            className="h-full rounded-full"
+            style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: teamColor, opacity: 0.6 }}
+          />
+        </div>
+      </button>
+      {expanded && row.clients.length > 0 && (
+        <div className="ml-5 mt-1 mb-1 space-y-0.5">
+          {row.clients.map((c, i) => (
+            <div key={i} className="flex items-center justify-between">
+              <span className="text-[10px] text-muted-foreground/50 truncate mr-2">
+                {c.clientName}
+                {c.start_date && c.end_date && (
+                  <span className="text-muted-foreground/30 ml-1">
+                    ({format(new Date(c.start_date), 'MMM yy')} – {format(new Date(c.end_date), 'MMM yy')})
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] text-muted-foreground/40 shrink-0">£{Math.round(c.amount).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
@@ -117,13 +184,20 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
     [teamClients, contractItems, selectedMonth]
   );
 
+  const nextMonthBreakdown = useMemo(
+    () => calcMonthlyBreakdown(teamClients, contractItems, addMonths(selectedMonth, 1)),
+    [teamClients, contractItems, selectedMonth]
+  );
+
   const total = breakdown.recurringTotal + breakdown.projectTotal;
+  const nextTotal = nextMonthBreakdown.recurringTotal + nextMonthBreakdown.projectTotal;
   const isCurrentMonth = isSameMonth(selectedMonth, new Date());
+  const diff = nextTotal - total;
 
   return (
     <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
       {/* Month navigation */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => setSelectedMonth(m => subMonths(m, 1))}
           className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
@@ -144,11 +218,23 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
         </button>
       </div>
 
-      {/* Total */}
-      <p className="text-[16px] font-bold mb-2">
-        £{Math.round(total).toLocaleString()}
-        <span className="text-[11px] font-normal text-muted-foreground/60 ml-1">total</span>
-      </p>
+      {/* Total + next month projection */}
+      <div className="flex items-baseline justify-between mb-3">
+        <p className="text-[18px] font-bold">
+          £{Math.round(total).toLocaleString()}
+        </p>
+        <div className="text-right">
+          <p className="text-[10px] text-muted-foreground/40">Next month</p>
+          <p className="text-[12px] font-medium">
+            £{Math.round(nextTotal).toLocaleString()}
+            {diff !== 0 && (
+              <span className={`text-[10px] ml-1 ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {diff > 0 ? '+' : ''}£{Math.round(diff).toLocaleString()}
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
 
       {/* Recurring */}
       {breakdown.recurring.length > 0 && (
@@ -157,26 +243,9 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
             Recurring · £{Math.round(breakdown.recurringTotal).toLocaleString()}
           </p>
           <div className="space-y-1">
-            {breakdown.recurring.map(({ service, amount }) => {
-              const s = getServiceStyle(service);
-              const pct = total > 0 ? (amount / total) * 100 : 0;
-              return (
-                <div key={service}>
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
-                    </span>
-                    <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
-                  </div>
-                  <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: teamColor, opacity: 0.6 }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+            {breakdown.recurring.map(row => (
+              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} />
+            ))}
           </div>
         </div>
       )}
@@ -188,30 +257,9 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
             Project · £{Math.round(breakdown.projectTotal).toLocaleString()}
           </p>
           <div className="space-y-1">
-            {breakdown.project.map((item, i) => {
-              const s = getServiceStyle(item.service);
-              const pct = total > 0 ? (item.amount / total) * 100 : 0;
-              const dateLabel = item.start_date && item.end_date
-                ? `${format(new Date(item.start_date), 'MMM yy')} – ${format(new Date(item.end_date), 'MMM yy')}`
-                : null;
-              return (
-                <div key={`${item.service}-${i}`}>
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
-                      {dateLabel && <span className="text-[9px] text-muted-foreground/40 ml-0.5">({dateLabel})</span>}
-                    </span>
-                    <span className="text-[11px] font-medium">£{Math.round(item.amount).toLocaleString()}</span>
-                  </div>
-                  <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: teamColor, opacity: 0.4 }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+            {breakdown.project.map(row => (
+              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} />
+            ))}
           </div>
         </div>
       )}
@@ -327,11 +375,7 @@ export default function TeamsPage() {
     const members = team.members || [];
 
     // Revenue: from active recurring contract line items only
-    const revenue = teamClients.reduce((sum, c) => {
-      return sum + (contractRevenueByClient[c.id] || 0);
-    }, 0);
-
-    return { team, slug, style, clients: teamClients, members, revenue };
+    return { team, slug, style, clients: teamClients, members };
   });
 
   return (
@@ -355,7 +399,7 @@ export default function TeamsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {teamRows.map(({ team, slug, style, clients: teamClients, members, revenue }) => (
+          {teamRows.map(({ team, slug, style, clients: teamClients, members }) => (
             <div key={team.id} className="rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
               {/* Colour top bar */}
               <div
@@ -364,18 +408,14 @@ export default function TeamsPage() {
               />
 
               {/* Team header */}
-              <div className="p-4 border-b border-border/10">
-                <div className="flex items-center justify-between mb-1">
+              <div className="px-4 py-3 border-b border-border/10">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {style && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: style.color }} />}
                     <h2 className="text-[13px] font-semibold">{team.name}</h2>
                   </div>
                   <span className="text-[11px] text-muted-foreground/60">{teamClients.length} client{teamClients.length !== 1 ? 's' : ''}</span>
                 </div>
-                <p className="text-[18px] font-bold">
-                  £{revenue.toLocaleString()}
-                  <span className="text-[13px] font-normal text-muted-foreground/60">/mo</span>
-                </p>
               </div>
 
               {/* Monthly billing breakdown */}
