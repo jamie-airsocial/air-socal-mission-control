@@ -152,11 +152,11 @@ export function useTaskFilters(
   }, [clearAllFilters]);
 
   const currentViewFilters: ViewFilters = {
-    filterProject: filterProject.join(','),
-    filterAssignee: filterAssignee.join(','),
-    filterPriority: filterPriority.join(','),
-    filterStatus: filterStatus.join(','),
-    filterLabel: filterLabel.join(','),
+    filterProject: filterProject,
+    filterAssignee: filterAssignee,
+    filterPriority: filterPriority,
+    filterStatus: filterStatus,
+    filterLabel: filterLabel,
     filterDate,
     hideDone,
     groupBy,
@@ -164,14 +164,15 @@ export function useTaskFilters(
   };
 
   const loadView = useCallback((filters: ViewFilters) => {
-    setFilterProject(filters.filterProject?.split(',').filter(Boolean) || []);
-    setFilterAssignee(filters.filterAssignee?.split(',').filter(Boolean) || []);
-    setFilterPriority(filters.filterPriority?.split(',').filter(Boolean) || []);
-    setFilterStatus(filters.filterStatus?.split(',').filter(Boolean) || []);
-    setFilterLabel(filters.filterLabel?.split(',').filter(Boolean) || []);
+    const toArr = (v: string | string[] | undefined) => Array.isArray(v) ? v : (v ? v.split(',').filter(Boolean) : []);
+    setFilterProject(toArr(filters.filterProject));
+    setFilterAssignee(toArr(filters.filterAssignee));
+    setFilterPriority(toArr(filters.filterPriority));
+    setFilterStatus(toArr(filters.filterStatus));
+    setFilterLabel(toArr(filters.filterLabel));
     setFilterDate(filters.filterDate);
     setHideDonePersisted(filters.hideDone);
-    setGroupBy(filters.groupBy);
+    setGroupBy(filters.groupBy as typeof groupBy);
     if (filters.filterDate !== 'all' && filters.filterDate !== 'overdue' && filters.filterDate !== 'no-date') {
       setCustomRange(presetToRange(filters.filterDate));
     } else {

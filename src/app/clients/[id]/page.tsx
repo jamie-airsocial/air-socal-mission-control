@@ -447,20 +447,20 @@ export default function ClientDetailPage() {
 
   // Helper functions for SavedViews integration (convert array filters to/from string format)
   const currentViewFilters: ViewFilters = {
-    filterProject: '', // Client detail doesn't filter by project
-    filterAssignee: taskFilterAssignee.join(','),
-    filterPriority: taskFilterPriority.join(','),
-    filterStatus: taskFilterStatus.join(','),
+    filterProject: [],
+    filterAssignee: taskFilterAssignee,
+    filterPriority: taskFilterPriority,
+    filterStatus: taskFilterStatus,
     filterDate: 'all',
     hideDone: false,
-    groupBy: taskGroupBy as ViewFilters['groupBy'],
+    groupBy: taskGroupBy,
     view: 'table',
   };
 
   const loadView = useCallback((filters: ViewFilters) => {
-    setTaskFilterStatus(filters.filterStatus ? filters.filterStatus.split(',') : []);
-    setTaskFilterPriority(filters.filterPriority ? filters.filterPriority.split(',') : []);
-    setTaskFilterAssignee(filters.filterAssignee ? filters.filterAssignee.split(',') : []);
+    setTaskFilterStatus(Array.isArray(filters.filterStatus) ? filters.filterStatus : []);
+    setTaskFilterPriority(Array.isArray(filters.filterPriority) ? filters.filterPriority : []);
+    setTaskFilterAssignee(Array.isArray(filters.filterAssignee) ? filters.filterAssignee : []);
     setTaskFilterService([]); // Service not in ViewFilters, reset
     setTaskGroupBy((filters.groupBy || 'service') as typeof taskGroupBy);
     setTaskSearch('');
