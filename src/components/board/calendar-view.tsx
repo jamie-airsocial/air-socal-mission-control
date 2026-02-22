@@ -737,8 +737,10 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         e.dataTransfer.dropEffect = 'move';
                         const rect = e.currentTarget.getBoundingClientRect();
                         const y = e.clientY - rect.top;
-                        const hour = Math.floor(y / HOUR_HEIGHT) + startHour;
-                        setDragOverCell(`${dayKey}:${Math.min(hour, endHour)}`);
+                        const rawMin = (y / HOUR_HEIGHT) * 60 + startHour * 60;
+                        const snapped = Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES;
+                        const newCell = `${dayKey}:${snapped}`;
+                        if (newCell !== dragOverCell) setDragOverCell(newCell);
                       }}
                       onDragLeave={() => setDragOverCell(null)}
                       onDrop={(e) => {
@@ -751,8 +753,11 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         const rawMinutes = (y / HOUR_HEIGHT) * 60 + startHour * 60;
                         const snappedMinutes = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
                         const hour = Math.floor(snappedMinutes / 60);
+                        const minute = snappedMinutes % 60;
                         if (onDateChange) {
-                          handleWeekDrop(id, day.date, hour);
+                          const newDate = new Date(day.date);
+                          newDate.setHours(hour, minute, 0, 0);
+                          onDateChange(id, newDate.toISOString());
                         }
                       }}
                       onClick={(e) => {
@@ -777,7 +782,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                       {(() => {
                         const PHANTOM_ID = '__drop_preview__';
                         const dropMatch = dragOverCell?.startsWith(dayKey + ':') ? dragOverCell : null;
-                        const dropHour = dropMatch ? parseInt(dropMatch.split(':').pop() || '0', 10) : null;
+                        const dropMinutes = dropMatch ? parseInt(dropMatch.split(':').pop() || '0', 10) : null;
                         const dragDuration = draggedTaskId ? getTaskDuration(draggedTaskId, taskDurations) : 60;
 
                         const layoutItems = allDayTasks
@@ -787,18 +792,18 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                             startMin: Math.round(getTaskHour(t) * 60),
                             endMin: Math.round(getTaskHour(t) * 60) + getTaskDuration(t.id, taskDurations),
                           }));
-                        if (dropHour !== null && draggedTaskId) {
-                          layoutItems.push({ id: PHANTOM_ID, startMin: dropHour * 60, endMin: dropHour * 60 + dragDuration });
+                        if (dropMinutes !== null && draggedTaskId) {
+                          layoutItems.push({ id: PHANTOM_ID, startMin: dropMinutes, endMin: dropMinutes + dragDuration });
                         }
                         const taskLayouts = layoutOverlappingTasks(layoutItems);
 
                         const phantomLayout = taskLayouts.get(PHANTOM_ID);
-                        const dropIndicator = dropHour !== null && phantomLayout ? (
+                        const dropIndicator = dropMinutes !== null && phantomLayout ? (
                           <div
                             key="drop-indicator"
-                            className="absolute rounded pointer-events-none z-10"
+                            className="absolute rounded pointer-events-none z-10 transition-all duration-150 ease-out"
                             style={{
-                              top: (dropHour - startHour) * HOUR_HEIGHT,
+                              top: ((dropMinutes - startHour * 60) / 60) * HOUR_HEIGHT,
                               height: (dragDuration / 60) * HOUR_HEIGHT,
                               left: `calc(${(phantomLayout.col * 100 / phantomLayout.totalCols)}% + 2px)`,
                               width: `calc(${100 / phantomLayout.totalCols}% - 4px)`,
@@ -831,7 +836,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         return (
                           <div
                             key={task.id}
-                            className={`task-block absolute rounded-md border border-border/30 overflow-hidden cursor-pointer group/task transition-shadow ${isResizing ? 'ring-1 ring-primary/40 z-30' : 'z-20 hover:shadow-md hover:z-30'} ${isDragged ? 'opacity-30' : ''}`}
+                            className={`task-block absolute rounded-md border border-border/30 overflow-hidden cursor-pointer group/task ${isResizing ? 'ring-1 ring-primary/40 z-30' : 'z-20 hover:shadow-md hover:z-30'} ${isDragged ? 'opacity-30' : ''}`}
                             style={{
                               top: `${top}px`,
                               height: `${height}px`,
@@ -840,6 +845,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                               backgroundColor: `color-mix(in oklab, ${dotColor} 10%, var(--card))`,
                               borderLeftColor: dotColor,
                               borderLeftWidth: '3px',
+                              transition: 'left 150ms ease-out, width 150ms ease-out',
                             }}
                             draggable={!isResizing}
                             onDragStart={(e) => {
