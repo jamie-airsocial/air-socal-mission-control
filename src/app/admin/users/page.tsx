@@ -230,13 +230,13 @@ export default function AdminUsersPage() {
   };
 
   const handleSave = async () => {
-    if (!form.full_name || !form.team) { toast.error('Please fill in all required fields'); return; }
+    if (!form.full_name) { toast.error('Name is required'); return; }
     setSaving(true);
     try {
       if (editingUser) {
         const res = await fetch(`/api/users/${editingUser.id}`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ full_name: form.full_name, email: form.email, role_id: form.role_id || null, team: form.team }),
+          body: JSON.stringify({ full_name: form.full_name, email: form.email, role_id: form.role_id || null, team: form.team || null }),
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
         toast.success('User updated', { description: `${form.full_name} has been updated.` });
