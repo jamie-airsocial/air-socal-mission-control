@@ -610,7 +610,7 @@ function ClientsPageContent() {
                         </td>
                         <td className="px-4 py-2.5">
                           <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>
-                            {client.status}
+                            {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-muted-foreground tabular-nums">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</td>
@@ -646,7 +646,7 @@ function ClientsPageContent() {
                 <div key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{client.status}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{(client.status.charAt(0).toUpperCase() + client.status.slice(1))}</span>
                   </div>
                   <div className="flex items-center gap-2 mb-2">
                     {teamStyle && (<><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} /><span className="text-[11px] text-muted-foreground">{teamStyle.label}</span><span className="text-[11px] text-muted-foreground/40">·</span></>)}
