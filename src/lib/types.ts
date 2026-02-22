@@ -23,7 +23,7 @@ export interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'backlog' | 'todo' | 'doing' | 'review' | 'done';
+  status: string;
   priority: 'P1' | 'P2' | 'P3' | 'P4' | null;
   assignee: string | null;
   project_id: string | null;
@@ -85,7 +85,7 @@ export interface AgentStatus {
 // FALLBACK: Hardcoded statuses — components should fetch from /api/statuses and fall back to these
 // 'backlog' intentionally excluded — merged into 'todo' in UI
 export const STATUSES = ['todo', 'doing', 'review', 'done'] as const;
-export type TaskStatusAll = 'backlog' | 'todo' | 'doing' | 'review' | 'done';
+export type TaskStatusAll = string;
 export const PRIORITIES = ['P1', 'P2', 'P3', 'P4'] as const;
 
 export type PipelineStage =

@@ -226,10 +226,18 @@ export function KanbanBoard({
     const cols: KanbanColumn[] = statusSource.map((status) => {
       const slug = typeof status === 'string' ? status : status.slug;
       const label = typeof status === 'string' ? (STATUS_STYLES[status]?.label || status) : status.label;
+      
+      // For dynamic statuses (TaskStatus objects with dot_colour), use dotColor (inline style)
+      // For hardcoded/fallback statuses, use dotClass (Tailwind class)
+      const isDynamicStatus = typeof status === 'object' && 'dot_colour' in status;
+      const dotColor = isDynamicStatus ? (status.dot_colour || status.colour) : undefined;
+      const dotClass = !isDynamicStatus ? STATUS_DOT_CLASSES[slug] : undefined;
+      
       return {
         id: slug,
         label,
-        dotClass: STATUS_DOT_CLASSES[slug],
+        dotClass,
+        dotColor,
       };
     });
     if (tasks.some((t) => !t.status)) {
