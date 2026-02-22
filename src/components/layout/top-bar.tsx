@@ -341,6 +341,7 @@ export function TopBar() {
     switch (status) {
       case 'done': return 'bg-emerald-500';
       case 'doing': return 'bg-indigo-500';
+      case 'review': return 'bg-blue-500';
       case 'todo': return 'bg-amber-500';
       default: return 'bg-muted-foreground/40';
     }
