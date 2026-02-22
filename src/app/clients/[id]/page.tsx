@@ -930,6 +930,10 @@ export default function ClientDetailPage() {
                 storageKey="client-saved-views"
               />
             </TooltipProvider>
+            <div className="flex-1" />
+            <Button size="sm" onClick={() => openNewTask()} className="h-7 text-[13px]">
+              <Plus className="h-3.5 w-3.5 mr-1" /> New task
+            </Button>
           </div>
           <TableView
             tasks={filteredTasks as unknown as (Task & { project_name?: string; project_color?: string })[]}
