@@ -705,6 +705,7 @@ export default function PipelinePage() {
 
   // Filters
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
+  const [filterStage, setFilterStage] = usePersistedState<string[]>('pipeline-filterStage', []);
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   const { users } = useUsers();
@@ -731,11 +732,12 @@ export default function PipelinePage() {
         ) return false;
       }
       if (filterService.length > 0 && (!p.service || !filterService.includes(p.service))) return false;
+      if (filterStage.length > 0 && !filterStage.includes(p.stage)) return false;
       return true;
     });
-  }, [prospects, searchQuery, filterService]);
+  }, [prospects, searchQuery, filterService, filterStage]);
 
-  const hasFilters = filterService.length > 0 || searchQuery !== '';
+  const hasFilters = filterService.length > 0 || filterStage.length > 0 || searchQuery !== '';
 
   const openNewProspect = (stage?: string) => {
     setEditingProspect(null);
@@ -888,6 +890,15 @@ export default function PipelinePage() {
           />
         </div>
 
+        {/* Stage filter */}
+        <FilterPopover
+          label="Stage"
+          options={PIPELINE_STAGES.map(s => ({ value: s.id, label: s.label, dot: s.id === 'lead' ? '#fbbf24' : s.id === 'won' ? '#34d399' : s.color }))}
+          selected={filterStage}
+          onSelectionChange={setFilterStage}
+          width="w-48"
+        />
+
         {/* Service filter */}
         <FilterPopover
           label="Service"
@@ -899,7 +910,7 @@ export default function PipelinePage() {
 
         {hasFilters && (
           <button
-            onClick={() => { setFilterService([]); setSearchQuery(''); }}
+            onClick={() => { setFilterService([]); setFilterStage([]); setSearchQuery(''); }}
             className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors duration-150 flex items-center gap-1.5"
           >
             <X className="h-3 w-3" /> Clear all
