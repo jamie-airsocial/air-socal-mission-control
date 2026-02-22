@@ -764,7 +764,7 @@ export default function AdminUsersPage() {
                 </div>
               )}
               <div className="space-y-1.5">
-                <Label className="text-[13px] text-muted-foreground">Team *</Label>
+                <Label className="text-[13px] text-muted-foreground">Team</Label>
                 <TeamSelect value={form.team} onChange={v => setForm(f => ({ ...f, team: v }))} teams={teamOptions} />
               </div>
               <div className="space-y-1.5">
