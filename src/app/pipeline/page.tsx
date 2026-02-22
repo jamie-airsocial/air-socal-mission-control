@@ -847,7 +847,7 @@ export default function PipelinePage() {
   const PAGE_SHORTCUTS = [
     { key: 'N', description: 'New prospect' },
     { key: 'Esc', description: 'Close sheet' },
-    { key: '1', description: 'Pipeline view' },
+    { key: '1', description: 'Kanban view' },
     { key: '2', description: 'Table view' },
     { key: '3', description: 'Stats view' },
     { key: '?', description: 'Show shortcuts' },
@@ -856,14 +856,14 @@ export default function PipelinePage() {
   useKeyboardShortcuts([
     { key: 'n', description: 'New prospect', action: () => { if (!sheetOpen) openNewProspect(); } },
     { key: 'Escape', description: 'Close', action: () => { setSheetOpen(false); setShowShortcuts(false); }, skipInInput: false },
-    { key: '1', description: 'Pipeline view', action: () => setViewMode('pipeline') },
+    { key: '1', description: 'Kanban view', action: () => setViewMode('pipeline') },
     { key: '2', description: 'Table view', action: () => setViewMode('table') },
     { key: '3', description: 'Stats view', action: () => setViewMode('stats') },
     { key: '?', description: 'Show shortcuts', action: () => setShowShortcuts(v => !v) },
   ]);
 
   const viewButtons: { mode: ViewMode; icon: typeof Kanban; label: string }[] = [
-    { mode: 'pipeline', icon: Kanban, label: 'Pipeline' },
+    { mode: 'pipeline', icon: Kanban, label: 'Kanban' },
     { mode: 'table', icon: Table2, label: 'Table' },
     { mode: 'stats', icon: BarChart3, label: 'Stats' },
   ];
@@ -890,14 +890,16 @@ export default function PipelinePage() {
           />
         </div>
 
-        {/* Stage filter */}
-        <FilterPopover
-          label="Stage"
-          options={PIPELINE_STAGES.map(s => ({ value: s.id, label: s.label, dot: s.id === 'lead' ? '#fbbf24' : s.id === 'won' ? '#34d399' : s.color }))}
-          selected={filterStage}
-          onSelectionChange={setFilterStage}
-          width="w-48"
-        />
+        {/* Stage filter — only in table/stats view (kanban already separates by stage) */}
+        {viewMode !== 'pipeline' && (
+          <FilterPopover
+            label="Stage"
+            options={PIPELINE_STAGES.map(s => ({ value: s.id, label: s.label, dot: s.id === 'lead' ? '#fbbf24' : s.id === 'won' ? '#34d399' : s.color }))}
+            selected={filterStage}
+            onSelectionChange={setFilterStage}
+            width="w-48"
+          />
+        )}
 
         {/* Service filter */}
         <FilterPopover
