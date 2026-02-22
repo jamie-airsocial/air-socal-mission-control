@@ -68,6 +68,7 @@ function recurringActiveInMonth(item: ContractLineItem, month: Date): boolean {
 }
 
 interface ServiceClientDetail {
+  clientId: string;
   clientName: string;
   amount: number;
   start_date?: string | null;
@@ -99,12 +100,12 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
         const alloc = projectAllocationForMonth(item, month);
         if (alloc > 0) {
           if (!projectByService[item.service]) projectByService[item.service] = [];
-          projectByService[item.service].push({ clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date });
+          projectByService[item.service].push({ clientId: client.id, clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date });
         }
       } else {
         if (recurringActiveInMonth(item, month)) {
           if (!recurringByService[item.service]) recurringByService[item.service] = [];
-          recurringByService[item.service].push({ clientName: client.name, amount: item.monthly_value || 0 });
+          recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: item.monthly_value || 0 });
         }
       }
     }
@@ -155,14 +156,14 @@ function ServiceBreakdownRow({ row, total, teamColor }: { row: ServiceRow; total
         <div className="ml-5 mt-1 mb-1 space-y-0.5">
           {row.clients.map((c, i) => (
             <div key={i} className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/50 truncate mr-2">
+              <Link href={`/clients/${c.clientId}`} className="text-[10px] text-muted-foreground/50 truncate mr-2 hover:text-foreground transition-colors">
                 {c.clientName}
                 {c.start_date && c.end_date && (
                   <span className="text-muted-foreground/30 ml-1">
                     ({format(new Date(c.start_date), 'MMM yy')} – {format(new Date(c.end_date), 'MMM yy')})
                   </span>
                 )}
-              </span>
+              </Link>
               <span className="text-[10px] text-muted-foreground/40 shrink-0">£{Math.round(c.amount).toLocaleString()}</span>
             </div>
           ))}
@@ -239,7 +240,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
       {/* Recurring */}
       {breakdown.recurring.length > 0 && (
         <div className="mb-2">
-          <p className="text-[10px] font-medium text-muted-foreground/50 mb-1">
+          <p className="text-[11px] font-semibold text-muted-foreground/60 mb-1.5">
             Recurring · £{Math.round(breakdown.recurringTotal).toLocaleString()}
           </p>
           <div className="space-y-1">
@@ -253,7 +254,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
       {/* Project work */}
       {breakdown.project.length > 0 && (
         <div>
-          <p className="text-[10px] font-medium text-muted-foreground/50 mb-1">
+          <p className="text-[11px] font-semibold text-muted-foreground/60 mb-1.5">
             Project · £{Math.round(breakdown.projectTotal).toLocaleString()}
           </p>
           <div className="space-y-1">
@@ -284,15 +285,21 @@ function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; c
 
   return (
     <div>
-      <div className="flex items-center gap-1 mb-1">
+      <div className="flex items-center justify-between mb-1 px-2 -mx-2">
         <button
-          onClick={() => setSortBy(s => s === 'name' ? 'amount' : 'name')}
-          className="flex items-center gap-1 text-[10px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+          onClick={() => setSortBy('name')}
+          className={`flex items-center gap-1 text-[10px] transition-colors ${sortBy === 'name' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
         >
-          <ArrowUpDown size={10} /> Sort by {sortBy === 'name' ? 'amount' : 'name'}
+          Client {sortBy === 'name' && <ArrowUpDown size={9} />}
+        </button>
+        <button
+          onClick={() => setSortBy('amount')}
+          className={`flex items-center gap-1 text-[10px] transition-colors ${sortBy === 'amount' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+        >
+          Amount {sortBy === 'amount' && <ArrowUpDown size={9} />}
         </button>
       </div>
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         {sorted.map(client => {
           const rev = contractRevenueByClient[client.id] || 0;
           return (
