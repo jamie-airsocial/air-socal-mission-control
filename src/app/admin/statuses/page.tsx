@@ -226,12 +226,12 @@ export default function AdminStatusesPage() {
 
       {/* Drag-and-drop status list */}
       <div className="bg-card border border-border/20 rounded-lg overflow-hidden">
-        <div className="border-b border-border/20 bg-muted/30 grid grid-cols-[32px_40px_1fr_1fr_80px] gap-2 px-4 py-3">
+        <div className="border-b border-border/20 bg-muted/30 grid grid-cols-[32px_28px_1fr_1fr_80px] gap-4 px-4 py-3">
           <span />
-          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Colour</span>
-          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Label</span>
-          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Slug</span>
-          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider text-right">Actions</span>
+          <span />
+          <span className="text-[11px] font-medium text-muted-foreground/60">Label</span>
+          <span className="text-[11px] font-medium text-muted-foreground/60">Slug</span>
+          <span className="text-[11px] font-medium text-muted-foreground/60 text-right">Actions</span>
         </div>
         <DragDropContext onDragEnd={onDragEnd}>
           <Droppable droppableId="statuses">
@@ -245,7 +245,7 @@ export default function AdminStatusesPage() {
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`grid grid-cols-[32px_40px_1fr_1fr_80px] gap-2 items-center px-4 py-3 border-b border-border/10 transition-colors ${snapshot.isDragging ? 'bg-muted/40 shadow-lg rounded-lg' : 'hover:bg-secondary/20'}`}
+                          className={`grid grid-cols-[32px_28px_1fr_1fr_80px] gap-4 items-center px-4 py-3 border-b border-border/10 transition-colors ${snapshot.isDragging ? 'bg-muted/40 shadow-lg rounded-lg' : 'hover:bg-secondary/20'}`}
                         >
                           <div {...provided.dragHandleProps} className="flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
                             <GripVertical size={14} />
