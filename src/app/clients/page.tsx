@@ -40,6 +40,7 @@ interface ClientRow {
   color: string | null;
   created_at: string;
   signup_date?: string;
+  churned_at?: string;
   notes?: string;
 }
 
@@ -59,12 +60,12 @@ function deriveServiceOptions(clients: ClientRow[]): { value: string; label: str
   return Array.from(serviceSet).sort().map(slug => { const s = getServiceStyle(slug); return { value: slug, label: s.label, dot: s.dot }; });
 }
 
-function monthsActive(createdAt: string): number {
-  const start = new Date(createdAt);
-  const now = new Date();
+function monthsActive(from: string, to?: string | null): number {
+  const start = new Date(from);
+  const end = to ? new Date(to) : new Date();
   return Math.max(
     0,
-    Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
+    Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30.44))
   );
 }
 
@@ -562,7 +563,7 @@ function ClientsPageContent() {
             case 'team': return dir * (a.team || 'zzz').localeCompare(b.team || 'zzz');
             case 'status': return dir * (a.status || '').localeCompare(b.status || '');
             case 'retainer': return dir * ((a.calculated_retainer ?? a.monthly_retainer ?? 0) - (b.calculated_retainer ?? b.monthly_retainer ?? 0));
-            case 'tenure': return dir * (monthsActive(a.created_at) - monthsActive(b.created_at));
+            case 'tenure': return dir * (monthsActive(a.signup_date || a.created_at, a.churned_at) - monthsActive(b.signup_date || b.created_at, b.churned_at));
             default: return 0;
           }
         });
@@ -596,7 +597,7 @@ function ClientsPageContent() {
                 <tbody>
                   {sorted.map((client) => {
                     const teamStyle = getTeamStyle(client.team);
-                    const tenure = monthsActive(client.created_at);
+                    const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
                     return (
                       <tr key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="border-b border-border/10 hover:bg-muted/40 cursor-pointer transition-colors">
                         <td className="px-4 py-2.5 font-medium text-foreground">{client.name}</td>
@@ -641,7 +642,7 @@ function ClientsPageContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {sorted.map((client) => {
               const teamStyle = getTeamStyle(client.team);
-              const tenure = monthsActive(client.created_at);
+              const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
               return (
                 <div key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer">
                   <div className="flex items-center justify-between mb-2">
