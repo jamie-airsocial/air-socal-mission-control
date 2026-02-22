@@ -773,31 +773,43 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                           style={{ top: `${(hour - startHour) * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
                         />
                       ))}
-                      {/* Drop indicator — matches dragged task duration */}
+                      {/* Tasks + drop indicator — layout includes phantom for preview */}
                       {(() => {
-                        const match = dragOverCell;
-                        if (!match?.startsWith(dayKey + ':')) return null;
-                        const dropHour = parseInt(match.split(':').pop() || '0', 10);
-                        const top = (dropHour - startHour) * HOUR_HEIGHT;
+                        const PHANTOM_ID = '__drop_preview__';
+                        const dropMatch = dragOverCell?.startsWith(dayKey + ':') ? dragOverCell : null;
+                        const dropHour = dropMatch ? parseInt(dropMatch.split(':').pop() || '0', 10) : null;
                         const dragDuration = draggedTaskId ? getTaskDuration(draggedTaskId, taskDurations) : 60;
-                        const indicatorHeight = (dragDuration / 60) * HOUR_HEIGHT;
-                        return (
-                          <div
-                            className="absolute left-1 right-1 rounded pointer-events-none z-10"
-                            style={{ top, height: indicatorHeight, border: '1.5px dashed var(--primary)', opacity: 0.4, background: 'color-mix(in oklab, var(--primary) 6%, transparent)' }}
-                          />
-                        );
-                      })()}
-                      {/* Tasks — absolutely positioned, side-by-side when overlapping */}
-                      {(() => {
-                        const taskLayouts = layoutOverlappingTasks(
-                          allDayTasks.map(t => ({
+
+                        const layoutItems = allDayTasks
+                          .filter(t => t.id !== draggedTaskId)
+                          .map(t => ({
                             id: t.id,
                             startMin: Math.round(getTaskHour(t) * 60),
                             endMin: Math.round(getTaskHour(t) * 60) + getTaskDuration(t.id, taskDurations),
-                          }))
-                        );
-                        return allDayTasks.map(task => {
+                          }));
+                        if (dropHour !== null && draggedTaskId) {
+                          layoutItems.push({ id: PHANTOM_ID, startMin: dropHour * 60, endMin: dropHour * 60 + dragDuration });
+                        }
+                        const taskLayouts = layoutOverlappingTasks(layoutItems);
+
+                        const phantomLayout = taskLayouts.get(PHANTOM_ID);
+                        const dropIndicator = dropHour !== null && phantomLayout ? (
+                          <div
+                            key="drop-indicator"
+                            className="absolute rounded pointer-events-none z-10"
+                            style={{
+                              top: (dropHour - startHour) * HOUR_HEIGHT,
+                              height: (dragDuration / 60) * HOUR_HEIGHT,
+                              left: `calc(${(phantomLayout.col * 100 / phantomLayout.totalCols)}% + 2px)`,
+                              width: `calc(${100 / phantomLayout.totalCols}% - 4px)`,
+                              border: '1.5px dashed var(--primary)',
+                              opacity: 0.4,
+                              background: 'color-mix(in oklab, var(--primary) 6%, transparent)',
+                            }}
+                          />
+                        ) : null;
+
+                        const taskElements = allDayTasks.filter(t => t.id !== draggedTaskId).map(task => {
                         const layout = taskLayouts.get(task.id) || { col: 0, totalCols: 1 };
                         const colWidth = 100 / layout.totalCols;
                         const leftPct = layout.col * colWidth;
@@ -879,6 +891,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                           </div>
                         );
                       });
+                        return <>{dropIndicator}{taskElements}</>;
                       })()}
                       {/* Create hint for empty areas */}
                       {allDayTasks.length === 0 && (
