@@ -83,6 +83,44 @@ const MIN_DURATION = 15;
 const MAX_DURATION = 480;
 const SNAP_MINUTES = 15;
 
+/** Calculate column layout for overlapping tasks (side-by-side) */
+function layoutOverlappingTasks(
+  tasks: { id: string; startMin: number; endMin: number }[]
+): Map<string, { col: number; totalCols: number }> {
+  const result = new Map<string, { col: number; totalCols: number }>();
+  if (!tasks.length) return result;
+  const sorted = [...tasks].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const columns: { endMin: number }[] = [];
+  const taskCols = new Map<string, number>();
+  for (const t of sorted) {
+    let placed = false;
+    for (let c = 0; c < columns.length; c++) {
+      if (columns[c].endMin <= t.startMin) {
+        columns[c].endMin = t.endMin;
+        taskCols.set(t.id, c);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      taskCols.set(t.id, columns.length);
+      columns.push({ endMin: t.endMin });
+    }
+  }
+  for (const t of sorted) {
+    const col = taskCols.get(t.id) || 0;
+    let maxCol = col;
+    for (const other of sorted) {
+      if (other.id === t.id) continue;
+      if (other.startMin < t.endMin && other.endMin > t.startMin) {
+        maxCol = Math.max(maxCol, taskCols.get(other.id) || 0);
+      }
+    }
+    result.set(t.id, { col, totalCols: maxCol + 1 });
+  }
+  return result;
+}
+
 function TaskPill({ task, onTaskClick, showTime = false, draggable = false, onDragStart: onDragStartCb, onDragEnd: onDragEndCb, isBeingDragged = false }: { task: ExtTask; onTaskClick: (t: ExtTask) => void; showTime?: boolean; draggable?: boolean; onDragStart?: (taskId: string) => void; onDragEnd?: () => void; isBeingDragged?: boolean }) {
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('text/plain', task.id);
@@ -735,21 +773,34 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                           style={{ top: `${(hour - startHour) * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
                         />
                       ))}
-                      {/* Drop indicator */}
+                      {/* Drop indicator — matches dragged task duration */}
                       {(() => {
                         const match = dragOverCell;
                         if (!match?.startsWith(dayKey + ':')) return null;
                         const dropHour = parseInt(match.split(':').pop() || '0', 10);
                         const top = (dropHour - startHour) * HOUR_HEIGHT;
+                        const dragDuration = draggedTaskId ? getTaskDuration(draggedTaskId, taskDurations) : 60;
+                        const indicatorHeight = (dragDuration / 60) * HOUR_HEIGHT;
                         return (
                           <div
                             className="absolute left-1 right-1 rounded pointer-events-none z-10"
-                            style={{ top, height: HOUR_HEIGHT, border: '1.5px dashed var(--primary)', opacity: 0.4, background: 'color-mix(in oklab, var(--primary) 6%, transparent)' }}
+                            style={{ top, height: indicatorHeight, border: '1.5px dashed var(--primary)', opacity: 0.4, background: 'color-mix(in oklab, var(--primary) 6%, transparent)' }}
                           />
                         );
                       })()}
-                      {/* Tasks — absolutely positioned */}
-                      {allDayTasks.map(task => {
+                      {/* Tasks — absolutely positioned, side-by-side when overlapping */}
+                      {(() => {
+                        const taskLayouts = layoutOverlappingTasks(
+                          allDayTasks.map(t => ({
+                            id: t.id,
+                            startMin: Math.round(getTaskHour(t) * 60),
+                            endMin: Math.round(getTaskHour(t) * 60) + getTaskDuration(t.id, taskDurations),
+                          }))
+                        );
+                        return allDayTasks.map(task => {
+                        const layout = taskLayouts.get(task.id) || { col: 0, totalCols: 1 };
+                        const colWidth = 100 / layout.totalCols;
+                        const leftPct = layout.col * colWidth;
                         const taskHour = getTaskHour(task);
                         const duration = getTaskDuration(task.id, taskDurations);
                         const top = (taskHour - startHour) * HOUR_HEIGHT;
@@ -768,10 +819,12 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         return (
                           <div
                             key={task.id}
-                            className={`task-block absolute left-0.5 right-0.5 rounded-md border border-border/30 overflow-hidden cursor-pointer group/task transition-shadow ${isResizing ? 'ring-1 ring-primary/40 z-30' : 'z-20 hover:shadow-md hover:z-30'} ${isDragged ? 'opacity-30' : ''}`}
+                            className={`task-block absolute rounded-md border border-border/30 overflow-hidden cursor-pointer group/task transition-shadow ${isResizing ? 'ring-1 ring-primary/40 z-30' : 'z-20 hover:shadow-md hover:z-30'} ${isDragged ? 'opacity-30' : ''}`}
                             style={{
                               top: `${top}px`,
                               height: `${height}px`,
+                              left: `calc(${leftPct}% + 2px)`,
+                              width: `calc(${colWidth}% - 4px)`,
                               backgroundColor: `color-mix(in oklab, ${dotColor} 10%, var(--card))`,
                               borderLeftColor: dotColor,
                               borderLeftWidth: '3px',
@@ -825,7 +878,8 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                             />
                           </div>
                         );
-                      })}
+                      });
+                      })()}
                       {/* Create hint for empty areas */}
                       {allDayTasks.length === 0 && (
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
