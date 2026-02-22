@@ -4,9 +4,10 @@ import { useState, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/components/ui/popover';
 import { STATUS_STYLES } from '@/lib/constants';
+import { useStatuses } from '@/hooks/use-statuses';
 
-// Only show canonical statuses in the dropdown (exclude legacy 'backlog' fallback)
-const SELECTABLE_STATUSES = ['todo', 'doing', 'review', 'done'] as const;
+// Fallback statuses when API is not available
+const FALLBACK_STATUSES = ['todo', 'doing', 'review', 'done'] as const;
 
 export function SearchableStatusPopover({ 
   value, 
@@ -24,6 +25,17 @@ export function SearchableStatusPopover({
   const [search, setSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { statuses: dynamicStatuses, loading } = useStatuses();
+
+  // Use dynamic statuses if loaded, fallback to hardcoded
+  const statuses = !loading && dynamicStatuses.length > 0
+    ? dynamicStatuses
+    : FALLBACK_STATUSES.map(slug => ({
+        slug,
+        label: STATUS_STYLES[slug]?.label || slug,
+        colour: STATUS_STYLES[slug]?.text || '#6366f1',
+        dot_colour: STATUS_STYLES[slug]?.dot || 'var(--muted-foreground)',
+      }));
 
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange?.(nextOpen);
@@ -33,19 +45,23 @@ export function SearchableStatusPopover({
     }
   };
   
-  const filtered = SELECTABLE_STATUSES
-    .map(key => [key, STATUS_STYLES[key]] as const)
-    .filter(([, style]) => style.label.toLowerCase().includes(search.toLowerCase()));
+  const filtered = statuses
+    .filter(status => status.label.toLowerCase().includes(search.toLowerCase()));
+  
+  const currentStatus = value ? statuses.find(s => s.slug === value) : null;
+  const currentDotColour = currentStatus
+    ? (currentStatus.dot_colour || currentStatus.colour)
+    : null;
   
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         {trigger || (
           <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
-            {value && STATUS_STYLES[value] ? (
+            {currentStatus ? (
               <>
-                <span className="w-2 h-2 rounded-full transition-colors duration-150" style={{ backgroundColor: STATUS_STYLES[value].dot }} />
-                <span className={`text-[13px] transition-colors duration-150 ${STATUS_STYLES[value].text}`}>{STATUS_STYLES[value].label}</span>
+                <span className="w-2 h-2 rounded-full transition-colors duration-150" style={{ backgroundColor: currentDotColour || 'var(--muted-foreground)' }} />
+                <span className="text-[13px] transition-colors duration-150" style={{ color: currentStatus.colour }}>{currentStatus.label}</span>
               </>
             ) : (
               <span className="text-[13px] text-muted-foreground/30">No status</span>
@@ -83,16 +99,16 @@ export function SearchableStatusPopover({
               <div className="border-t border-border/20 my-1" />
             </>
           )}
-          {filtered.map(([key, style], idx) => (
-            <PopoverClose asChild key={key}>
+          {filtered.map((status, idx) => (
+            <PopoverClose asChild key={status.slug}>
               <button
-                onClick={() => { onChange(key); }}
+                onClick={() => { onChange(status.slug); }}
                 data-search-item 
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === key ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${value === status.slug ? 'bg-muted/50' : ''} ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
               >
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.dot }} />
-                <span className="flex-1 text-left">{style.label}</span>
-                {value === key && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: status.dot_colour || status.colour }} />
+                <span className="flex-1 text-left">{status.label}</span>
+                {value === status.slug && <Check className="h-3.5 w-3.5 text-primary shrink-0" />}
               </button>
             </PopoverClose>
           ))}

@@ -4,8 +4,10 @@ import { useState, useRef } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { STATUS_STYLES } from '@/lib/constants';
+import { useStatuses } from '@/hooks/use-statuses';
 
-const STATUSES = [
+// Fallback hardcoded statuses
+const FALLBACK_STATUSES = [
   { value: 'todo', label: 'To Do' },
   { value: 'doing', label: 'In Progress' },
   { value: 'review', label: 'Review' },
@@ -23,6 +25,12 @@ export function FilterStatusPopover({
   const [search, setSearch] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { statuses: dynamicStatuses, loading } = useStatuses();
+
+  // Use dynamic statuses if loaded, fallback to hardcoded
+  const STATUSES = !loading && dynamicStatuses.length > 0
+    ? dynamicStatuses.map(s => ({ value: s.slug, label: s.label, colour: s.colour }))
+    : FALLBACK_STATUSES;
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
@@ -49,11 +57,16 @@ export function FilterStatusPopover({
   };
 
   const isActive = value.length > 0;
+  const selectedStatus = value.length === 1 ? STATUSES.find(s => s.value === value[0]) : null;
   const displayText = value.length === 0 
     ? 'Status' 
     : value.length === 1 
-      ? value[0] === '__none__' ? 'No status' : (STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.label || value[0])
+      ? value[0] === '__none__' ? 'No status' : (selectedStatus?.label || value[0])
       : `${value.length} statuses`;
+  
+  const dotColour = value.length === 1 && value[0] !== '__none__' && selectedStatus
+    ? ('colour' in selectedStatus ? selectedStatus.colour : (STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.dot || 'var(--muted-foreground)'))
+    : null;
   
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -64,10 +77,10 @@ export function FilterStatusPopover({
             isActive ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
           }`}
         >
-          {value.length === 1 && value[0] !== '__none__' && (
+          {dotColour && (
             <span 
               className="w-1.5 h-1.5 rounded-full"
-              style={{ backgroundColor: STATUS_STYLES[value[0] as keyof typeof STATUS_STYLES]?.dot || 'var(--muted-foreground)' }}
+              style={{ backgroundColor: dotColour }}
             />
           )}
           <span className="truncate max-w-[100px]">{displayText}</span>
@@ -105,6 +118,7 @@ export function FilterStatusPopover({
           {filtered.map((status, idx) => {
             const isSelected = value.includes(status.value);
             const statusStyle = STATUS_STYLES[status.value as keyof typeof STATUS_STYLES];
+            const dotColour = 'colour' in status ? status.colour : (statusStyle?.dot || 'var(--muted-foreground)');
             
             return (
               <button
@@ -115,7 +129,7 @@ export function FilterStatusPopover({
                   isSelected ? 'bg-muted/50' : ''
                 } ${highlightedIndex === idx ? 'bg-primary/15 text-primary' : ''}`}
               >
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: statusStyle?.dot || 'var(--muted-foreground)' }} />
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: dotColour }} />
                 <span className="flex-1 text-left">{status.label}</span>
                 {isSelected && <Check className="h-3.5 w-3.5 text-primary" />}
               </button>

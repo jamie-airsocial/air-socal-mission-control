@@ -8,6 +8,7 @@ const ADMIN_TABS = [
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/roles', label: 'Roles & Permissions' },
   { href: '/admin/teams', label: 'Teams' },
+  { href: '/admin/statuses', label: 'Statuses' },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

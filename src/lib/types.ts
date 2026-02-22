@@ -82,6 +82,7 @@ export interface AgentStatus {
   updated_at: string;
 }
 
+// FALLBACK: Hardcoded statuses — components should fetch from /api/statuses and fall back to these
 // 'backlog' intentionally excluded — merged into 'todo' in UI
 export const STATUSES = ['todo', 'doing', 'review', 'done'] as const;
 export type TaskStatusAll = 'backlog' | 'todo' | 'doing' | 'review' | 'done';

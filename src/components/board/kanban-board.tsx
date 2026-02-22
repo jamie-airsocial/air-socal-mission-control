@@ -7,6 +7,7 @@ import { STATUSES, PRIORITIES } from '@/lib/types';
 import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYLES } from '@/lib/constants';
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useStatuses } from '@/hooks/use-statuses';
 
 export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service' | 'team';
 
@@ -130,6 +131,7 @@ export function KanbanBoard({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const { statuses: dynamicStatuses, loading: statusesLoading } = useStatuses();
 
   // Reset column order when group-by changes
   useEffect(() => {
@@ -213,17 +215,28 @@ export function KanbanBoard({
       return cols;
     }
 
-    // Default: status
-    const cols: KanbanColumn[] = STATUSES.map((status) => ({
-      id: status,
-      label: STATUS_STYLES[status]?.label || status,
-      dotClass: STATUS_DOT_CLASSES[status],
+    // Default: status - use dynamic statuses if loaded, fallback to hardcoded
+    const statusSource = !statusesLoading && dynamicStatuses.length > 0 ? dynamicStatuses : STATUSES.map(s => ({
+      slug: s,
+      label: STATUS_STYLES[s]?.label || s,
+      colour: STATUS_STYLES[s]?.text || '#6366f1',
+      sort_order: STATUSES.indexOf(s),
     }));
+    
+    const cols: KanbanColumn[] = statusSource.map((status) => {
+      const slug = typeof status === 'string' ? status : status.slug;
+      const label = typeof status === 'string' ? (STATUS_STYLES[status]?.label || status) : status.label;
+      return {
+        id: slug,
+        label,
+        dotClass: STATUS_DOT_CLASSES[slug],
+      };
+    });
     if (tasks.some((t) => !t.status)) {
       cols.unshift({ id: 'no-status', label: 'No status', dotClass: 'bg-muted-foreground/40' });
     }
     return cols;
-  }, [groupBy, projects, tasks]);
+  }, [groupBy, projects, tasks, dynamicStatuses, statusesLoading]);
 
   const getColumnTasks = useCallback(
     (columnId: string): TaskWithProject[] => {
