@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
-  Users, 
+  Building2, 
   ListChecks, 
   UsersRound, 
   Receipt,
@@ -18,7 +18,7 @@ import { ASSIGNEE_COLORS } from '@/lib/constants';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const NAV_ITEMS = [
-  { href: '/clients', label: 'Clients', icon: Users, permKey: 'clients' },
+  { href: '/clients', label: 'Clients', icon: Building2, permKey: 'clients' },
   { href: '/tasks', label: 'Tasks', icon: ListChecks, permKey: 'tasks' },
   { href: '/pipeline', label: 'Pipeline', icon: TrendingUp, permKey: 'pipeline' },
   { href: '/teams', label: 'Teams', icon: UsersRound, permKey: 'teams' },

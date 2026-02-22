@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, Pencil, Loader2, Lock, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Pencil, Loader2, Lock, GripVertical } from 'lucide-react';
+import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -157,34 +158,28 @@ export default function AdminStatusesPage() {
     }
   };
 
-  const reorderStatus = useCallback(async (status: TaskStatus, direction: 'up' | 'down') => {
-    const currentIndex = statuses.findIndex(s => s.id === status.id);
-    if (currentIndex === -1) return;
+  const onDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || result.source.index === result.destination.index) return;
     
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= statuses.length) return;
+    const reordered = Array.from(statuses);
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
     
-    const targetStatus = statuses[targetIndex];
-    
-    // Swap sort orders
-    const updates = [
+    // Update all sort orders
+    const updates = reordered.map((s, i) =>
       fetch('/api/statuses', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: status.id, sort_order: targetStatus.sort_order }),
-      }),
-      fetch('/api/statuses', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: targetStatus.id, sort_order: status.sort_order }),
-      }),
-    ];
+        body: JSON.stringify({ id: s.id, sort_order: i }),
+      })
+    );
     
     const results = await Promise.all(updates);
     if (results.every(r => r.ok)) {
       refetch();
     } else {
       toast.error('Failed to reorder statuses');
+      refetch();
     }
   }, [statuses, refetch]);
 
@@ -218,7 +213,7 @@ export default function AdminStatusesPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[13px] text-muted-foreground">
-            {statuses.length} status{statuses.length !== 1 ? 'es' : ''} · Use arrows to reorder
+            {statuses.length} status{statuses.length !== 1 ? 'es' : ''} · Drag to reorder
           </p>
           <p className="text-[11px] text-muted-foreground/50 mt-0.5">
             Protected statuses (To Do, Done) cannot be deleted
@@ -229,96 +224,60 @@ export default function AdminStatusesPage() {
         </Button>
       </div>
 
-      {/* Table */}
+      {/* Drag-and-drop status list */}
       <div className="bg-card border border-border/20 rounded-lg overflow-hidden">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-border/20 bg-muted/30">
-              <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider w-12">
-                Colour
-              </th>
-              <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                Label
-              </th>
-              <th className="text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">
-                Slug
-              </th>
-              <th className="text-center px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider w-24">
-                Order
-              </th>
-              <th className="text-right px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider w-32">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {statuses.map((status, index) => {
-              const isProtected = status.is_default || ['todo', 'done'].includes(status.slug);
-              return (
-                <tr key={status.id} className="border-b border-border/10 hover:bg-secondary/20 transition-colors">
-                  <td className="px-4 py-3">
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: status.colour }}
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-medium text-foreground">{status.label}</span>
-                      {isProtected && (
-                        <Lock size={11} className="text-muted-foreground/40 shrink-0" />
+        <div className="border-b border-border/20 bg-muted/30 grid grid-cols-[32px_40px_1fr_1fr_80px] gap-2 px-4 py-3">
+          <span />
+          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Colour</span>
+          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Label</span>
+          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Slug</span>
+          <span className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider text-right">Actions</span>
+        </div>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="statuses">
+            {(provided) => (
+              <div ref={provided.innerRef} {...provided.droppableProps}>
+                {statuses.map((status, index) => {
+                  const isProtected = status.is_default || ['todo', 'done'].includes(status.slug);
+                  return (
+                    <Draggable key={status.id} draggableId={status.id} index={index}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          className={`grid grid-cols-[32px_40px_1fr_1fr_80px] gap-2 items-center px-4 py-3 border-b border-border/10 transition-colors ${snapshot.isDragging ? 'bg-muted/40 shadow-lg rounded-lg' : 'hover:bg-secondary/20'}`}
+                        >
+                          <div {...provided.dragHandleProps} className="flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
+                            <GripVertical size={14} />
+                          </div>
+                          <div>
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: status.colour }} />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[13px] font-medium text-foreground">{status.label}</span>
+                            {isProtected && <Lock size={11} className="text-muted-foreground/40 shrink-0" />}
+                          </div>
+                          <div>
+                            <code className="text-[12px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded">{status.slug}</code>
+                          </div>
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => openEditDialog(status)} className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors" title="Edit status">
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => setDeleteTarget(status)} disabled={isProtected} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors disabled:opacity-20 disabled:cursor-not-allowed" title={isProtected ? 'Cannot delete protected status' : 'Delete status'}>
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </div>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <code className="text-[12px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded">
-                      {status.slug}
-                    </code>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1">
-                      <button
-                        onClick={() => reorderStatus(status, 'up')}
-                        disabled={index === 0}
-                        className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                        title="Move up"
-                      >
-                        <ChevronUp size={14} />
-                      </button>
-                      <button
-                        onClick={() => reorderStatus(status, 'down')}
-                        disabled={index === statuses.length - 1}
-                        className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                        title="Move down"
-                      >
-                        <ChevronDown size={14} />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => openEditDialog(status)}
-                        className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors"
-                        title="Edit status"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(status)}
-                        disabled={isProtected}
-                        className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
-                        title={isProtected ? 'Cannot delete protected status' : 'Delete status'}
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </Draggable>
+                  );
+                })}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </DragDropContext>
       </div>
 
       {/* Add Status Dialog */}
