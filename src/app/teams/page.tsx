@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
-import { ArrowUpDown, ChevronRight, Users } from 'lucide-react';
+import { AlertTriangle, ArrowUpDown, ChevronRight, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
 
 interface TeamMember {
@@ -46,9 +46,7 @@ const REVENUE_EXCLUDED_SERVICES = new Set(['account-management']);
 /** Calculate how much of a project (one-off) line item falls in a given month, pro-rata by day */
 function projectAllocationForMonth(item: ContractLineItem, month: Date): number {
   if (!item.start_date || !item.end_date) {
-    // No dates set — show full value in current month only
-    if (isSameMonth(month, new Date())) return item.monthly_value || 0;
-    return 0;
+    return 0; // Undated projects excluded from monthly totals
   }
   const projectStart = new Date(item.start_date);
   const projectEnd = new Date(item.end_date);
@@ -92,22 +90,35 @@ interface ServiceRow {
   clients: ServiceClientDetail[];
 }
 
+interface UndatedProject {
+  clientId: string;
+  clientName: string;
+  service: string;
+  amount: number;
+}
+
 interface MonthlyBreakdown {
   recurring: ServiceRow[];
   project: ServiceRow[];
   recurringTotal: number;
   projectTotal: number;
+  undated: UndatedProject[];
 }
 
 function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLineItem[], month: Date): MonthlyBreakdown {
   const recurringByService: Record<string, ServiceClientDetail[]> = {};
   const projectByService: Record<string, ServiceClientDetail[]> = {};
+  const undated: UndatedProject[] = [];
 
   for (const client of teamClients) {
     const clientItems = contractItems.filter(i => i.client_id === client.id);
     for (const item of clientItems) {
       if (REVENUE_EXCLUDED_SERVICES.has(item.service)) continue;
       if (item.billing_type === 'one-off') {
+        if (!item.start_date || !item.end_date) {
+          undated.push({ clientId: client.id, clientName: client.name, service: item.service, amount: item.monthly_value || 0 });
+          continue;
+        }
         const alloc = projectAllocationForMonth(item, month);
         if (alloc > 0) {
           if (!projectByService[item.service]) projectByService[item.service] = [];
@@ -135,6 +146,7 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
     project,
     recurringTotal: recurring.reduce((s, r) => s + r.amount, 0),
     projectTotal: project.reduce((s, p) => s + p.amount, 0),
+    undated,
   };
 }
 
@@ -255,8 +267,34 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
         </div>
       )}
 
-      {breakdown.recurring.length === 0 && breakdown.project.length === 0 && (
+      {breakdown.recurring.length === 0 && breakdown.project.length === 0 && breakdown.undated.length === 0 && (
         <p className="text-[12px] text-muted-foreground/40 italic">No billing this month</p>
+      )}
+
+      {/* Undated projects warning */}
+      {breakdown.undated.length > 0 && (
+        <div className="mt-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <AlertTriangle size={11} className="text-amber-400 shrink-0" />
+            <p className="text-[10px] font-medium text-amber-400">
+              {breakdown.undated.length} project{breakdown.undated.length !== 1 ? 's' : ''} without dates · £{Math.round(breakdown.undated.reduce((s, u) => s + u.amount, 0)).toLocaleString()} unallocated
+            </p>
+          </div>
+          <div className="space-y-0.5">
+            {breakdown.undated.map((u, i) => {
+              const s = getServiceStyle(u.service);
+              return (
+                <Link key={i} href={`/clients/${u.clientId}`} className="flex items-center justify-between group/undated py-0.5">
+                  <span className="text-[10px] text-muted-foreground/50 group-hover/undated:text-foreground transition-colors flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />
+                    {u.clientName} · {s.label}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/40 group-hover/undated:text-foreground transition-colors">£{Math.round(u.amount).toLocaleString()}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
