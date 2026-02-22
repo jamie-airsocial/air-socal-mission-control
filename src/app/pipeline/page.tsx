@@ -1135,10 +1135,6 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
 }) {
   const [sortField, setSortField] = useState<string>('created_at');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [filterStage, setFilterStage] = useState<string[]>([]);
-  const [filterService, setFilterService] = useState<string[]>([]);
-  const [search, setSearch] = useState('');
-
   const toggleSort = (field: string) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('asc'); }
@@ -1150,14 +1146,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
     </span>
   );
 
-  const filtered = prospects.filter(p => {
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !(p.contact_name || '').toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterStage.length > 0 && !filterStage.includes(p.stage)) return false;
-    if (filterService.length > 0 && !filterService.includes(p.service || '')) return false;
-    return true;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = [...prospects].sort((a, b) => {
     const dir = sortDir === 'asc' ? 1 : -1;
     switch (sortField) {
       case 'name': return dir * (a.name || '').localeCompare(b.name || '');
@@ -1168,10 +1157,6 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
       default: return 0;
     }
   });
-
-  const hasFilters = filterStage.length > 0 || filterService.length > 0 || search !== '';
-  const stageOptions = PIPELINE_STAGES.map(s => ({ value: s.id, label: s.label }));
-  const serviceOptions = Object.entries(SERVICE_STYLES).map(([key, s]) => ({ value: key, label: s.label }));
 
   const columns: { key: string; label: string; sortable?: boolean }[] = [
     { key: 'name', label: 'Name', sortable: true },
@@ -1186,28 +1171,6 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
 
   return (
     <div className="space-y-3">
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search..."
-            className="h-8 w-[180px] pl-8 pr-3 text-[13px] bg-secondary border border-border/20 rounded-lg outline-none focus:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-colors duration-150 placeholder:text-muted-foreground/60"
-          />
-        </div>
-        <FilterPopover label="Stage" options={stageOptions} selected={filterStage} onSelectionChange={setFilterStage} />
-        <FilterPopover label="Service" options={serviceOptions} selected={filterService} onSelectionChange={setFilterService} />
-        {hasFilters && (
-          <button onClick={() => { setFilterStage([]); setFilterService([]); setSearch(''); }}
-            className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors flex items-center gap-1.5">
-            <X className="h-3 w-3" /> Clear all
-          </button>
-        )}
-        <span className="text-[11px] text-muted-foreground/60 ml-auto">{sorted.length} prospects</span>
-      </div>
-
       <div className="rounded-lg border border-border/20 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -1229,7 +1192,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
               {sorted.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">
-                    {hasFilters ? 'No prospects match filters' : 'No prospects yet'}
+                    {prospects.length === 0 ? 'No prospects yet' : 'No prospects match filters'}
                   </td>
                 </tr>
               ) : sorted.map(p => {
