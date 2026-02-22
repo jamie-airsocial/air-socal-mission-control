@@ -49,14 +49,14 @@ interface TeamOption {
 }
 
 /** Derive unique services from client data (dynamic, not hardcoded) */
-function deriveServiceOptions(clients: ClientRow[]): { value: string; label: string }[] {
+function deriveServiceOptions(clients: ClientRow[]): { value: string; label: string; dot: string }[] {
   const serviceSet = new Set<string>();
   clients.forEach(c => {
     (c.derived_services || c.services || []).forEach((s: string) => {
       if (s !== 'account-management') serviceSet.add(s);
     });
   });
-  return Array.from(serviceSet).sort().map(slug => ({ value: slug, label: getServiceStyle(slug).label }));
+  return Array.from(serviceSet).sort().map(slug => { const s = getServiceStyle(slug); return { value: slug, label: s.label, dot: s.dot }; });
 }
 
 function monthsActive(createdAt: string): number {
@@ -508,9 +508,9 @@ function ClientsPageContent() {
           label="Status"
           selected={filterStatus}
           options={[
-            { value: 'active', label: 'Active' },
-            { value: 'paused', label: 'Paused' },
-            { value: 'churned', label: 'Churned' },
+            { value: 'active', label: 'Active', dot: '#34d399' },
+            { value: 'paused', label: 'Paused', dot: '#fbbf24' },
+            { value: 'churned', label: 'Churned', dot: '#f87171' },
           ]}
           onSelectionChange={setFilterStatus}
         />
