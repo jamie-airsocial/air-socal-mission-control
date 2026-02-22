@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, toDisplayName, getInitials } from '@/lib/constants';
+import { useStatuses } from '@/hooks/use-statuses';
 
 interface CalendarViewProps {
   tasks: (Task & { project_name?: string; project_color?: string })[];
@@ -17,10 +18,6 @@ interface CalendarViewProps {
 }
 
 type ExtTask = Task & { project_name?: string; project_color?: string };
-
-function statusDotColor(status: string): string {
-  return STATUS_STYLES[status]?.dot || 'var(--muted-foreground)';
-}
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -70,6 +67,10 @@ function TaskPill({ task, onTaskClick, showTime = false, draggable = false, onDr
   };
   const handleDragEnd = () => { onDragEndCb?.(); };
   const statusStyle = STATUS_STYLES[task.status];
+  const { statuses: dynamicStatuses } = useStatuses();
+  const dynStatus = !statusStyle ? dynamicStatuses.find(s => s.slug === task.status) : null;
+  const statusDotColor = statusStyle?.dot || dynStatus?.dot_colour || dynStatus?.colour || 'var(--muted-foreground)';
+  const statusLabel = statusStyle?.label || dynStatus?.label || task.status;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -116,8 +117,8 @@ function TaskPill({ task, onTaskClick, showTime = false, draggable = false, onDr
               </>
             )}
             <span className="inline-flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: statusDotColor(task.status) }} />
-              <span className="text-muted-foreground">{statusStyle?.label || task.status}</span>
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: statusDotColor }} />
+              <span className="text-muted-foreground">{statusLabel}</span>
             </span>
           </div>
           {task.labels && task.labels.length > 0 && (

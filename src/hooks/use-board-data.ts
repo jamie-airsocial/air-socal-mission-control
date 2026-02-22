@@ -146,7 +146,8 @@ export function useBoardData() {
         throw new Error('Failed to update status');
       }
 
-      const statusLabel = STATUS_STYLES[newStatus as keyof typeof STATUS_STYLES]?.label || newStatus;
+      const statusLabel = STATUS_STYLES[newStatus as keyof typeof STATUS_STYLES]?.label
+        || newStatus.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       toast.success(`Task moved to ${statusLabel}`);
     } catch (error) {
       // C9: Functional rollback — safe even if other optimistic updates happened concurrently

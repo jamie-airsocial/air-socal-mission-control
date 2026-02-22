@@ -325,7 +325,7 @@ export function TaskSheet({
     if (prev.status !== form.status && prev.status) {
       newActivity.push({
         id: crypto.randomUUID(),
-        text: `You changed status to ${STATUS_STYLES[form.status]?.label || form.status}`,
+        text: `You changed status to ${STATUS_STYLES[form.status]?.label || form.status.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
         time: formatTimestamp(new Date()),
         icon: 'status',
       });

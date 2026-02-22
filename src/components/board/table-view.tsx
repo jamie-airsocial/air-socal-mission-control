@@ -63,9 +63,8 @@ interface TableViewProps {
 type SortField = 'title' | 'status' | 'priority' | 'assignee' | 'project_name' | 'due_date' | 'service';
 type SortOrder = 'asc' | 'desc';
 
-function InlineStatusCell({ task, onUpdate }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void }) {
+function InlineStatusCell({ task, onUpdate, dynamicStatuses }: { task: Task; onUpdate: (taskId?: string, patch?: Partial<Task>) => void; dynamicStatuses: { slug: string; label: string; colour: string; dot_colour: string | null }[] }) {
   const [open, setOpen] = useState(false);
-  const { statuses: dynamicStatuses } = useStatuses();
   const update = async (status: string) => {
     const prevStatus = task.status;
     onUpdate(task.id, { status: status as Task['status'] });
@@ -957,7 +956,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                             <InlineTitleCell task={task} onUpdate={onUpdate} />
                           </td>
                           {!hiddenColumns.includes('status') && <td className="py-2.5 px-5">
-                            <InlineStatusCell task={task} onUpdate={onUpdate} />
+                            <InlineStatusCell task={task} onUpdate={onUpdate} dynamicStatuses={dynamicStatusList} />
                           </td>}
                           {!hiddenColumns.includes('priority') && <td className="py-2.5 px-5">
                             <InlinePriorityCell task={task} onUpdate={onUpdate} />
@@ -997,7 +996,7 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
                               </div>
                             </td>
                             {!hiddenColumns.includes('status') && <td className="py-2.5 px-5">
-                              <InlineStatusCell task={sub} onUpdate={onUpdate} />
+                              <InlineStatusCell task={sub} onUpdate={onUpdate} dynamicStatuses={dynamicStatusList} />
                             </td>}
                             {!hiddenColumns.includes('priority') && <td className="py-2.5 px-5">
                               <InlinePriorityCell task={sub} onUpdate={onUpdate} />
