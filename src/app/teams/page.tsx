@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getTeamStyle, SERVICE_STYLES, getAssigneeColor, getServiceStyle } from '@/lib/constants';
+import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
-import { ArrowUpDown, ChevronRight, Users } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
 
 interface TeamMember {
   id: string;
@@ -35,10 +36,192 @@ interface ContractLineItem {
   service: string;
   is_active: boolean;
   billing_type: string;
+  start_date: string | null;
+  end_date: string | null;
 }
 
 /** Services excluded from revenue breakdowns */
 const REVENUE_EXCLUDED_SERVICES = new Set(['account-management']);
+
+/** Calculate how much of a project (one-off) line item falls in a given month */
+function projectAllocationForMonth(item: ContractLineItem, month: Date): number {
+  if (!item.start_date || !item.end_date) {
+    // No dates set — show full value in current month only
+    if (isSameMonth(month, new Date())) return item.monthly_value || 0;
+    return 0;
+  }
+  const start = startOfMonth(new Date(item.start_date));
+  const end = startOfMonth(new Date(item.end_date));
+  const target = startOfMonth(month);
+  if (target < start || target > end) return 0;
+  const spanMonths = differenceInCalendarMonths(end, start) + 1;
+  return (item.monthly_value || 0) / spanMonths;
+}
+
+/** Check if a recurring item is active during a given month */
+function recurringActiveInMonth(item: ContractLineItem, month: Date): boolean {
+  const monthStart = startOfMonth(month);
+  const monthEnd = endOfMonth(month);
+  if (item.start_date && new Date(item.start_date) > monthEnd) return false;
+  if (item.end_date && new Date(item.end_date) < monthStart) return false;
+  return item.is_active || (item.end_date != null); // include ended items if they have an end_date (historical)
+}
+
+interface MonthlyBreakdown {
+  recurring: { service: string; amount: number }[];
+  project: { service: string; amount: number; start_date: string | null; end_date: string | null }[];
+  recurringTotal: number;
+  projectTotal: number;
+}
+
+function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLineItem[], month: Date): MonthlyBreakdown {
+  const recurringByService: Record<string, number> = {};
+  const projectItems: { service: string; amount: number; start_date: string | null; end_date: string | null }[] = [];
+
+  for (const client of teamClients) {
+    const clientItems = contractItems.filter(i => i.client_id === client.id);
+    for (const item of clientItems) {
+      if (REVENUE_EXCLUDED_SERVICES.has(item.service)) continue;
+      if (item.billing_type === 'one-off') {
+        const alloc = projectAllocationForMonth(item, month);
+        if (alloc > 0) {
+          projectItems.push({ service: item.service, amount: alloc, start_date: item.start_date, end_date: item.end_date });
+        }
+      } else {
+        if (recurringActiveInMonth(item, month)) {
+          recurringByService[item.service] = (recurringByService[item.service] || 0) + (item.monthly_value || 0);
+        }
+      }
+    }
+  }
+
+  const recurring = Object.entries(recurringByService)
+    .map(([service, amount]) => ({ service, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const recurringTotal = recurring.reduce((s, r) => s + r.amount, 0);
+  const projectTotal = projectItems.reduce((s, p) => s + p.amount, 0);
+
+  return { recurring, project: projectItems.sort((a, b) => b.amount - a.amount), recurringTotal, projectTotal };
+}
+
+function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
+  teamClients: Client[];
+  contractItems: ContractLineItem[];
+  teamColor: string;
+}) {
+  const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()));
+
+  const breakdown = useMemo(
+    () => calcMonthlyBreakdown(teamClients, contractItems, selectedMonth),
+    [teamClients, contractItems, selectedMonth]
+  );
+
+  const total = breakdown.recurringTotal + breakdown.projectTotal;
+  const isCurrentMonth = isSameMonth(selectedMonth, new Date());
+
+  return (
+    <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
+      {/* Month navigation */}
+      <div className="flex items-center justify-between mb-3">
+        <button
+          onClick={() => setSelectedMonth(m => subMonths(m, 1))}
+          className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <button
+          onClick={() => setSelectedMonth(startOfMonth(new Date()))}
+          className={`text-[12px] font-medium px-2 py-0.5 rounded transition-colors ${isCurrentMonth ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'}`}
+        >
+          {format(selectedMonth, 'MMMM yyyy')}
+        </button>
+        <button
+          onClick={() => setSelectedMonth(m => addMonths(m, 1))}
+          className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+
+      {/* Total */}
+      <p className="text-[16px] font-bold mb-2">
+        £{Math.round(total).toLocaleString()}
+        <span className="text-[11px] font-normal text-muted-foreground/60 ml-1">total</span>
+      </p>
+
+      {/* Recurring */}
+      {breakdown.recurring.length > 0 && (
+        <div className="mb-2">
+          <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-1">
+            Recurring · £{Math.round(breakdown.recurringTotal).toLocaleString()}
+          </p>
+          <div className="space-y-1">
+            {breakdown.recurring.map(({ service, amount }) => {
+              const s = getServiceStyle(service);
+              const pct = total > 0 ? (amount / total) * 100 : 0;
+              return (
+                <div key={service}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
+                    </span>
+                    <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: teamColor, opacity: 0.6 }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Project work */}
+      {breakdown.project.length > 0 && (
+        <div>
+          <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-1">
+            Project · £{Math.round(breakdown.projectTotal).toLocaleString()}
+          </p>
+          <div className="space-y-1">
+            {breakdown.project.map((item, i) => {
+              const s = getServiceStyle(item.service);
+              const pct = total > 0 ? (item.amount / total) * 100 : 0;
+              const dateLabel = item.start_date && item.end_date
+                ? `${format(new Date(item.start_date), 'MMM yy')} – ${format(new Date(item.end_date), 'MMM yy')}`
+                : null;
+              return (
+                <div key={`${item.service}-${i}`}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
+                      {dateLabel && <span className="text-[9px] text-muted-foreground/40 ml-0.5">({dateLabel})</span>}
+                    </span>
+                    <span className="text-[11px] font-medium">£{Math.round(item.amount).toLocaleString()}</span>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: teamColor, opacity: 0.4 }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {breakdown.recurring.length === 0 && breakdown.project.length === 0 && (
+        <p className="text-[12px] text-muted-foreground/40 italic">No billing this month</p>
+      )}
+    </div>
+  );
+}
 
 function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; contractRevenueByClient: Record<string, number> }) {
   const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
@@ -127,29 +310,9 @@ export default function TeamsPage() {
     return map;
   }, [contractItems]);
 
-  // Build contract revenue by service for a team's clients
-  function calcRevenueByService(teamClients: Client[]): Record<string, number> {
-    const totals: Record<string, number> = {};
-    // Revenue from active recurring contract line items only
-    for (const client of teamClients) {
-      for (const item of contractItems.filter(i => i.client_id === client.id && i.is_active && i.billing_type !== 'one-off')) {
-        if (!REVENUE_EXCLUDED_SERVICES.has(item.service)) {
-          totals[item.service] = (totals[item.service] || 0) + (item.monthly_value || 0);
-        }
-      }
-    }
-    return totals;
-  }
-
   const activeClients = clients.filter(c => c.status === 'active');
   const totalMembers = teams.reduce((sum, t) => sum + (t.members?.length ?? 0), 0);
 
-  // Calculate max counts for consistent section heights across cards
-  const maxServices = Math.max(...teams.map(t => {
-    const slug = t.name.toLowerCase();
-    const tc = activeClients.filter(c => c.team === slug);
-    return Object.keys(calcRevenueByService(tc)).length;
-  }), 0);
   const maxMembers = Math.max(...teams.map(t => t.members?.length ?? 0), 0);
   const maxClients = Math.max(...teams.map(t => {
     const slug = t.name.toLowerCase();
@@ -168,9 +331,7 @@ export default function TeamsPage() {
       return sum + (contractRevenueByClient[c.id] || 0);
     }, 0);
 
-    const revenueByService = calcRevenueByService(teamClients);
-
-    return { team, slug, style, clients: teamClients, members, revenue, revenueByService };
+    return { team, slug, style, clients: teamClients, members, revenue };
   });
 
   return (
@@ -194,7 +355,7 @@ export default function TeamsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {teamRows.map(({ team, slug, style, clients: teamClients, members, revenue, revenueByService }) => (
+          {teamRows.map(({ team, slug, style, clients: teamClients, members, revenue }) => (
             <div key={team.id} className="rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
               {/* Colour top bar */}
               <div
@@ -217,45 +378,12 @@ export default function TeamsPage() {
                 </p>
               </div>
 
-              {/* Revenue by Service — consistent height across cards */}
-              <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
-                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Revenue by Service</p>
-                <div style={{ minHeight: `${maxServices * 28}px` }}>
-                  {Object.keys(revenueByService).length > 0 ? (
-                    <div className="space-y-1.5">
-                      {Object.entries(revenueByService)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([service, amount]) => {
-                          const s = getServiceStyle(service);
-                          const label = s.label;
-                          const pct = revenue > 0 ? (amount / revenue) * 100 : 0;
-                          return (
-                            <div key={service}>
-                              <div className="flex items-center justify-between mb-0.5">
-                                <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: getServiceStyle(service).dot }} /> {label}
-                                </span>
-                                <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
-                              </div>
-                              <div className="h-1 rounded-full bg-muted/30 overflow-hidden">
-                                <div
-                                  className="h-full rounded-full"
-                                  style={{
-                                    width: `${Math.max(pct, 3)}%`,
-                                    backgroundColor: style?.color || 'var(--primary)',
-                                    opacity: 0.6,
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <p className="text-[12px] text-muted-foreground/40 italic">No revenue data</p>
-                  )}
-                </div>
-              </div>
+              {/* Monthly billing breakdown */}
+              <MonthlyBillingSection
+                teamClients={teamClients}
+                contractItems={contractItems}
+                teamColor={style?.color || 'var(--primary)'}
+              />
 
               {/* Members — consistent height across cards */}
               <div className="p-4 border-b border-border/10">
