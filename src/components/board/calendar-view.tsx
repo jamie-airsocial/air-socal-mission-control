@@ -298,6 +298,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   const [resizingTaskId, setResizingTaskId] = useState<string | null>(null);
   const resizeStartY = useRef(0);
   const resizeStartDuration = useRef(60);
+  const justInteracted = useRef(false);
 
   const updateTaskDuration = useCallback((taskId: string, durationMinutes: number) => {
     const clamped = Math.max(MIN_DURATION, Math.min(MAX_DURATION, Math.round(durationMinutes / SNAP_MINUTES) * SNAP_MINUTES));
@@ -495,7 +496,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   }, [onDateChange]);
 
   const handlePillDragStart = useCallback((taskId: string) => setDraggedTaskId(taskId), []);
-  const handlePillDragEnd = useCallback(() => { setDraggedTaskId(null); setDragOverCell(null); }, []);
+  const handlePillDragEnd = useCallback(() => { setDraggedTaskId(null); setDragOverCell(null); justInteracted.current = true; setTimeout(() => { justInteracted.current = false; }, 200); }, []);
 
   // Safety net: clear drag state on any document dragend (handles drops outside valid targets)
   useEffect(() => {
@@ -784,7 +785,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                             }}
                             onDragEnd={handlePillDragEnd}
                             onClick={(e) => {
-                              if (isResizing) return;
+                              if (isResizing || justInteracted.current) return;
                               e.stopPropagation();
                               onTaskClick(task);
                             }}
@@ -792,8 +793,8 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                             <div className="px-1.5 py-0.5 h-full flex flex-col min-h-0">
                               <span className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0">{timeLabel}</span>
                               <span className="text-[11px] text-foreground truncate leading-tight">{task.title}</span>
-                              {duration >= 90 && task.project_name && (
-                                <span className="text-[10px] text-muted-foreground/40 truncate mt-auto">{task.project_name}</span>
+                              {task.project_name && (
+                                <span className="text-[10px] text-muted-foreground/40 truncate">{task.project_name}</span>
                               )}
                             </div>
                             {/* Resize handle */}
@@ -813,6 +814,8 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                                 };
                                 const handleMouseUp = () => {
                                   setResizingTaskId(null);
+                                  justInteracted.current = true;
+                                  setTimeout(() => { justInteracted.current = false; }, 200);
                                   document.removeEventListener('mousemove', handleMouseMove);
                                   document.removeEventListener('mouseup', handleMouseUp);
                                 };
