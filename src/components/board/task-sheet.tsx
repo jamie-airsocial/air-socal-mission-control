@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import type { Task, Project, Comment } from '@/lib/types';
-import { STATUS_STYLES, SERVICE_STYLES, toSlug, toDisplayName, getInitials, getTeamStyle } from '@/lib/constants';
-import { ServiceIcon } from '@/components/ui/service-icon';
+import { STATUS_STYLES, SERVICE_STYLES, toSlug, toDisplayName, getInitials, getTeamStyle, getServiceStyle } from '@/lib/constants';
 // Note: ASSIGNEE_COLORS / NAME_TO_SLUG are used in subtask-list.tsx, not here.
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
@@ -1083,12 +1082,12 @@ export function TaskSheet({
               <Popover>
                 <PopoverTrigger asChild>
                   <button className="flex items-center gap-1.5 px-1.5 py-1 rounded hover:bg-muted/60 transition-colors duration-150 whitespace-nowrap">
-                    {form.service && SERVICE_STYLES[form.service] ? (
+                    {form.service ? (() => { const ss = getServiceStyle(form.service); return (
                       <>
-                        <ServiceIcon serviceKey={form.service} size={13} className={SERVICE_STYLES[form.service].text} />
-                        <span className={`text-[13px] ${SERVICE_STYLES[form.service].text}`}>{SERVICE_STYLES[form.service].label}</span>
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ss.dot }} />
+                        <span className={`text-[13px] ${ss.text}`}>{ss.label}</span>
                       </>
-                    ) : (
+                    ); })() : (
                       <span className="text-[13px] text-muted-foreground/30">No service</span>
                     )}
                   </button>
@@ -1102,16 +1101,16 @@ export function TaskSheet({
                     <span className="text-muted-foreground/60">No service</span>
                   </button>
                   <div className="border-t border-border/20 my-1" />
-                  {Object.entries(SERVICE_STYLES).map(([key, style]) => (
+                  {Object.entries(SERVICE_STYLES).map(([key]) => { const ss = getServiceStyle(key); return (
                     <button
                       key={key}
                       onClick={() => setForm({ ...form, service: key })}
                       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${form.service === key ? 'bg-primary/10 text-primary' : ''}`}
                     >
-                      <ServiceIcon serviceKey={key} size={13} />
-                      <span className="flex-1 text-left">{style.label}</span>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ss.dot }} />
+                      <span className="flex-1 text-left">{ss.label}</span>
                     </button>
-                  ))}
+                  ); })}
                 </PopoverContent>
               </Popover>
             </PropertyRow>

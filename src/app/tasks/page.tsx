@@ -364,7 +364,7 @@ function BoardContent() {
           <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
         )}
 
-        <FilterServicePopover value={filterService} onChange={setFilterService} />
+        <FilterServicePopover value={filterService} onChange={setFilterService} services={Array.from(new Set(tasks.map(t => t.service).filter(Boolean) as string[])).sort()} />
 
         {!(view === 'kanban' && kanbanGroupBy === 'project') && !(view === 'table' && groupBy === 'project') && (
           <FilterProjectPopover value={filterProject} projects={projects} onChange={setFilterProject} />
