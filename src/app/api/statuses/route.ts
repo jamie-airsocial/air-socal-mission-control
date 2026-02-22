@@ -53,6 +53,26 @@ export async function POST(request: Request) {
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PUT(request: Request) {
+  // Batch reorder — accepts array of { id, sort_order }
+  const body = await request.json();
+  if (!Array.isArray(body)) {
+    return NextResponse.json({ error: 'Expected array of { id, sort_order }' }, { status: 400 });
+  }
+
+  const updates = body.map((item: { id: string; sort_order: number }) =>
+    supabaseAdmin.from('task_statuses').update({ sort_order: item.sort_order }).eq('id', item.id)
+  );
+
+  const results = await Promise.all(updates);
+  const failed = results.filter(r => r.error);
+  if (failed.length > 0) {
+    return NextResponse.json({ error: 'Some updates failed', details: failed.map(f => f.error?.message) }, { status: 500 });
+  }
+
+  return NextResponse.json({ success: true });
+}
+
 export async function PATCH(request: Request) {
   // TODO: Add admin-only check when auth middleware is implemented
   const body = await request.json();

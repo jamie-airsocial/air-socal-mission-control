@@ -34,5 +34,5 @@ export function useStatuses() {
     fetchStatuses();
   }, [fetchStatuses]);
 
-  return { statuses, loading, refetch: fetchStatuses };
+  return { statuses, setStatuses, loading, refetch: fetchStatuses };
 }

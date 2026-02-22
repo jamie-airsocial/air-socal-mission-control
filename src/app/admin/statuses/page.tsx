@@ -47,7 +47,7 @@ function slugify(text: string): string {
 }
 
 export default function AdminStatusesPage() {
-  const { statuses, loading, refetch } = useStatuses();
+  const { statuses, setStatuses, loading, refetch } = useStatuses();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TaskStatus | null>(null);
@@ -165,23 +165,26 @@ export default function AdminStatusesPage() {
     const [moved] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, moved);
     
-    // Update all sort orders
-    const updates = reordered.map((s, i) =>
-      fetch('/api/statuses', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: s.id, sort_order: i }),
-      })
-    );
+    // Optimistic update — instant visual feedback
+    const optimistic = reordered.map((s, i) => ({ ...s, sort_order: i }));
+    setStatuses(optimistic);
     
-    const results = await Promise.all(updates);
-    if (results.every(r => r.ok)) {
-      refetch();
-    } else {
+    // Persist in background — single batch request
+    try {
+      const res = await fetch('/api/statuses', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reordered.map((s, i) => ({ id: s.id, sort_order: i }))),
+      });
+      if (!res.ok) {
+        toast.error('Failed to reorder statuses');
+        refetch();
+      }
+    } catch {
       toast.error('Failed to reorder statuses');
       refetch();
     }
-  }, [statuses, refetch]);
+  }, [statuses, setStatuses, refetch]);
 
   const confirmDeleteStatus = async () => {
     if (!deleteTarget) return;
