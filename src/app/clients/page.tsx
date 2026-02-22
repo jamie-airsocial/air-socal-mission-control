@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES } from '@/lib/constants';
-import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink } from 'lucide-react';
+import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink, LayoutGrid, List, ArrowUp, ArrowDown } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -388,6 +388,9 @@ function ClientsPageContent() {
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('clients-filterTeam', []);
   const [filterStatus, setFilterStatus] = usePersistedState<string[]>('clients-filterStatus', []);
   const [filterService, setFilterService] = usePersistedState<string[]>('clients-filterService', []);
+  const [viewMode, setViewMode] = usePersistedState<'grid' | 'table'>('clients-viewMode', 'grid');
+  const [sortField, setSortField] = useState<'name' | 'team' | 'status' | 'retainer' | 'tenure'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Sheet state
@@ -524,93 +527,141 @@ function ClientsPageContent() {
         )}
 
         <div className="flex-1" />
+        <div className="flex items-center border border-border/20 rounded-lg overflow-hidden">
+          <button onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-secondary text-foreground' : 'text-muted-foreground/60 hover:bg-muted/40'}`}><LayoutGrid size={14} /></button>
+          <button onClick={() => setViewMode('table')} className={`h-8 w-8 flex items-center justify-center transition-colors ${viewMode === 'table' ? 'bg-secondary text-foreground' : 'text-muted-foreground/60 hover:bg-muted/40'}`}><List size={14} /></button>
+        </div>
         <Button size="sm" onClick={openNewClient}>
           <Plus className="h-4 w-4 mr-1" /> New Client
         </Button>
       </div>
 
-      {/* Client Grid — compact cards */}
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border/20 bg-card p-3 animate-pulse">
-              <div className="h-4 w-2/3 bg-muted/40 rounded mb-2" />
-              <div className="h-3 w-1/2 bg-muted/30 rounded mb-2" />
-              <div className="h-3 w-full bg-muted/20 rounded" />
+      {/* Client views */}
+      {(() => {
+        const toggleSort = (field: typeof sortField) => {
+          if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+          else { setSortField(field); setSortDir('asc'); }
+        };
+        const SortIcon = ({ field }: { field: typeof sortField }) => sortField === field ? (sortDir === 'asc' ? <ArrowUp size={11} /> : <ArrowDown size={11} />) : null;
+        const sorted = [...filteredClients].sort((a, b) => {
+          const dir = sortDir === 'asc' ? 1 : -1;
+          switch (sortField) {
+            case 'name': return dir * a.name.localeCompare(b.name);
+            case 'team': return dir * (a.team || 'zzz').localeCompare(b.team || 'zzz');
+            case 'status': return dir * (a.status || '').localeCompare(b.status || '');
+            case 'retainer': return dir * ((a.calculated_retainer ?? a.monthly_retainer ?? 0) - (b.calculated_retainer ?? b.monthly_retainer ?? 0));
+            case 'tenure': return dir * (monthsActive(a.created_at) - monthsActive(b.created_at));
+            default: return 0;
+          }
+        });
+
+        if (loading) return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-lg border border-border/20 bg-card p-3 animate-pulse">
+                <div className="h-4 w-2/3 bg-muted/40 rounded mb-2" />
+                <div className="h-3 w-1/2 bg-muted/30 rounded mb-2" />
+                <div className="h-3 w-full bg-muted/20 rounded" />
+              </div>
+            ))}
+          </div>
+        );
+
+        if (viewMode === 'table') return (
+          <div className="rounded-lg border border-border/20 bg-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="border-b border-border/20 bg-muted/30">
+                    {([['name', 'Name'], ['team', 'Team'], ['status', 'Status'], ['retainer', 'Retainer'], ['tenure', 'Tenure']] as const).map(([field, label]) => (
+                      <th key={field} onClick={() => toggleSort(field)} className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none">
+                        <span className="inline-flex items-center gap-1">{label} <SortIcon field={field} /></span>
+                      </th>
+                    ))}
+                    <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Services</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((client) => {
+                    const teamStyle = getTeamStyle(client.team);
+                    const tenure = monthsActive(client.created_at);
+                    return (
+                      <tr key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="border-b border-border/10 hover:bg-muted/40 cursor-pointer transition-colors">
+                        <td className="px-4 py-2.5 font-medium text-foreground">{client.name}</td>
+                        <td className="px-4 py-2.5">
+                          {teamStyle ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} />
+                              <span className="text-muted-foreground">{teamStyle.label}</span>
+                            </span>
+                          ) : <span className="text-muted-foreground/40">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>
+                            {client.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-muted-foreground tabular-nums">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</td>
+                        <td className="px-4 py-2.5 text-muted-foreground/60">{tenure === 1 ? '1 month' : `${tenure} months`}</td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex flex-wrap gap-1">
+                            {(client.derived_services || client.services || []).filter((s: string) => s !== 'account-management').map((service: string) => {
+                              const s = SERVICE_STYLES[service];
+                              return (
+                                <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s ? `${s.bg} ${s.text}` : 'bg-muted/20 text-muted-foreground'}`}>
+                                  <ServiceIcon serviceKey={service} size={10} />
+                                  {s?.label || service}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {filteredClients.map((client) => {
-            const teamStyle = getTeamStyle(client.team);
-            const tenure = monthsActive(client.created_at);
+          </div>
+        );
 
-            return (
-              <div
-                key={client.id}
-                onClick={() => router.push(`/clients/${client.id}`)}
-                className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>
-                    {client.status}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2 mb-2">
-                  {teamStyle && (
-                    <>
-                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} />
-                      <span className="text-[11px] text-muted-foreground">{teamStyle.label}</span>
-                      <span className="text-[11px] text-muted-foreground/40">·</span>
-                    </>
-                  )}
-                  <span className="text-[11px] text-muted-foreground">
-                    £{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo
-                  </span>
-                </div>
-
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {(client.derived_services || client.services || [])
-                    .filter((s: string) => s !== 'account-management')
-                    .map((service: string) => {
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {sorted.map((client) => {
+              const teamStyle = getTeamStyle(client.team);
+              const tenure = monthsActive(client.created_at);
+              return (
+                <div key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{client.status}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    {teamStyle && (<><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} /><span className="text-[11px] text-muted-foreground">{teamStyle.label}</span><span className="text-[11px] text-muted-foreground/40">·</span></>)}
+                    <span className="text-[11px] text-muted-foreground">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {(client.derived_services || client.services || []).filter((s: string) => s !== 'account-management').map((service: string) => {
                       const s = SERVICE_STYLES[service];
-                      if (!s) return (
-                        <span key={service} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/20 text-muted-foreground">
-                          <ServiceIcon serviceKey={service} size={10} />
-                          {service}
-                        </span>
-                      );
                       return (
-                        <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
-                          <ServiceIcon serviceKey={service} size={10} />
-                          {s.label}
+                        <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s ? `${s.bg} ${s.text}` : 'bg-muted/20 text-muted-foreground'}`}>
+                          <ServiceIcon serviceKey={service} size={10} />{s?.label || service}
                         </span>
                       );
                     })}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    {teamStyle && (
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium`}
-                        style={{ backgroundColor: `${teamStyle.color}22`, color: teamStyle.color }}>
-                        {teamStyle.label}
-                      </span>
-                    )}
                   </div>
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
-                    <Clock size={10} />
-                    {tenure === 1 ? '1 month' : `${tenure} months`}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      {teamStyle && (<span className="px-1.5 py-0.5 rounded text-[10px] font-medium" style={{ backgroundColor: `${teamStyle.color}22`, color: teamStyle.color }}>{teamStyle.label}</span>)}
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50"><Clock size={10} />{tenure === 1 ? '1 month' : `${tenure} months`}</div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {!loading && filteredClients.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
