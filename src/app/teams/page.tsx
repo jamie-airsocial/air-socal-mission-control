@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
-import { ArrowUpDown, ChevronLeft, ChevronRight, Users } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, addMonths, subMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
+import { ArrowUpDown, ChevronRight, Users } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, addMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
 
 interface TeamMember {
   id: string;
@@ -180,53 +180,34 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
   contractItems: ContractLineItem[];
   teamColor: string;
 }) {
-  const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()));
+  const currentMonth = useMemo(() => startOfMonth(new Date()), []);
+  const nextMonth = useMemo(() => addMonths(currentMonth, 1), [currentMonth]);
 
   const breakdown = useMemo(
-    () => calcMonthlyBreakdown(teamClients, contractItems, selectedMonth),
-    [teamClients, contractItems, selectedMonth]
+    () => calcMonthlyBreakdown(teamClients, contractItems, currentMonth),
+    [teamClients, contractItems, currentMonth]
   );
 
   const nextMonthBreakdown = useMemo(
-    () => calcMonthlyBreakdown(teamClients, contractItems, addMonths(selectedMonth, 1)),
-    [teamClients, contractItems, selectedMonth]
+    () => calcMonthlyBreakdown(teamClients, contractItems, nextMonth),
+    [teamClients, contractItems, nextMonth]
   );
 
   const total = breakdown.recurringTotal + breakdown.projectTotal;
   const nextTotal = nextMonthBreakdown.recurringTotal + nextMonthBreakdown.projectTotal;
-  const isCurrentMonth = isSameMonth(selectedMonth, new Date());
   const diff = nextTotal - total;
 
   return (
     <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
-      {/* Month + total row */}
-      <div className="flex items-center justify-between mb-3">
+      {/* Current + forecast */}
+      <div className="flex items-baseline justify-between mb-3">
         <div>
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <button
-              onClick={() => setSelectedMonth(m => subMonths(m, 1))}
-              className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/40 hover:text-foreground"
-            >
-              <ChevronLeft size={12} />
-            </button>
-            <button
-              onClick={() => setSelectedMonth(startOfMonth(new Date()))}
-              className={`text-[11px] font-medium px-1 rounded transition-colors ${isCurrentMonth ? 'text-muted-foreground/60' : 'text-muted-foreground/40 hover:text-foreground hover:bg-muted/40'}`}
-            >
-              {format(selectedMonth, 'MMM yyyy')}
-            </button>
-            <button
-              onClick={() => setSelectedMonth(m => addMonths(m, 1))}
-              className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/40 hover:text-foreground"
-            >
-              <ChevronRight size={12} />
-            </button>
-          </div>
+          <p className="text-[10px] text-muted-foreground/40 mb-0.5">{format(currentMonth, 'MMMM')}</p>
           <p className="text-[18px] font-bold leading-tight">£{Math.round(total).toLocaleString()}</p>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-muted-foreground/40">{format(addMonths(selectedMonth, 1), 'MMM')}</p>
-          <p className="text-[13px] font-semibold">£{Math.round(nextTotal).toLocaleString()}</p>
+          <p className="text-[10px] text-muted-foreground/40 mb-0.5">{format(nextMonth, 'MMMM')}</p>
+          <p className="text-[14px] font-semibold">£{Math.round(nextTotal).toLocaleString()}</p>
           {diff !== 0 && (
             <p className={`text-[10px] ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {diff > 0 ? '↑' : '↓'} £{Math.abs(Math.round(diff)).toLocaleString()}
