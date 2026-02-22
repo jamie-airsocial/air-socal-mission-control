@@ -253,29 +253,39 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
 
 function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; contractRevenueByClient: Record<string, number> }) {
   const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const toggleSort = (field: 'name' | 'amount') => {
+    if (sortBy === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDir(field === 'name' ? 'asc' : 'desc');
+    }
+  };
   const sorted = useMemo(() => {
+    const dir = sortDir === 'asc' ? 1 : -1;
     return [...clients].sort((a, b) => {
       if (sortBy === 'amount') {
-        return (contractRevenueByClient[b.id] || 0) - (contractRevenueByClient[a.id] || 0);
+        return dir * ((contractRevenueByClient[a.id] || 0) - (contractRevenueByClient[b.id] || 0));
       }
-      return a.name.localeCompare(b.name);
+      return dir * a.name.localeCompare(b.name);
     });
-  }, [clients, contractRevenueByClient, sortBy]);
+  }, [clients, contractRevenueByClient, sortBy, sortDir]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-1">
         <button
-          onClick={() => setSortBy(s => s === 'name' ? 'amount' : 'name')}
+          onClick={() => toggleSort('name')}
           className={`flex items-center gap-1 text-[10px] transition-colors ${sortBy === 'name' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
         >
-          Client <ArrowUpDown size={9} className={sortBy === 'name' ? 'opacity-100' : 'opacity-0'} />
+          Client {sortBy === 'name' && <ArrowUpDown size={9} className={sortDir === 'desc' ? 'rotate-180' : ''} />}
         </button>
         <button
-          onClick={() => setSortBy(s => s === 'amount' ? 'name' : 'amount')}
+          onClick={() => toggleSort('amount')}
           className={`flex items-center gap-1 text-[10px] transition-colors tabular-nums ${sortBy === 'amount' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
         >
-          Amount <ArrowUpDown size={9} className={sortBy === 'amount' ? 'opacity-100' : 'opacity-0'} />
+          Amount {sortBy === 'amount' && <ArrowUpDown size={9} className={sortDir === 'desc' ? 'rotate-180' : ''} />}
         </button>
       </div>
       <div className="space-y-0.5">
