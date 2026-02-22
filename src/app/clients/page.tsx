@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES, getServiceStyle } from '@/lib/constants';
-import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink, LayoutGrid, List, ArrowUp, ArrowDown } from 'lucide-react';
+import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink, LayoutGrid, Table2, ArrowUp, ArrowDown } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -532,10 +533,16 @@ function ClientsPageContent() {
         )}
 
         <div className="flex-1" />
-        <div className="flex items-center border border-border/20 rounded-lg overflow-hidden">
-          <button onClick={() => setViewMode('grid')} className={`h-8 w-8 flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-secondary text-foreground' : 'text-muted-foreground/60 hover:bg-muted/40'}`}><LayoutGrid size={14} /></button>
-          <button onClick={() => setViewMode('table')} className={`h-8 w-8 flex items-center justify-center transition-colors ${viewMode === 'table' ? 'bg-secondary text-foreground' : 'text-muted-foreground/60 hover:bg-muted/40'}`}><List size={14} /></button>
-        </div>
+        <ToggleGroup type="single" value={viewMode} onValueChange={(v) => { if (v) setViewMode(v as 'grid' | 'table'); }}>
+          <ToggleGroupItem value="grid" aria-label="Grid view" className="focus-visible:ring-2 focus-visible:ring-primary/50">
+            <LayoutGrid className="h-4 w-4 mr-1" aria-hidden="true" />
+            <span className="text-[13px]">Grid</span>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="table" aria-label="Table view" className="focus-visible:ring-2 focus-visible:ring-primary/50">
+            <Table2 className="h-4 w-4 mr-1" aria-hidden="true" />
+            <span className="text-[13px]">Table</span>
+          </ToggleGroupItem>
+        </ToggleGroup>
         <Button size="sm" onClick={openNewClient}>
           <Plus className="h-4 w-4 mr-1" /> New Client
         </Button>
