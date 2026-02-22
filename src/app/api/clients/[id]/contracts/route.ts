@@ -24,7 +24,7 @@ export async function POST(
   const { id } = await params;
   const body = await request.json();
 
-  const { service, description, monthly_value, start_date, end_date, is_active } = body;
+  const { service, description, monthly_value, billing_type, start_date, end_date, is_active } = body;
 
   if (!service) {
     return NextResponse.json({ error: 'service is required' }, { status: 400 });
@@ -37,6 +37,7 @@ export async function POST(
       service,
       description: description || null,
       monthly_value: monthly_value ?? 0,
+      billing_type: billing_type || 'recurring',
       start_date: start_date || null,
       end_date: end_date || null,
       is_active: is_active !== undefined ? is_active : true,
