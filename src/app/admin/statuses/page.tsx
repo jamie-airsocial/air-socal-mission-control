@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Plus, Trash2, Pencil, Loader2, Lock, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,17 @@ export default function AdminStatusesPage() {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteTaskCount, setDeleteTaskCount] = useState<number | null>(null);
+
+  // Fetch task count when delete dialog opens
+  useEffect(() => {
+    if (!deleteTarget) { setDeleteTaskCount(null); return; }
+    setDeleteTaskCount(null);
+    fetch(`/api/tasks?status=${deleteTarget.slug}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(tasks => setDeleteTaskCount(Array.isArray(tasks) ? tasks.length : 0))
+      .catch(() => setDeleteTaskCount(null));
+  }, [deleteTarget]);
 
   const handleLabelChange = (value: string) => {
     setNewLabel(value);
@@ -430,17 +441,21 @@ export default function AdminStatusesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-[15px]">Delete &quot;{deleteTarget?.label}&quot;?</AlertDialogTitle>
             <AlertDialogDescription className="text-[13px] text-muted-foreground">
-              This status will be permanently removed. Make sure no tasks are currently using it.
+              {deleteTaskCount === null
+                ? 'Checking tasks…'
+                : deleteTaskCount > 0
+                  ? `${deleteTaskCount} task${deleteTaskCount !== 1 ? 's' : ''} currently ${deleteTaskCount !== 1 ? 'use' : 'uses'} this status. You must reassign them before deleting.`
+                  : 'No tasks are using this status. It will be permanently removed.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="text-[13px] h-8 border-border/20">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDeleteStatus}
-              disabled={deleting}
-              className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || (deleteTaskCount !== null && deleteTaskCount > 0)}
+              className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {deleting ? 'Deleting…' : 'Delete status'}
+              {deleting ? 'Deleting…' : deleteTaskCount && deleteTaskCount > 0 ? `Can't delete — ${deleteTaskCount} task${deleteTaskCount !== 1 ? 's' : ''} in use` : 'Delete status'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
