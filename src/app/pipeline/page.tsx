@@ -307,7 +307,7 @@ function ProspectSheet({
           {/* Lost reason — editable */}
           {form.stage === 'lost' && (
             <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/10 space-y-2">
-              <span className="text-[11px] font-medium text-destructive uppercase tracking-wider">Lost Reason</span>
+              <span className="text-[11px] font-medium text-destructive">Lost Reason</span>
               <Popover open={lostReasonOpen} onOpenChange={setLostReasonOpen}>
                 <PopoverTrigger asChild>
                   <button className="w-full h-8 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
@@ -345,7 +345,7 @@ function ProspectSheet({
 
           {/* Company Name */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">
+            <Label className="text-[11px] text-muted-foreground/60">
               Company Name *
             </Label>
             <Input
@@ -359,7 +359,7 @@ function ProspectSheet({
 
           {/* Contact Name */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Name</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Contact Name</Label>
             <Input
               value={form.contact_name}
               onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
@@ -370,7 +370,7 @@ function ProspectSheet({
 
           {/* Contact Email */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Email</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Contact Email</Label>
             <Input
               type="email"
               value={form.contact_email}
@@ -382,7 +382,7 @@ function ProspectSheet({
 
           {/* Contact Phone */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Contact Phone</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Contact Phone</Label>
             <Input
               type="tel"
               value={form.contact_phone}
@@ -395,7 +395,7 @@ function ProspectSheet({
           {/* Services & Pricing (Line Items) */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Services & Pricing</Label>
+              <Label className="text-[11px] text-muted-foreground/60">Services & Pricing</Label>
               {lineItemsTotal > 0 && (
                 <span className="text-[13px] font-semibold text-emerald-400">
                   £{lineItemsTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -451,7 +451,7 @@ function ProspectSheet({
 
             {/* Deal value — read-only, computed from active line items */}
             <div className="flex items-center justify-between px-2.5 py-2 rounded-lg border border-border/20 bg-muted/10">
-              <span className="text-[12px] text-muted-foreground/60 uppercase tracking-wide font-medium">Deal value</span>
+              <span className="text-[12px] text-muted-foreground/60 font-medium">Deal value</span>
               <span className="text-[13px] font-semibold text-foreground">
                 £{lineItemsTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
@@ -460,7 +460,7 @@ function ProspectSheet({
 
           {/* Source */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Source</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Source</Label>
             <Input
               value={form.source}
               onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
@@ -471,7 +471,7 @@ function ProspectSheet({
 
           {/* Stage */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Stage</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Stage</Label>
             <Popover open={stageOpen} onOpenChange={setStageOpen}>
               <PopoverTrigger asChild>
                 <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
@@ -506,7 +506,7 @@ function ProspectSheet({
 
           {/* Assignee */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assignee</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Assignee</Label>
             <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
               <PopoverTrigger asChild>
                 <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
@@ -545,7 +545,7 @@ function ProspectSheet({
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Notes</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Notes</Label>
             <Textarea
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
@@ -1304,7 +1304,7 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
           <div key={kpi.label} className="p-4 rounded-lg border border-border/20 bg-card">
             <div className="flex items-center gap-2 mb-2">
               <kpi.icon size={14} className={kpi.color} />
-              <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">{kpi.label}</span>
+              <span className="text-[11px] font-medium text-muted-foreground/60">{kpi.label}</span>
             </div>
             <p className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</p>
           </div>

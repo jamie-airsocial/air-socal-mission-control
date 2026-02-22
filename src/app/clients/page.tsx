@@ -246,7 +246,7 @@ function ClientSheet({
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {/* Company Name */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Company Name *</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Company Name *</Label>
             <Input
               autoFocus={!editClient}
               value={form.name}
@@ -258,7 +258,7 @@ function ClientSheet({
 
           {/* Team */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Team</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Team</Label>
             <Popover open={teamOpen} onOpenChange={setTeamOpen}>
               <PopoverTrigger asChild>
                 <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
@@ -290,7 +290,7 @@ function ClientSheet({
 
           {/* Status */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Status</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Status</Label>
             <Popover open={statusOpen} onOpenChange={setStatusOpen}>
               <PopoverTrigger asChild>
                 <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
@@ -317,7 +317,7 @@ function ClientSheet({
 
           {/* Assigned Members */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Assigned Members</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Assigned Members</Label>
             <MembersMultiSelect
               selected={form.assigned_members}
               onChange={v => setForm(f => ({ ...f, assigned_members: v }))}
@@ -327,7 +327,7 @@ function ClientSheet({
 
           {/* Start Date */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Start Date</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Start Date</Label>
             <Popover open={dateOpen} onOpenChange={setDateOpen}>
               <PopoverTrigger asChild>
                 <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
@@ -352,7 +352,7 @@ function ClientSheet({
 
           {/* Notes */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-medium text-muted-foreground/70 uppercase tracking-wide">Notes</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Notes</Label>
             <Textarea
               value={form.notes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
