@@ -745,7 +745,6 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                       onDragLeave={() => setDragOverCell(null)}
                       onDrop={(e) => {
                         e.preventDefault();
-                        setDragOverCell(null);
                         const id = e.dataTransfer.getData('text/plain');
                         if (!id) return;
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -754,6 +753,10 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         const snappedMinutes = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
                         const hour = Math.floor(snappedMinutes / 60);
                         const minute = snappedMinutes % 60;
+                        setDraggedTaskId(null);
+                        setDragOverCell(null);
+                        justInteracted.current = true;
+                        setTimeout(() => { justInteracted.current = false; }, 200);
                         if (onDateChange) {
                           const newDate = new Date(day.date);
                           newDate.setHours(hour, minute, 0, 0);
@@ -798,6 +801,12 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                         const taskLayouts = layoutOverlappingTasks(layoutItems);
 
                         const phantomLayout = taskLayouts.get(PHANTOM_ID);
+                        const dropStartH = dropMinutes !== null ? Math.floor(dropMinutes / 60) : 0;
+                        const dropStartM = dropMinutes !== null ? dropMinutes % 60 : 0;
+                        const dropEndMin = dropMinutes !== null ? dropMinutes + dragDuration : 0;
+                        const dropEndH = Math.floor(dropEndMin / 60);
+                        const dropEndM = dropEndMin % 60;
+                        const dropTimeLabel = dropMinutes !== null ? `${formatTimeFromMinutes(dropStartH, dropStartM)} – ${formatTimeFromMinutes(dropEndH, dropEndM)}` : '';
                         const dropIndicator = dropMinutes !== null && phantomLayout ? (
                           <div
                             key="drop-indicator"
@@ -811,7 +820,9 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                               opacity: 0.4,
                               background: 'color-mix(in oklab, var(--primary) 6%, transparent)',
                             }}
-                          />
+                          >
+                            <span className="text-[10px] font-medium text-primary px-1.5 py-0.5 block truncate" style={{ opacity: 1 }}>{dropTimeLabel}</span>
+                          </div>
                         ) : null;
 
                         const taskElements = allDayTasks.filter(t => t.id !== draggedTaskId).map(task => {
