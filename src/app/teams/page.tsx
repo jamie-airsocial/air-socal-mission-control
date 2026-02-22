@@ -127,7 +127,7 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
   };
 }
 
-function ServiceBreakdownRow({ row, total, teamColor }: { row: ServiceRow; total: number; teamColor: string }) {
+function ServiceBreakdownRow({ row, total, teamColor, isProject }: { row: ServiceRow; total: number; teamColor: string; isProject?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const s = getServiceStyle(row.service);
   const pct = total > 0 ? (row.amount / total) * 100 : 0;
@@ -158,9 +158,11 @@ function ServiceBreakdownRow({ row, total, teamColor }: { row: ServiceRow; total
             <Link key={i} href={`/clients/${c.clientId}`} className="flex items-center justify-between group/client py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors">
               <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
                 {c.clientName}
-                {c.start_date && c.end_date && (
+                {isProject && (
                   <span className="text-muted-foreground/30 ml-1 group-hover/client:text-muted-foreground/50">
-                    ({format(new Date(c.start_date), 'MMM yy')} – {format(new Date(c.end_date), 'MMM yy')})
+                    {c.start_date && c.end_date
+                      ? `(${format(new Date(c.start_date), 'dd MMM yy')} – ${format(new Date(c.end_date), 'dd MMM yy')})`
+                      : '(no dates set)'}
                   </span>
                 )}
               </span>
@@ -255,7 +257,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
           </p>
           <div className="space-y-1">
             {breakdown.project.map(row => (
-              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} />
+              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} isProject />
             ))}
           </div>
         </div>
@@ -281,18 +283,18 @@ function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; c
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-1 px-2 -mx-2">
+      <div className="flex items-center justify-between mb-1">
         <button
-          onClick={() => setSortBy('name')}
+          onClick={() => setSortBy(s => s === 'name' ? 'amount' : 'name')}
           className={`flex items-center gap-1 text-[10px] transition-colors ${sortBy === 'name' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
         >
-          Client {sortBy === 'name' && <ArrowUpDown size={9} />}
+          Client <ArrowUpDown size={9} className={sortBy === 'name' ? 'opacity-100' : 'opacity-0'} />
         </button>
         <button
-          onClick={() => setSortBy('amount')}
-          className={`flex items-center gap-1 text-[10px] transition-colors ${sortBy === 'amount' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+          onClick={() => setSortBy(s => s === 'amount' ? 'name' : 'amount')}
+          className={`flex items-center gap-1 text-[10px] transition-colors tabular-nums ${sortBy === 'amount' ? 'text-muted-foreground font-medium' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
         >
-          Amount {sortBy === 'amount' && <ArrowUpDown size={9} />}
+          Amount <ArrowUpDown size={9} className={sortBy === 'amount' ? 'opacity-100' : 'opacity-0'} />
         </button>
       </div>
       <div className="space-y-0.5">
@@ -302,15 +304,12 @@ function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; c
             <Link
               key={client.id}
               href={`/clients/${client.id}`}
-              className="flex items-center justify-between py-1.5 px-2 -mx-2 rounded-lg hover:bg-muted/40 transition-colors duration-150 group"
+              className="flex items-center justify-between py-1.5 rounded-lg hover:bg-muted/40 transition-colors duration-150 group"
             >
-              <span className="text-[13px] truncate">{client.name}</span>
-              <div className="flex items-center gap-1 shrink-0 ml-2">
-                <span className="text-[11px] text-muted-foreground/60">
-                  {rev > 0 ? `£${rev.toLocaleString()}/mo` : '—'}
-                </span>
-                <ChevronRight size={12} className="text-muted-foreground/30 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+              <span className="text-[13px] truncate mr-2">{client.name}</span>
+              <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0">
+                {rev > 0 ? `£${rev.toLocaleString()}/mo` : '—'}
+              </span>
             </Link>
           );
         })}
