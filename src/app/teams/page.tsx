@@ -43,19 +43,30 @@ interface ContractLineItem {
 /** Services excluded from revenue breakdowns */
 const REVENUE_EXCLUDED_SERVICES = new Set(['account-management']);
 
-/** Calculate how much of a project (one-off) line item falls in a given month */
+/** Calculate how much of a project (one-off) line item falls in a given month, pro-rata by day */
 function projectAllocationForMonth(item: ContractLineItem, month: Date): number {
   if (!item.start_date || !item.end_date) {
     // No dates set — show full value in current month only
     if (isSameMonth(month, new Date())) return item.monthly_value || 0;
     return 0;
   }
-  const start = startOfMonth(new Date(item.start_date));
-  const end = startOfMonth(new Date(item.end_date));
-  const target = startOfMonth(month);
-  if (target < start || target > end) return 0;
-  const spanMonths = differenceInCalendarMonths(end, start) + 1;
-  return (item.monthly_value || 0) / spanMonths;
+  const projectStart = new Date(item.start_date);
+  const projectEnd = new Date(item.end_date);
+  const monthStart = startOfMonth(month);
+  const monthEnd = endOfMonth(month);
+
+  // No overlap
+  if (projectStart > monthEnd || projectEnd < monthStart) return 0;
+
+  // Total project days (inclusive)
+  const totalDays = Math.max(1, Math.round((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+  // Days in this month that overlap with the project
+  const overlapStart = projectStart > monthStart ? projectStart : monthStart;
+  const overlapEnd = projectEnd < monthEnd ? projectEnd : monthEnd;
+  const daysInMonth = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  return (item.monthly_value || 0) * (daysInMonth / totalDays);
 }
 
 /** Check if a recurring item is active during a given month */
