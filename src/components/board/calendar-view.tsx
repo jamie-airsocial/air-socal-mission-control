@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Task } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -57,6 +57,31 @@ function formatTaskTime(task: ExtTask): string {
   const d = new Date(task.due_date);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
+// --- Duration helpers (visual planning, localStorage only) ---
+const DURATION_STORAGE_KEY = 'calendar-task-durations';
+type TaskDuration = { durationMinutes: number };
+
+function loadDurations(): Record<string, TaskDuration> {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(localStorage.getItem(DURATION_STORAGE_KEY) || '{}'); } catch { return {}; }
+}
+
+function saveDurations(durations: Record<string, TaskDuration>) {
+  if (typeof window !== 'undefined') localStorage.setItem(DURATION_STORAGE_KEY, JSON.stringify(durations));
+}
+
+function getTaskDuration(taskId: string, durations: Record<string, TaskDuration>): number {
+  return durations[taskId]?.durationMinutes || 60;
+}
+
+function formatTimeFromMinutes(hour: number, minute: number): string {
+  return `${String(Math.floor(hour)).padStart(2, '0')}:${String(Math.round(minute)).padStart(2, '0')}`;
+}
+
+const MIN_DURATION = 15;
+const MAX_DURATION = 480;
+const SNAP_MINUTES = 15;
 
 function TaskPill({ task, onTaskClick, showTime = false, draggable = false, onDragStart: onDragStartCb, onDragEnd: onDragEndCb, isBeingDragged = false }: { task: ExtTask; onTaskClick: (t: ExtTask) => void; showTime?: boolean; draggable?: boolean; onDragStart?: (taskId: string) => void; onDragEnd?: () => void; isBeingDragged?: boolean }) {
   const handleDragStart = (e: React.DragEvent) => {
@@ -269,6 +294,20 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   const [currentDate, setCurrentDate] = useState(new Date());
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+  const [taskDurations, setTaskDurations] = useState<Record<string, TaskDuration>>(loadDurations);
+  const [resizingTaskId, setResizingTaskId] = useState<string | null>(null);
+  const resizeStartY = useRef(0);
+  const resizeStartDuration = useRef(60);
+
+  const updateTaskDuration = useCallback((taskId: string, durationMinutes: number) => {
+    const clamped = Math.max(MIN_DURATION, Math.min(MAX_DURATION, Math.round(durationMinutes / SNAP_MINUTES) * SNAP_MINUTES));
+    setTaskDurations(prev => {
+      const next = { ...prev, [taskId]: { durationMinutes: clamped } };
+      saveDurations(next);
+      return next;
+    });
+  }, []);
+  const { statuses: dynamicStatuses } = useStatuses();
   const [startHour, setStartHour] = useState(() => {
     if (typeof window !== 'undefined') return parseInt(localStorage.getItem('calendar-start-hour') || String(DEFAULT_START_HOUR), 10);
     return DEFAULT_START_HOUR;
@@ -633,70 +672,167 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
               );
             })()}
 
-            {/* Time grid */}
+            {/* Time grid — absolute positioning for resizable tasks */}
             <div className={`grid gap-px bg-border/10`} style={{ gridTemplateColumns: `50px repeat(${colCount}, 1fr)` }}>
-              {weekHours.map(hour => {
-                const filteredDays = filteredWeekDays;
-                return (
-                  <div key={hour} className="contents">
-                    <div className="bg-card flex items-start justify-end pr-2 pt-0.5" style={{ height: `${HOUR_HEIGHT}px` }}>
+              <div className="contents">
+                {/* Hour labels */}
+                <div className="bg-card">
+                  {weekHours.map(hour => (
+                    <div key={hour} className="flex items-start justify-end pr-2 pt-0.5" style={{ height: `${HOUR_HEIGHT}px` }}>
                       <span className="text-[10px] text-muted-foreground/30 tabular-nums">{String(hour).padStart(2, '0')}:00</span>
                     </div>
-                    {filteredDays.map((day, i) => {
-                      const dayTasks = (tasksByDate.get(getDateKey(day.date)) || [])
-                        .filter(t => hasSpecificTime(t) && Math.floor(getTaskHour(t)) === hour);
-                      const weekCellKey = `${getDateKey(day.date)}:${hour}`;
-                      const isCellDragOver = dragOverCell === weekCellKey;
-                      const isCellSource = sourceCellKey === getDateKey(day.date) && sourceHour === hour;
-                      return (
+                  ))}
+                </div>
+                {/* Day columns */}
+                {filteredWeekDays.map((day) => {
+                  const dayKey = getDateKey(day.date);
+                  const allDayTasks = (tasksByDate.get(dayKey) || []).filter(t => hasSpecificTime(t) && getTaskHour(t) >= startHour && getTaskHour(t) <= endHour);
+                  const totalHeight = weekHours.length * HOUR_HEIGHT;
+                  return (
+                    <div
+                      key={dayKey}
+                      className={`bg-card relative ${day.isToday ? 'bg-primary/[0.02]' : ''}`}
+                      style={{ height: `${totalHeight}px` }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const hour = Math.floor(y / HOUR_HEIGHT) + startHour;
+                        setDragOverCell(`${dayKey}:${Math.min(hour, endHour)}`);
+                      }}
+                      onDragLeave={() => setDragOverCell(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverCell(null);
+                        const id = e.dataTransfer.getData('text/plain');
+                        if (!id) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const rawMinutes = (y / HOUR_HEIGHT) * 60 + startHour * 60;
+                        const snappedMinutes = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
+                        const hour = Math.floor(snappedMinutes / 60);
+                        if (onDateChange) {
+                          handleWeekDrop(id, day.date, hour);
+                        }
+                      }}
+                      onClick={(e) => {
+                        if (!onCreateTask || (e.target as HTMLElement).closest('.task-block')) return;
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const y = e.clientY - rect.top;
+                        const hour = Math.floor(y / HOUR_HEIGHT) + startHour;
+                        const d = new Date(day.date);
+                        d.setHours(hour, 0, 0, 0);
+                        onCreateTask(d.toISOString());
+                      }}
+                    >
+                      {/* Hour grid lines */}
+                      {weekHours.map(hour => (
                         <div
-                          key={getDateKey(day.date)}
-                          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverCell(weekCellKey); }}
-                          onDragLeave={() => setDragOverCell(null)}
-                          onDrop={(e) => { e.preventDefault(); setDragOverCell(null); const id = e.dataTransfer.getData('text/plain'); if (id) handleWeekDrop(id, day.date, hour); }}
-                          onClick={(e) => {
-                            if (!onCreateTask || (e.target as HTMLElement).closest('.task-pill')) return;
-                            const d = new Date(day.date);
-                            d.setHours(hour, 0, 0, 0);
-                            onCreateTask(d.toISOString());
-                          }}
-                          className={`day-cell bg-card border-t border-border/20 relative cursor-pointer hover:bg-muted/20 transition-colors duration-150 group/cell p-0.5 overflow-hidden min-w-0 ${day.isToday ? 'bg-primary/[0.02]' : ''}`}
-                          style={{ minHeight: `${HOUR_HEIGHT}px` }}
-                        >
-                          {/* Hover + icon — hidden when hovering a task pill */}
-                          {dayTasks.length === 0 && (
-                            <div className="create-hint absolute inset-0 flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity pointer-events-none">
-                              <Plus className="h-4 w-4 text-muted-foreground/30" />
+                          key={hour}
+                          className="absolute left-0 right-0 border-t border-border/20"
+                          style={{ top: `${(hour - startHour) * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
+                        />
+                      ))}
+                      {/* Drop indicator */}
+                      {(() => {
+                        const match = dragOverCell;
+                        if (!match?.startsWith(dayKey + ':')) return null;
+                        const dropHour = parseInt(match.split(':').pop() || '0', 10);
+                        const top = (dropHour - startHour) * HOUR_HEIGHT;
+                        return (
+                          <div
+                            className="absolute left-1 right-1 rounded pointer-events-none z-10"
+                            style={{ top, height: HOUR_HEIGHT, border: '1.5px dashed var(--primary)', opacity: 0.4, background: 'color-mix(in oklab, var(--primary) 6%, transparent)' }}
+                          />
+                        );
+                      })()}
+                      {/* Tasks — absolutely positioned */}
+                      {allDayTasks.map(task => {
+                        const taskHour = getTaskHour(task);
+                        const duration = getTaskDuration(task.id, taskDurations);
+                        const top = (taskHour - startHour) * HOUR_HEIGHT;
+                        const height = Math.max((duration / 60) * HOUR_HEIGHT, (MIN_DURATION / 60) * HOUR_HEIGHT);
+                        const isResizing = resizingTaskId === task.id;
+                        const isDragged = draggedTaskId === task.id;
+                        const startH = Math.floor(taskHour);
+                        const startM = Math.round((taskHour - startH) * 60);
+                        const endTotalMin = Math.round(taskHour * 60 + duration);
+                        const endH = Math.floor(endTotalMin / 60);
+                        const endM = endTotalMin % 60;
+                        const timeLabel = `${formatTimeFromMinutes(startH, startM)} – ${formatTimeFromMinutes(endH, endM)}`;
+                        const dynStatus = dynamicStatuses.find(s => s.slug === task.status);
+                        const dotColor = dynStatus?.dot_colour || dynStatus?.colour || STATUS_STYLES[task.status]?.dot || 'var(--muted-foreground)';
+
+                        return (
+                          <div
+                            key={task.id}
+                            className={`task-block absolute left-0.5 right-0.5 rounded-md border border-border/30 overflow-hidden cursor-pointer group/task transition-shadow ${isResizing ? 'ring-1 ring-primary/40 z-30' : 'z-20 hover:shadow-md hover:z-30'} ${isDragged ? 'opacity-30' : ''}`}
+                            style={{
+                              top: `${top}px`,
+                              height: `${height}px`,
+                              backgroundColor: `color-mix(in oklab, ${dotColor} 10%, var(--card))`,
+                              borderLeftColor: dotColor,
+                              borderLeftWidth: '3px',
+                            }}
+                            draggable={!isResizing}
+                            onDragStart={(e) => {
+                              if (isResizing) { e.preventDefault(); return; }
+                              e.dataTransfer.setData('text/plain', task.id);
+                              e.dataTransfer.effectAllowed = 'move';
+                              setTimeout(() => handlePillDragStart(task.id), 0);
+                            }}
+                            onDragEnd={handlePillDragEnd}
+                            onClick={(e) => {
+                              if (isResizing) return;
+                              e.stopPropagation();
+                              onTaskClick(task);
+                            }}
+                          >
+                            <div className="px-1.5 py-0.5 h-full flex flex-col min-h-0">
+                              <span className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0">{timeLabel}</span>
+                              <span className="text-[11px] text-foreground truncate leading-tight">{task.title}</span>
+                              {duration >= 90 && task.project_name && (
+                                <span className="text-[10px] text-muted-foreground/40 truncate mt-auto">{task.project_name}</span>
+                              )}
                             </div>
-                          )}
-                          {isCellDragOver && !isCellSource && (
-                            <div className="absolute inset-1 rounded pointer-events-none" style={{ border: '1.5px dashed var(--primary)', opacity: 0.4, background: 'color-mix(in oklab, var(--primary) 6%, transparent)' }} />
-                          )}
-                          {(() => {
-                            const MAX_HOUR = 2;
-                            const sorted = [...dayTasks].sort((a, b) => getTaskHour(a) - getTaskHour(b));
-                            const visible = sorted.slice(0, MAX_HOUR);
-                            const overflow = sorted.slice(MAX_HOUR);
-                            return (
-                              <div className="space-y-0.5">
-                                {visible.map(task => (
-                                  <div key={task.id} className="task-pill">
-                                    {draggedTaskId === task.id && <div className="rounded px-1.5 py-0.5" style={{ border: '1.5px dashed var(--muted-foreground)', opacity: 0.2, height: 22 }} />}
-                                    <TaskPill task={task} onTaskClick={onTaskClick} showTime draggable onDragStart={handlePillDragStart} onDragEnd={handlePillDragEnd} isBeingDragged={draggedTaskId === task.id} />
-                                  </div>
-                                ))}
-                                {overflow.length > 0 && (
-                                  <OverflowPopover tasks={overflow} onTaskClick={onTaskClick} />
-                                )}
-                              </div>
-                            );
-                          })()}
+                            {/* Resize handle */}
+                            <div
+                              className="absolute bottom-0 left-0 right-0 h-1.5 cursor-ns-resize opacity-0 group-hover/task:opacity-100 transition-opacity"
+                              style={{ backgroundColor: `color-mix(in oklab, ${dotColor} 30%, transparent)` }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setResizingTaskId(task.id);
+                                resizeStartY.current = e.clientY;
+                                resizeStartDuration.current = duration;
+                                const handleMouseMove = (ev: MouseEvent) => {
+                                  const dy = ev.clientY - resizeStartY.current;
+                                  const deltaMinutes = (dy / HOUR_HEIGHT) * 60;
+                                  updateTaskDuration(task.id, resizeStartDuration.current + deltaMinutes);
+                                };
+                                const handleMouseUp = () => {
+                                  setResizingTaskId(null);
+                                  document.removeEventListener('mousemove', handleMouseMove);
+                                  document.removeEventListener('mouseup', handleMouseUp);
+                                };
+                                document.addEventListener('mousemove', handleMouseMove);
+                                document.addEventListener('mouseup', handleMouseUp);
+                              }}
+                            />
+                          </div>
+                        );
+                      })}
+                      {/* Create hint for empty areas */}
+                      {allDayTasks.length === 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity pointer-events-none">
+                          <Plus className="h-4 w-4 text-muted-foreground/30" />
                         </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Tasks after visible hours */}
