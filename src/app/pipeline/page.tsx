@@ -1082,7 +1082,7 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspec
                             }`}
                           >
                             <div className="flex items-start justify-between mb-1.5">
-                              <h3 className="text-[13px] font-semibold truncate mr-2">{prospect.name}</h3>
+                              <h3 className="text-[13px] font-semibold truncate mr-2" onClick={(e) => { e.stopPropagation(); window.location.href = `/pipeline/${prospect.id}`; }}>{prospect.name}</h3>
                               {prospect.value != null && prospect.value > 0 && (
                                 <span className="text-[11px] font-medium text-emerald-400 shrink-0">
                                   £{prospect.value.toLocaleString()}
@@ -1203,7 +1203,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
                     onClick={() => onEdit(p)}
                     className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer"
                   >
-                    <td className="px-3 py-2.5 text-[13px] font-medium">{p.name}</td>
+                    <td className="px-3 py-2.5 text-[13px] font-medium"><span className="hover:text-primary cursor-pointer transition-colors" onClick={(e) => { e.stopPropagation(); window.location.href = `/pipeline/${p.id}`; }}>{p.name}</span></td>
                     <td className="px-3 py-2.5">
                       <div className="text-[13px]">{p.contact_name || '—'}</div>
                       {p.contact_email && <div className="text-[11px] text-muted-foreground/60">{p.contact_email}</div>}

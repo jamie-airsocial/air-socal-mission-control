@@ -46,6 +46,16 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Auto-log creation
+  if (data?.id) {
+    await supabaseAdmin.from('prospect_activities').insert({
+      prospect_id: data.id,
+      type: 'created',
+      title: 'Prospect created',
+    });
+  }
+
   return NextResponse.json(data, { status: 201 });
 }
 
@@ -54,6 +64,13 @@ export async function PUT(request: NextRequest) {
   const { id, ...updates } = body;
 
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+  // Fetch current prospect to detect stage changes
+  let oldStage: string | null = null;
+  if (updates.stage) {
+    const { data: current } = await supabaseAdmin.from('prospects').select('stage').eq('id', id).single();
+    oldStage = current?.stage || null;
+  }
 
   updates.updated_at = new Date().toISOString();
 
@@ -65,6 +82,20 @@ export async function PUT(request: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Auto-log stage change
+  if (updates.stage && oldStage && updates.stage !== oldStage) {
+    const stageLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+    const activityType = updates.stage === 'won' ? 'won' : updates.stage === 'lost' ? 'lost' : 'stage_change';
+    await supabaseAdmin.from('prospect_activities').insert({
+      prospect_id: id,
+      type: activityType,
+      title: `Stage changed from ${stageLabel(oldStage)} to ${stageLabel(updates.stage)}`,
+      from_stage: oldStage,
+      to_stage: updates.stage,
+    });
+  }
+
   return NextResponse.json(data);
 }
 
