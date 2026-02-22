@@ -203,41 +203,52 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
   contractItems: ContractLineItem[];
   teamColor: string;
 }) {
+  const [viewingNext, setViewingNext] = useState(false);
   const currentMonth = useMemo(() => startOfMonth(new Date()), []);
   const nextMonth = useMemo(() => addMonths(currentMonth, 1), [currentMonth]);
 
-  const breakdown = useMemo(
+  const currentBreakdown = useMemo(
     () => calcMonthlyBreakdown(teamClients, contractItems, currentMonth),
     [teamClients, contractItems, currentMonth]
   );
 
-  const nextMonthBreakdown = useMemo(
+  const nextBreakdown = useMemo(
     () => calcMonthlyBreakdown(teamClients, contractItems, nextMonth),
     [teamClients, contractItems, nextMonth]
   );
 
-  const total = breakdown.recurringTotal + breakdown.projectTotal;
-  const nextTotal = nextMonthBreakdown.recurringTotal + nextMonthBreakdown.projectTotal;
-  const diff = nextTotal - total;
+  const currentTotal = currentBreakdown.recurringTotal + currentBreakdown.projectTotal;
+  const nextTotal = nextBreakdown.recurringTotal + nextBreakdown.projectTotal;
+  const diff = nextTotal - currentTotal;
+
+  const breakdown = viewingNext ? nextBreakdown : currentBreakdown;
+  const total = viewingNext ? nextTotal : currentTotal;
 
   return (
     <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
-      {/* Current + forecast */}
-      <div className="flex items-baseline justify-between mb-3">
-        <div>
-          <p className="text-[10px] text-muted-foreground/40 mb-0.5">{format(currentMonth, 'MMMM')}</p>
-          <p className="text-[18px] font-bold leading-tight">£{Math.round(total).toLocaleString()}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] text-muted-foreground/40 mb-0.5">{format(nextMonth, 'MMMM')}</p>
-          <p className="text-[14px] font-semibold">£{Math.round(nextTotal).toLocaleString()}</p>
+      {/* Month tabs */}
+      <div className="flex items-center gap-1 mb-3 rounded-md bg-muted/30 p-0.5">
+        <button
+          onClick={() => setViewingNext(false)}
+          className={`flex-1 text-center py-1 rounded text-[11px] font-medium transition-all duration-150 ${!viewingNext ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
+        >
+          {format(currentMonth, 'MMM yyyy')} · £{Math.round(currentTotal).toLocaleString()}
+        </button>
+        <button
+          onClick={() => setViewingNext(true)}
+          className={`flex-1 text-center py-1 rounded text-[11px] font-medium transition-all duration-150 ${viewingNext ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
+        >
+          {format(nextMonth, 'MMM yyyy')} · £{Math.round(nextTotal).toLocaleString()}
           {diff !== 0 && (
-            <p className={`text-[10px] ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {diff > 0 ? '↑' : '↓'} £{Math.abs(Math.round(diff)).toLocaleString()}
-            </p>
+            <span className={`text-[9px] ml-1 ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {diff > 0 ? '↑' : '↓'}£{Math.abs(Math.round(diff)).toLocaleString()}
+            </span>
           )}
-        </div>
+        </button>
       </div>
+
+      {/* Total */}
+      <p className="text-[18px] font-bold leading-tight mb-3">£{Math.round(total).toLocaleString()}</p>
 
       {/* Recurring */}
       {breakdown.recurring.length > 0 && (
