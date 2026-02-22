@@ -155,17 +155,17 @@ function ServiceBreakdownRow({ row, total, teamColor }: { row: ServiceRow; total
       {expanded && row.clients.length > 0 && (
         <div className="ml-5 mt-1 mb-1 space-y-0.5">
           {row.clients.map((c, i) => (
-            <div key={i} className="flex items-center justify-between">
-              <Link href={`/clients/${c.clientId}`} className="text-[10px] text-muted-foreground/50 truncate mr-2 hover:text-foreground transition-colors">
+            <Link key={i} href={`/clients/${c.clientId}`} className="flex items-center justify-between group/client py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors">
+              <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
                 {c.clientName}
                 {c.start_date && c.end_date && (
-                  <span className="text-muted-foreground/30 ml-1">
+                  <span className="text-muted-foreground/30 ml-1 group-hover/client:text-muted-foreground/50">
                     ({format(new Date(c.start_date), 'MMM yy')} – {format(new Date(c.end_date), 'MMM yy')})
                   </span>
                 )}
-              </Link>
-              <span className="text-[10px] text-muted-foreground/40 shrink-0">£{Math.round(c.amount).toLocaleString()}</span>
-            </div>
+              </span>
+              <span className="text-[10px] text-muted-foreground/40 shrink-0 group-hover/client:text-foreground transition-colors">£{Math.round(c.amount).toLocaleString()}</span>
+            </Link>
           ))}
         </div>
       )}
@@ -197,43 +197,39 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
 
   return (
     <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
-      {/* Month navigation */}
-      <div className="flex items-center justify-between mb-2">
-        <button
-          onClick={() => setSelectedMonth(m => subMonths(m, 1))}
-          className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <button
-          onClick={() => setSelectedMonth(startOfMonth(new Date()))}
-          className={`text-[12px] font-medium px-2 py-0.5 rounded transition-colors ${isCurrentMonth ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'}`}
-        >
-          {format(selectedMonth, 'MMMM yyyy')}
-        </button>
-        <button
-          onClick={() => setSelectedMonth(m => addMonths(m, 1))}
-          className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/60 hover:text-foreground"
-        >
-          <ChevronRight size={14} />
-        </button>
-      </div>
-
-      {/* Total + next month projection */}
-      <div className="flex items-baseline justify-between mb-3">
-        <p className="text-[18px] font-bold">
-          £{Math.round(total).toLocaleString()}
-        </p>
+      {/* Month + total row */}
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <button
+              onClick={() => setSelectedMonth(m => subMonths(m, 1))}
+              className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/40 hover:text-foreground"
+            >
+              <ChevronLeft size={12} />
+            </button>
+            <button
+              onClick={() => setSelectedMonth(startOfMonth(new Date()))}
+              className={`text-[11px] font-medium px-1 rounded transition-colors ${isCurrentMonth ? 'text-muted-foreground/60' : 'text-muted-foreground/40 hover:text-foreground hover:bg-muted/40'}`}
+            >
+              {format(selectedMonth, 'MMM yyyy')}
+            </button>
+            <button
+              onClick={() => setSelectedMonth(m => addMonths(m, 1))}
+              className="h-5 w-5 rounded flex items-center justify-center hover:bg-muted/40 transition-colors text-muted-foreground/40 hover:text-foreground"
+            >
+              <ChevronRight size={12} />
+            </button>
+          </div>
+          <p className="text-[18px] font-bold leading-tight">£{Math.round(total).toLocaleString()}</p>
+        </div>
         <div className="text-right">
-          <p className="text-[10px] text-muted-foreground/40">Next month</p>
-          <p className="text-[12px] font-medium">
-            £{Math.round(nextTotal).toLocaleString()}
-            {diff !== 0 && (
-              <span className={`text-[10px] ml-1 ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {diff > 0 ? '+' : ''}£{Math.round(diff).toLocaleString()}
-              </span>
-            )}
-          </p>
+          <p className="text-[10px] text-muted-foreground/40">{format(addMonths(selectedMonth, 1), 'MMM')}</p>
+          <p className="text-[13px] font-semibold">£{Math.round(nextTotal).toLocaleString()}</p>
+          {diff !== 0 && (
+            <p className={`text-[10px] ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {diff > 0 ? '↑' : '↓'} £{Math.abs(Math.round(diff)).toLocaleString()}
+            </p>
+          )}
         </div>
       </div>
 
