@@ -25,10 +25,9 @@ import {
 import { useUsers } from '@/hooks/use-users';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Switch } from '@/components/ui/switch';
-import { ServiceIcon } from '@/components/ui/service-icon';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS } from '@/lib/constants';
+import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS, getServiceStyle } from '@/lib/constants';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
@@ -1094,11 +1093,11 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspec
                               <div className="text-[11px] text-muted-foreground/60 mb-1">{prospect.contact_name}</div>
                             )}
                             <div className="flex items-center gap-2 mt-2">
-                              {prospect.service && SERVICE_STYLES[prospect.service] && (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SERVICE_STYLES[prospect.service].bg} ${SERVICE_STYLES[prospect.service].text}`}>
-                                  {SERVICE_STYLES[prospect.service].label}
+                              {prospect.service && (() => { const ss = getServiceStyle(prospect.service); return (
+                                <span className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${ss.bg} ${ss.text}`}>
+                                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: ss.dot }} />{ss.label}
                                 </span>
-                              )}
+                              ); })()}
                               {prospect.contact_email && <Mail size={10} className="text-muted-foreground/40" />}
                               {prospect.contact_phone && <Phone size={10} className="text-muted-foreground/40" />}
                               {prospect.source && (
@@ -1258,11 +1257,11 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
                     </td>
                     <td className="px-3 py-2.5 text-[13px] font-medium">{p.value ? `£${p.value.toLocaleString()}` : '—'}</td>
                     <td className="px-3 py-2.5">
-                      {p.service && SERVICE_STYLES[p.service] ? (
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${SERVICE_STYLES[p.service].bg} ${SERVICE_STYLES[p.service].text}`}>
-                          {SERVICE_STYLES[p.service].label}
+                      {p.service ? (() => { const ss = getServiceStyle(p.service); return (
+                        <span className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${ss.bg} ${ss.text}`}>
+                          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: ss.dot }} />{ss.label}
                         </span>
-                      ) : '—'}
+                      ); })() : '—'}
                     </td>
                     <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.source || '—'}</td>
                     <td className="px-3 py-2.5 text-[13px] text-muted-foreground/60">{p.assignee || '—'}</td>

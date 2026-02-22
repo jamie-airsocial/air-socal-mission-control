@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName, CLIENT_STATUS_STYLES, BILLING_TYPE_STYLES } from '@/lib/constants';
+import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName, CLIENT_STATUS_STYLES, BILLING_TYPE_STYLES, getServiceStyle } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2, User, Phone, Globe, MapPin, Mail, ChevronRight, ChevronDown, Search, Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { NAME_TO_SLUG } from '@/lib/constants';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { ServiceIcon } from '@/components/ui/service-icon';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { TableView } from '@/components/board/table-view';
 import { FilterStatusPopover } from '@/components/board/filter-status-popover';
@@ -102,10 +101,15 @@ interface ContractLineItem {
   updated_at: string;
 }
 
-const ALL_SERVICES = Object.entries(SERVICE_STYLES).map(([key, style]) => ({
-  value: key,
-  label: style.label,
-}));
+/** Base known services + any extras found in billing data */
+function getAllServices(lineItems?: Array<{ service: string }>): Array<{ value: string; label: string }> {
+  const known = Object.entries(SERVICE_STYLES).map(([key, style]) => ({ value: key, label: style.label }));
+  const knownKeys = new Set(known.map(k => k.value));
+  const extras = new Set<string>();
+  lineItems?.forEach(item => { if (item.service && !knownKeys.has(item.service)) extras.add(item.service); });
+  const dynamicExtras = Array.from(extras).map(slug => ({ value: slug, label: getServiceStyle(slug).label }));
+  return [...known, ...dynamicExtras];
+}
 
 function monthsActive(from: string, to?: string): number {
   const start = new Date(from);
@@ -296,7 +300,7 @@ function LineItemDialog({
                       onClick={() => { setForm(f => ({ ...f, service: s.id })); setServiceOpen(false); setServiceSearch(''); }}
                       className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.service === s.id ? 'bg-muted/40' : ''}`}
                     >
-                      <span className="flex items-center gap-2"><ServiceIcon serviceKey={s.id} size={12} /> {s.label}</span>
+                      <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: getServiceStyle(s.id).dot }} /> {s.label}</span>
                       {form.service === s.id && <Check size={14} className="text-primary" />}
                     </button>
                   ))}
@@ -743,10 +747,10 @@ export default function ClientDetailPage() {
             <p className="text-[11px] text-muted-foreground/60 mb-2">Services</p>
             <div className="flex flex-wrap gap-2">
               {derivedServices.map((service) => {
-                const s = SERVICE_STYLES[service];
+                const s = getServiceStyle(service);
                 return (
-                  <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s?.bg || 'bg-muted/20'} ${s?.text || 'text-muted-foreground'}`}>
-                    <ServiceIcon serviceKey={service} size={12} /> {s?.label || service}
+                  <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
                   </span>
                 );
               })}
@@ -834,10 +838,10 @@ export default function ClientDetailPage() {
               <h3 className="text-[13px] font-semibold mb-3">Services</h3>
               <div className="flex flex-wrap gap-2">
                 {derivedServices.map((service) => {
-                  const s = SERVICE_STYLES[service];
+                  const s = getServiceStyle(service);
                   return (
-                    <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s?.bg || 'bg-muted/20'} ${s?.text || 'text-muted-foreground'}`}>
-                      <ServiceIcon serviceKey={service} size={12} /> {s?.label || service}
+                    <span key={service} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[13px] font-medium ${s.bg} ${s.text}`}>
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: getServiceStyle(service).dot }} /> {s.label}
                     </span>
                   );
                 })}
@@ -1028,7 +1032,7 @@ export default function ClientDetailPage() {
                 <TableBody>
                   {contractItems.map(item => (
                     <TableRow key={item.id} className={`border-border/20 hover:bg-secondary/30 transition-colors ${!item.is_active ? 'opacity-50' : ''}`}>
-                      <TableCell className="text-[13px] font-medium">{SERVICE_STYLES[item.service]?.label || item.service}</TableCell>
+                      <TableCell className="text-[13px] font-medium">{getServiceStyle(item.service).label}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
                       <TableCell>
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${BILLING_TYPE_STYLES[item.billing_type]?.bg || 'bg-muted/20'} ${BILLING_TYPE_STYLES[item.billing_type]?.text || 'text-muted-foreground'}`}>

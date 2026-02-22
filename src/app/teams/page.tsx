@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { getTeamStyle, SERVICE_STYLES, getAssigneeColor } from '@/lib/constants';
-import { ServiceIcon } from '@/components/ui/service-icon';
+import { getTeamStyle, SERVICE_STYLES, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
 import { ArrowUpDown, ChevronRight, Users } from 'lucide-react';
 
@@ -227,14 +226,14 @@ export default function TeamsPage() {
                       {Object.entries(revenueByService)
                         .sort(([, a], [, b]) => b - a)
                         .map(([service, amount]) => {
-                          const s = SERVICE_STYLES[service];
-                          const label = s?.label || service;
+                          const s = getServiceStyle(service);
+                          const label = s.label;
                           const pct = revenue > 0 ? (amount / revenue) * 100 : 0;
                           return (
                             <div key={service}>
                               <div className="flex items-center justify-between mb-0.5">
                                 <span className="text-[11px] text-muted-foreground/80 flex items-center gap-1">
-                                  <ServiceIcon serviceKey={service} size={10} /> {label}
+                                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: getServiceStyle(service).dot }} /> {label}
                                 </span>
                                 <span className="text-[11px] font-medium">£{Math.round(amount).toLocaleString()}</span>
                               </div>

@@ -158,12 +158,45 @@ export function getTeamStyle(slug: string | null | undefined): TeamStyle {
   return { ...fb, label: slug.charAt(0).toUpperCase() + slug.slice(1) };
 }
 
-export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: string; label: string }> = {
-  seo: { icon: 'Search', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SEO' },
-  'paid-advertising': { icon: 'Target', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Advertising' },
-  'social-media': { icon: 'Share2', bg: 'bg-pink-500/10', text: 'text-pink-400', label: 'Social Media' },
-  'account-management': { icon: 'UserCheck', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management' },
+export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: string; label: string; dot: string }> = {
+  seo: { icon: 'Search', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'SEO', dot: '#34d399' },
+  'paid-advertising': { icon: 'Target', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Advertising', dot: '#fbbf24' },
+  'social-media': { icon: 'Share2', bg: 'bg-pink-500/10', text: 'text-pink-400', label: 'Social Media', dot: '#f472b6' },
+  'account-management': { icon: 'UserCheck', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management', dot: '#818cf8' },
 };
+
+/** Palette for dynamically-created services (deterministic by slug hash) */
+const SERVICE_PALETTE = [
+  { dot: '#60a5fa', bg: 'bg-blue-500/10', text: 'text-blue-400' },
+  { dot: '#a78bfa', bg: 'bg-violet-500/10', text: 'text-violet-400' },
+  { dot: '#f97316', bg: 'bg-orange-500/10', text: 'text-orange-400' },
+  { dot: '#14b8a6', bg: 'bg-teal-500/10', text: 'text-teal-400' },
+  { dot: '#e879f9', bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-400' },
+  { dot: '#fb923c', bg: 'bg-amber-500/10', text: 'text-amber-300' },
+  { dot: '#38bdf8', bg: 'bg-sky-500/10', text: 'text-sky-400' },
+  { dot: '#a3e635', bg: 'bg-lime-500/10', text: 'text-lime-400' },
+  { dot: '#f87171', bg: 'bg-red-500/10', text: 'text-red-400' },
+  { dot: '#2dd4bf', bg: 'bg-cyan-500/10', text: 'text-cyan-400' },
+];
+
+function hashString(s: string): number {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) { hash = ((hash << 5) - hash) + s.charCodeAt(i); hash |= 0; }
+  return Math.abs(hash);
+}
+
+/** Title-case a slug: "paid-advertising" → "Paid Advertising", "seo" → "SEO" */
+function titleCaseSlug(slug: string): string {
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/** Get service style — known services use hardcoded, unknown get deterministic colour from palette */
+export function getServiceStyle(slug: string): { bg: string; text: string; label: string; dot: string } {
+  const known = SERVICE_STYLES[slug];
+  if (known) return known;
+  const palette = SERVICE_PALETTE[hashString(slug) % SERVICE_PALETTE.length];
+  return { ...palette, label: titleCaseSlug(slug) };
+}
 
 export const LOSS_REASONS = [
   { id: 'budget', label: 'Budget constraints' },

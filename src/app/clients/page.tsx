@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES } from '@/lib/constants';
+import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES, getServiceStyle } from '@/lib/constants';
 import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink, LayoutGrid, List, ArrowUp, ArrowDown } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ServiceIcon } from '@/components/ui/service-icon';
 import Link from 'next/link';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { usePersistedState } from '@/hooks/use-persisted-state';
@@ -48,10 +47,16 @@ interface TeamOption {
   name: string;
 }
 
-/** Services to exclude from revenue/filter contexts */
-const REVENUE_SERVICES = Object.entries(SERVICE_STYLES)
-  .filter(([key]) => key !== 'account-management')
-  .map(([key, style]) => ({ value: key, label: style.label }));
+/** Derive unique services from client data (dynamic, not hardcoded) */
+function deriveServiceOptions(clients: ClientRow[]): { value: string; label: string }[] {
+  const serviceSet = new Set<string>();
+  clients.forEach(c => {
+    (c.derived_services || c.services || []).forEach((s: string) => {
+      if (s !== 'account-management') serviceSet.add(s);
+    });
+  });
+  return Array.from(serviceSet).sort().map(slug => ({ value: slug, label: getServiceStyle(slug).label }));
+}
 
 function monthsActive(createdAt: string): number {
   const start = new Date(createdAt);
@@ -512,7 +517,7 @@ function ClientsPageContent() {
         <FilterPopover
           label="Service"
           selected={filterService}
-          options={REVENUE_SERVICES}
+          options={deriveServiceOptions(clients)}
           onSelectionChange={setFilterService}
         />
 
@@ -606,11 +611,11 @@ function ClientsPageContent() {
                         <td className="px-4 py-2.5">
                           <div className="flex flex-wrap gap-1">
                             {(client.derived_services || client.services || []).filter((s: string) => s !== 'account-management').map((service: string) => {
-                              const s = SERVICE_STYLES[service];
+                              const s = getServiceStyle(service);
                               return (
-                                <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s ? `${s.bg} ${s.text}` : 'bg-muted/20 text-muted-foreground'}`}>
-                                  <ServiceIcon serviceKey={service} size={10} />
-                                  {s?.label || service}
+                                <span key={service} className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
+                                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />
+                                  {s.label}
                                 </span>
                               );
                             })}
@@ -642,10 +647,10 @@ function ClientsPageContent() {
                   </div>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {(client.derived_services || client.services || []).filter((s: string) => s !== 'account-management').map((service: string) => {
-                      const s = SERVICE_STYLES[service];
+                      const s = getServiceStyle(service);
                       return (
-                        <span key={service} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${s ? `${s.bg} ${s.text}` : 'bg-muted/20 text-muted-foreground'}`}>
-                          <ServiceIcon serviceKey={service} size={10} />{s?.label || service}
+                        <span key={service} className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${s.bg} ${s.text}`}>
+                          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />{s.label}
                         </span>
                       );
                     })}
