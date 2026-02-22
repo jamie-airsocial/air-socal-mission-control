@@ -101,7 +101,7 @@ export function FilterPopover({
             else if (e.key === 'Enter' && highlightedIndex >= 0) { e.preventDefault(); toggle(filtered[highlightedIndex].value); }
           }}
           placeholder="Search..."
-          className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/30 rounded-t-md"
+          className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/60 rounded-t-md"
         />
         <div className="p-1 max-h-[280px] overflow-y-auto">
           {filtered.map((opt, idx) => {

@@ -92,10 +92,10 @@ function InlineStatusCell({ task, onUpdate, dynamicStatuses }: { task: Task; onU
       onUpdate(task.id, { status: prevStatus });
     }
   };
-  const style = STATUS_STYLES[task.status];
-  const dynamicStatus = !style ? dynamicStatuses.find(s => s.slug === task.status) : null;
-  const dotColour = style?.dot || dynamicStatus?.dot_colour || dynamicStatus?.colour;
-  const statusLabel = style?.label || dynamicStatus?.label;
+  const dynamicStatus = dynamicStatuses.find(s => s.slug === task.status);
+  const style = !dynamicStatus ? STATUS_STYLES[task.status] : null;
+  const dotColour = dynamicStatus?.dot_colour || dynamicStatus?.colour || style?.dot;
+  const statusLabel = dynamicStatus?.label || style?.label;
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <SearchableStatusPopover
@@ -640,10 +640,10 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
         if (task.assignee) metadata.avatar = getInitials(task.assignee);
       } else if (groupBy === 'status') {
         key = task.status || 'no-status';
-        const style = STATUS_STYLES[task.status];
-        const dynStatus = !style ? dynamicStatusList.find(s => s.slug === task.status) : null;
-        label = style?.label || dynStatus?.label || task.status || 'No status';
-        const dot = style?.dot || dynStatus?.dot_colour || dynStatus?.colour;
+        const dynStatus = dynamicStatusList.find(s => s.slug === task.status);
+        const style = !dynStatus ? STATUS_STYLES[task.status] : null;
+        label = dynStatus?.label || style?.label || task.status || 'No status';
+        const dot = dynStatus?.dot_colour || dynStatus?.colour || style?.dot;
         if (dot) metadata.dot = dot;
       } else if (groupBy === 'priority') {
         const normalised = task.priority ? normalisePriority(task.priority) : '';

@@ -50,7 +50,7 @@ function TimeInput({ value, onChange }: { value: string; onChange: (time: string
       onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
       placeholder="HH:MM"
       maxLength={5}
-      className={`text-[13px] bg-transparent hover:bg-muted/60 rounded px-1.5 py-0.5 outline-none transition-colors duration-150 w-[56px] text-center placeholder:text-muted-foreground/30 ${invalid ? 'text-destructive' : 'text-muted-foreground/60'}`}
+      className={`text-[13px] bg-transparent hover:bg-muted/60 rounded px-1.5 py-0.5 outline-none transition-colors duration-150 w-[56px] text-center placeholder:text-muted-foreground/60 ${invalid ? 'text-destructive' : 'text-muted-foreground/60'}`}
     />
   );
 }
@@ -214,7 +214,7 @@ export function EnhancedDatePicker({
             }
           }}
           placeholder="e.g. tomorrow at 3pm"
-          className="text-[13px] bg-muted/30 rounded-md px-3 py-2 w-full outline-none border border-border/20 focus:border-primary/30 placeholder:text-muted-foreground/30"
+          className="text-[13px] bg-muted/30 rounded-md px-3 py-2 w-full outline-none border border-border/20 focus:border-primary/30 placeholder:text-muted-foreground/60"
         />
         {nlPreview && (
           <div className="mt-1.5 text-[11px] text-muted-foreground/60 px-1">

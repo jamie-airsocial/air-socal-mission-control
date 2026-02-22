@@ -162,7 +162,7 @@ export function LabelCombobox({ selectedLabels, allLabels, onChange, externalOpe
               }
             }}
             placeholder="Search or create..."
-            className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/30 rounded-t-md"
+            className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/60 rounded-t-md"
           />
           <div ref={listRef} className="p-1 max-h-[280px] overflow-y-auto">
             {canCreate && (

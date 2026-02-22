@@ -319,7 +319,7 @@ export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: Su
 
           <div className="flex items-end gap-2 mt-2 px-1">
             <textarea
-              className="flex-1 bg-muted/20 text-[13px] outline-none rounded-lg px-3 py-2.5 placeholder:text-muted-foreground/30 resize-none min-h-[36px] max-h-[200px] focus-visible:ring-2 focus-visible:ring-primary/30 transition-all"
+              className="flex-1 bg-muted/20 text-[13px] outline-none rounded-lg px-3 py-2.5 placeholder:text-muted-foreground/60 resize-none min-h-[36px] max-h-[200px] focus-visible:ring-2 focus-visible:ring-primary/30 transition-all"
               placeholder="Write a comment..."
               value={subtaskNewComment}
               onChange={(e) => {

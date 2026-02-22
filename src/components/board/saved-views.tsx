@@ -216,7 +216,7 @@ export function SavedViews({ currentFilters, onLoadView, clearTrigger, currentVi
               <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') setSaving(false); }}
                 placeholder="View name..."
-                className="flex-1 h-7 px-2 text-[13px] bg-muted/40 border border-border/20 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground/30" />
+                className="flex-1 h-7 px-2 text-[13px] bg-muted/40 border border-border/20 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/50 text-foreground placeholder:text-muted-foreground/60" />
               <button onClick={handleSave} disabled={!newName.trim()}
                 className="h-7 px-2 rounded-md bg-primary text-primary-foreground text-[11px] font-medium hover:bg-primary/90 transition-colors duration-150 disabled:opacity-50">Save</button>
               <button onClick={() => setSaving(false)} className="h-7 px-1.5 rounded-md text-muted-foreground hover:text-foreground transition-colors duration-150">

@@ -149,7 +149,7 @@ export function CompactEmojiPicker({ onSelect }: EmojiPickerProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search emoji..."
-          className="w-full px-2.5 py-1.5 text-[12px] bg-muted/40 border border-border/20 rounded-md outline-none text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30"
+          className="w-full px-2.5 py-1.5 text-[12px] bg-muted/40 border border-border/20 rounded-md outline-none text-foreground placeholder:text-muted-foreground/60 focus:border-primary/30"
         />
       </div>
 

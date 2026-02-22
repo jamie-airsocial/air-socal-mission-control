@@ -25,6 +25,7 @@ import { SearchableAssigneePopover } from './searchable-assignee-popover';
 import { SearchableProjectPopover } from './searchable-project-popover';
 import { EnhancedDatePicker, formatRelativeDate } from './enhanced-date-picker';
 import { LabelCombobox } from './label-combobox';
+import { useStatuses } from '@/hooks/use-statuses';
 import { CollapsibleAttachments, type TaskAttachment } from './task-attachments';
 import { SubtaskDetailView } from './subtask-detail';
 import { InteractiveSubtasks } from './subtask-list';
@@ -106,6 +107,7 @@ export function TaskSheet({
   allLabels: allLabelsProp,
 }: TaskSheetProps) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  const { statuses: dynStatuses } = useStatuses();
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -325,7 +327,7 @@ export function TaskSheet({
     if (prev.status !== form.status && prev.status) {
       newActivity.push({
         id: crypto.randomUUID(),
-        text: `You changed status to ${STATUS_STYLES[form.status]?.label || form.status.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
+        text: `You changed status to ${dynStatuses.find(s => s.slug === form.status)?.label || STATUS_STYLES[form.status]?.label || form.status.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}`,
         time: formatTimestamp(new Date()),
         icon: 'status',
       });
@@ -1018,7 +1020,7 @@ export function TaskSheet({
                 onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                 placeholder="Task title"
                 rows={1}
-                className="w-full text-[17px] font-semibold bg-transparent border border-transparent outline-none placeholder:text-muted-foreground/30 text-foreground leading-snug px-2 py-1 rounded hover:bg-muted/40 focus:bg-muted/40 focus:border-primary/30 transition-colors duration-150 -mx-1 resize-none overflow-hidden"
+                className="w-full text-[17px] font-semibold bg-transparent border border-transparent outline-none placeholder:text-muted-foreground/60 text-foreground leading-snug px-2 py-1 rounded hover:bg-muted/40 focus:bg-muted/40 focus:border-primary/30 transition-colors duration-150 -mx-1 resize-none overflow-hidden"
               />
             </div>
           </div>
@@ -1320,7 +1322,7 @@ export function TaskSheet({
               <div className="flex items-end gap-2 mt-2 px-1">
                 <textarea
                   ref={commentInputRef}
-                  className="flex-1 bg-muted/20 text-[13px] outline-none rounded-lg px-3 py-2.5 placeholder:text-muted-foreground/30 resize-none min-h-[36px] max-h-[200px] focus-visible:ring-2 focus-visible:ring-primary/30 transition-all" 
+                  className="flex-1 bg-muted/20 text-[13px] outline-none rounded-lg px-3 py-2.5 placeholder:text-muted-foreground/60 resize-none min-h-[36px] max-h-[200px] focus-visible:ring-2 focus-visible:ring-primary/30 transition-all" 
                   placeholder="Write a comment..."
                   value={newComment}
                   onChange={(e) => { 

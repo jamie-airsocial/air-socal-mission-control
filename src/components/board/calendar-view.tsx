@@ -129,11 +129,11 @@ function TaskPill({ task, onTaskClick, showTime = false, draggable = false, onDr
     setTimeout(() => onDragStartCb?.(task.id), 0);
   };
   const handleDragEnd = () => { onDragEndCb?.(); };
-  const statusStyle = STATUS_STYLES[task.status];
   const { statuses: dynamicStatuses } = useStatuses();
-  const dynStatus = !statusStyle ? dynamicStatuses.find(s => s.slug === task.status) : null;
-  const statusDotColor = statusStyle?.dot || dynStatus?.dot_colour || dynStatus?.colour || 'var(--muted-foreground)';
-  const statusLabel = statusStyle?.label || dynStatus?.label || task.status;
+  const dynStatus = dynamicStatuses.find(s => s.slug === task.status);
+  const statusStyle = !dynStatus ? STATUS_STYLES[task.status] : null;
+  const statusDotColor = dynStatus?.dot_colour || dynStatus?.colour || statusStyle?.dot || 'var(--muted-foreground)';
+  const statusLabel = dynStatus?.label || statusStyle?.label || task.status;
   return (
     <Tooltip>
       <TooltipTrigger asChild>

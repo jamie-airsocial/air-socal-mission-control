@@ -437,7 +437,7 @@ export function TopBar() {
                   onChange={e => { setSearchQuery(e.target.value); setSelectedIndex(0); }}
                   onKeyDown={handleKeyDown}
                   placeholder="Search clients, tasks..."
-                  className="flex-1 text-[14px] bg-transparent outline-none placeholder:text-muted-foreground/40"
+                  className="flex-1 text-[14px] bg-transparent outline-none placeholder:text-muted-foreground/60"
                 />
                 <button 
                   onClick={() => { setShowSearch(false); setSearchQuery(''); setSelectedIndex(0); }} 

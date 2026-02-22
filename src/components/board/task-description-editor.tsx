@@ -524,7 +524,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
                 }}
                 placeholder="https://example.com"
                 autoFocus
-                className="flex-1 text-[13px] bg-muted/30 rounded-md px-2.5 py-1.5 outline-none border border-border/20 focus:border-primary/30 placeholder:text-muted-foreground/30 min-w-0"
+                className="flex-1 text-[13px] bg-muted/30 rounded-md px-2.5 py-1.5 outline-none border border-border/20 focus:border-primary/30 placeholder:text-muted-foreground/60 min-w-0"
               />
               {linkUrl && (
                 <button

@@ -134,7 +134,7 @@ export function FilterLabelPopover({
                 onChange={(e) => setNewLabel(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }}
                 placeholder="New label..."
-                className="flex-1 px-2 py-1 text-[13px] bg-secondary border border-border/20 rounded-md outline-none text-foreground placeholder:text-muted-foreground/30 focus:border-primary/30 transition-colors duration-150 min-w-0"
+                className="flex-1 px-2 py-1 text-[13px] bg-secondary border border-border/20 rounded-md outline-none text-foreground placeholder:text-muted-foreground/60 focus:border-primary/30 transition-colors duration-150 min-w-0"
               />
               <button
                 onClick={handleCreate}
@@ -213,7 +213,7 @@ export function FilterLabelPopover({
                 else if (e.key === 'Enter' && highlightedIndex >= 0 && filtered[highlightedIndex]) { e.preventDefault(); handleToggle(filtered[highlightedIndex]); }
               }}
               placeholder="Search..."
-              className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/30 rounded-t-md"
+              className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/60 rounded-t-md"
             />
             <div className="p-1 max-h-[280px] overflow-y-auto">
               {filtered.map((label, idx) => {
