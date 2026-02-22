@@ -297,7 +297,7 @@ export default function XeroPage() {
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <PoundSterling size={14} className="text-emerald-400" />
-            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Monthly Revenue</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60">Monthly Revenue</span>
           </div>
           <p className="text-2xl font-bold text-emerald-400">£{totalRevenue.toLocaleString()}</p>
           <p className="text-[11px] text-muted-foreground/40 mt-0.5">ARR £{(totalRevenue * 12).toLocaleString()}</p>
@@ -305,7 +305,7 @@ export default function XeroPage() {
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <Users size={14} className="text-blue-400" />
-            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Active Clients</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60">Active Clients</span>
           </div>
           <p className="text-2xl font-bold text-blue-400">{activeClients.length}</p>
           <p className="text-[11px] text-muted-foreground/40 mt-0.5">{churnedClients.length} churned</p>
@@ -313,14 +313,14 @@ export default function XeroPage() {
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp size={14} className="text-purple-400" />
-            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Avg Retainer</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60">Avg Retainer</span>
           </div>
           <p className="text-2xl font-bold text-purple-400">£{avgRetainer.toLocaleString()}</p>
         </div>
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <div className="flex items-center gap-2 mb-2">
             <TrendingDown size={14} className="text-red-400" />
-            <span className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Churn (12mo)</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60">Churn (12mo)</span>
           </div>
           <p className="text-2xl font-bold text-red-400">{overallChurnRate}%</p>
         </div>

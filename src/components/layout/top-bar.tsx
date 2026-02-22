@@ -459,7 +459,7 @@ export function TopBar() {
                 {/* Quick Actions - always show when available (all or filtered) */}
                 {filteredActions.length > 0 && (
                   <div className="py-2">
-                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60">
                       Quick Actions
                     </div>
                     {filteredActions.map((action, idx) => (
@@ -480,7 +480,7 @@ export function TopBar() {
                 {/* Navigate - always show when available (all or filtered) */}
                 {filteredNavigate.length > 0 && (
                   <div className="py-2">
-                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60">
                       Navigate
                     </div>
                     {filteredNavigate.map((navItem, idx) => {
@@ -507,7 +507,7 @@ export function TopBar() {
                 {recentResults.length > 0 && (
                   <div className="py-2">
                     <div className="flex items-center justify-between px-4 py-2">
-                      <div className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                      <div className="text-[11px] font-medium text-muted-foreground/60">
                         Recent searches
                       </div>
                       <button
@@ -538,7 +538,7 @@ export function TopBar() {
                 {/* Clients section */}
                 {clientResults.length > 0 && (
                   <div className="py-2">
-                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60">
                       Clients
                     </div>
                     {clientResults.map((result, idx) => {
@@ -565,7 +565,7 @@ export function TopBar() {
                 {/* Tasks section */}
                 {taskResults.length > 0 && (
                   <div className="py-2">
-                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wide">
+                    <div className="px-4 py-2 text-[11px] font-medium text-muted-foreground/60">
                       Tasks
                     </div>
                     {taskResults.map((result, idx) => {

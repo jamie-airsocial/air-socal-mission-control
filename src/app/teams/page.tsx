@@ -153,7 +153,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
       {/* Recurring */}
       {breakdown.recurring.length > 0 && (
         <div className="mb-2">
-          <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-1">
+          <p className="text-[10px] font-medium text-muted-foreground/50 mb-1">
             Recurring · £{Math.round(breakdown.recurringTotal).toLocaleString()}
           </p>
           <div className="space-y-1">
@@ -184,7 +184,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
       {/* Project work */}
       {breakdown.project.length > 0 && (
         <div>
-          <p className="text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wider mb-1">
+          <p className="text-[10px] font-medium text-muted-foreground/50 mb-1">
             Project · £{Math.round(breakdown.projectTotal).toLocaleString()}
           </p>
           <div className="space-y-1">
@@ -387,7 +387,7 @@ export default function TeamsPage() {
 
               {/* Members — consistent height across cards */}
               <div className="p-4 border-b border-border/10">
-                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">
+                <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">
                   Members ({members.length})
                 </p>
                 <div className="space-y-1" style={{ minHeight: `${maxMembers * 48}px` }}>
@@ -417,7 +417,7 @@ export default function TeamsPage() {
 
               {/* Clients — consistent height across cards */}
               <div className="p-4 flex-1">
-                <p className="text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider mb-2">Active Clients</p>
+                <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active Clients</p>
                 {teamClients.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground/40">No active clients</p>
                 ) : (
