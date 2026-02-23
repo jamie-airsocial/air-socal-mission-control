@@ -163,6 +163,7 @@ function ProspectSheet({
   const [form, setForm] = useState<ProspectFormState>(emptyProspectForm);
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'activity'>('details');
 
   // Activities
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -280,6 +281,7 @@ function ProspectSheet({
       setLineItemDialogOpen(false);
       setActivities([]);
       setLogOpen(false);
+      setActiveTab('details');
       if (editProspect) {
         fetchLineItems(editProspect.id);
         fetchActivities(editProspect.id);
@@ -359,14 +361,64 @@ function ProspectSheet({
   return (
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="bg-card border-l border-border/20 p-0 overflow-y-auto [&>button]:hidden rounded-none md:rounded-tl-2xl md:rounded-bl-2xl !w-full md:!w-[var(--sheet-width)] md:!max-w-[600px] md:!top-3 md:!bottom-3 md:!h-auto flex flex-col">
-        <SheetHeader className="px-6 py-5 border-b border-border/20">
-          <SheetTitle className="text-[15px] truncate">
-            {editProspect ? editProspect.name : 'New Prospect'}
-          </SheetTitle>
-        </SheetHeader>
+      <SheetContent side="right" className="bg-card border-l border-border/20 p-0 overflow-y-auto [&>button]:hidden rounded-none md:rounded-tl-2xl md:rounded-bl-2xl !w-full md:!w-[560px] md:!max-w-[700px] md:!top-3 md:!bottom-3 md:!h-auto flex flex-col"
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {/* Header — matches task sheet */}
+        <div className="px-5 pt-4 pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground/30">
+              {editProspect?.created_at && <span>Created {new Date(editProspect.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+              {editProspect?.stage && (
+                <>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${PIPELINE_STAGES.find(s => s.id === editProspect.stage)?.dotClass || ''}`} />
+                    {PIPELINE_STAGES.find(s => s.id === editProspect.stage)?.label}
+                  </span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-0.5">
+              {editProspect && onDelete && (
+                <button onClick={() => setDeleteDialogOpen(true)} className="p-1.5 rounded-md hover:bg-destructive/20 text-muted-foreground/30 hover:text-destructive transition-colors duration-150">
+                  <Trash2 size={14} />
+                </button>
+              )}
+              <button onClick={() => onOpenChange(false)} className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-muted/40 transition-colors duration-150 text-muted-foreground hover:text-foreground">
+                <X size={11} />
+              </button>
+            </div>
+          </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {/* Title */}
+          <div className="mt-2">
+            <input
+              autoFocus={!editProspect}
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Company name"
+              className="w-full text-[17px] font-semibold bg-transparent border border-transparent outline-none placeholder:text-muted-foreground/60 text-foreground leading-snug px-2 py-1 rounded hover:bg-muted/40 focus:bg-muted/40 focus:border-primary/30 transition-colors duration-150 -mx-1"
+            />
+          </div>
+        </div>
+
+        {/* Tabs */}
+        {editProspect && (
+          <div className="px-5 flex items-center gap-0 border-b border-border/10">
+            {(['details', 'activity'] as const).map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 text-[12px] font-medium border-b-2 transition-colors ${activeTab === tab ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground/50 hover:text-muted-foreground'}`}
+              >
+                {tab === 'details' ? 'Details' : `Activity${activities.length > 0 ? ` (${activities.length})` : ''}`}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {(activeTab === 'details' || !editProspect) && (<>
           {/* Won banner */}
           {editProspect?.stage === 'won' && onConvert && (
             <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
@@ -425,20 +477,6 @@ function ProspectSheet({
               )}
             </div>
           )}
-
-          {/* Company Name */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] text-muted-foreground/60">
-              Company Name *
-            </Label>
-            <Input
-              autoFocus={!editProspect}
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Acme Ltd"
-              className="text-[13px] h-9"
-            />
-          </div>
 
           {/* Contact Name */}
           <div className="space-y-1.5">
@@ -637,34 +675,36 @@ function ProspectSheet({
             />
           </div>
 
-          {/* Activity Timeline */}
-          {editProspect && (
-            <div className="pt-2 border-t border-border/10">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-semibold text-muted-foreground/60">Activity</p>
+          </>)}
+
+          {/* Activity Tab */}
+          {activeTab === 'activity' && editProspect && (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-[13px] font-semibold">Activity</p>
                 <Popover open={logOpen} onOpenChange={setLogOpen}>
                   <PopoverTrigger asChild>
-                    <Button size="sm" variant="outline" className="h-6 text-[10px] border-border/20 px-2">
-                      <Plus size={10} className="mr-1" /> Log activity
+                    <Button size="sm" variant="outline" className="h-7 text-[11px] border-border/20 px-2.5">
+                      <Plus size={11} className="mr-1" /> Log activity
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-72 p-3" align="end">
-                    <p className="text-[13px] font-semibold mb-2">Log activity</p>
-                    <div className="space-y-2">
+                  <PopoverContent className="w-80 p-4" align="end">
+                    <p className="text-[13px] font-semibold mb-3">Log activity</p>
+                    <div className="space-y-3">
                       <div className="flex items-center gap-1 rounded-lg border border-border/20 bg-secondary p-0.5">
                         {ACTIVITY_TYPES.map(at => (
                           <button key={at.value} onClick={() => setLogType(at.value)}
-                            className={`flex-1 h-7 rounded-md text-[10px] font-medium transition-all ${logType === at.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-foreground'}`}
+                            className={`flex-1 h-7 rounded-md text-[11px] font-medium transition-all ${logType === at.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-foreground'}`}
                           >
                             {at.label.split(' ').pop()}
                           </button>
                         ))}
                       </div>
-                      <Input value={logTitle} onChange={e => setLogTitle(e.target.value)} placeholder="Activity title..." className="h-8 text-[12px]" />
-                      <Textarea value={logDescription} onChange={e => setLogDescription(e.target.value)} placeholder="Details (optional)" className="text-[12px] min-h-[60px] resize-none" />
+                      <Input value={logTitle} onChange={e => setLogTitle(e.target.value)} placeholder="Activity title..." className="h-9 text-[13px]" />
+                      <Textarea value={logDescription} onChange={e => setLogDescription(e.target.value)} placeholder="Details (optional)" className="text-[13px] min-h-[80px] resize-none" />
                       <div className="flex justify-end gap-2">
-                        <Button size="sm" variant="ghost" onClick={() => setLogOpen(false)} className="h-7 text-[11px]">Cancel</Button>
-                        <Button size="sm" onClick={logActivity} disabled={logSaving} className="h-7 text-[11px]">{logSaving ? 'Saving...' : 'Log'}</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setLogOpen(false)} className="h-8 text-[12px]">Cancel</Button>
+                        <Button size="sm" onClick={logActivity} disabled={logSaving} className="h-8 text-[12px]">{logSaving ? 'Saving...' : 'Log'}</Button>
                       </div>
                     </div>
                   </PopoverContent>
@@ -673,68 +713,44 @@ function ProspectSheet({
 
               <div className="space-y-0">
                 {activities.length === 0 ? (
-                  <p className="text-[12px] text-muted-foreground/40 italic py-2">No activity yet</p>
+                  <p className="text-[13px] text-muted-foreground/40 italic py-6 text-center">No activity yet. Log your first interaction.</p>
                 ) : activities.map(activity => {
                   const { icon: Icon, color } = getActivityIcon(activity.type);
                   return (
-                    <div key={activity.id} className="flex gap-2.5 py-2 hover:bg-muted/20 -mx-2 px-2 rounded-lg transition-colors">
+                    <div key={activity.id} className="flex gap-3 py-2.5 hover:bg-muted/20 -mx-2 px-2 rounded-lg transition-colors">
                       <div className="shrink-0 mt-0.5">
-                        <div className="h-6 w-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
-                          <Icon size={11} style={{ color }} />
+                        <div className="h-7 w-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+                          <Icon size={13} style={{ color }} />
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-[12px] font-medium text-foreground truncate">{activity.title}</span>
-                          <span className="text-[10px] text-muted-foreground/40 shrink-0">{formatTimestamp(activity.created_at)}</span>
+                          <span className="text-[13px] font-medium text-foreground truncate">{activity.title}</span>
+                          <span className="text-[11px] text-muted-foreground/40 shrink-0">{formatTimestamp(activity.created_at)}</span>
                         </div>
-                        {activity.description && <p className="text-[11px] text-muted-foreground/60 mt-0.5">{activity.description}</p>}
-                        {activity.created_by && <span className="text-[10px] text-muted-foreground/30">by {activity.created_by}</span>}
+                        {activity.description && <p className="text-[12px] text-muted-foreground/60 mt-0.5">{activity.description}</p>}
+                        {activity.created_by && <span className="text-[11px] text-muted-foreground/30">by {activity.created_by}</span>}
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Delete (edit mode only) */}
-          {editProspect && onDelete && (
-            <div className="pt-2 border-t border-border/10">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash2 size={14} className="mr-1.5" />
-                Delete prospect
-              </Button>
-            </div>
+            </>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border/20 flex items-center gap-2">
-          {editProspect && (
-            <p className="text-[11px] text-muted-foreground/40 flex-1">
-              Created {new Date(editProspect.created_at).toLocaleDateString('en-GB', {
-                day: 'numeric', month: 'short', year: 'numeric',
-              })}
-            </p>
-          )}
-          <div className="flex items-center gap-2 ml-auto">
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving || !form.name.trim()}
-              className="text-[13px] h-8"
-            >
-              {saving ? 'Saving…' : editProspect ? 'Save changes' : 'Add Prospect'}
-            </Button>
-          </div>
+        <div className="px-5 py-3 border-t border-border/20 flex items-center justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={saving || !form.name.trim()}
+            className="text-[13px] h-8"
+          >
+            {saving ? 'Saving…' : editProspect ? 'Save changes' : 'Add Prospect'}
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
