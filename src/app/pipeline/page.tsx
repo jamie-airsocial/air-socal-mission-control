@@ -25,9 +25,10 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { useUsers } from '@/hooks/use-users';
+import { SearchableAssigneePopover } from '@/components/board/searchable-assignee-popover';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS, getServiceStyle } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -147,6 +148,7 @@ function ProspectSheet({
   editProspect,
   defaultStage,
   users,
+  sourceOptions,
   onSaved,
   onDelete,
   onConvert,
@@ -156,6 +158,7 @@ function ProspectSheet({
   editProspect: Prospect | null;
   defaultStage?: string;
   users: Array<{ id: string; full_name: string; is_active: boolean }>;
+  sourceOptions: string[];
   onSaved: () => void;
   onDelete?: () => void;
   onConvert?: () => void;
@@ -200,6 +203,8 @@ function ProspectSheet({
   const [serviceOpen, setServiceOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceSearch, setSourceSearch] = useState('');
   const [lostReasonOpen, setLostReasonOpen] = useState(false);
 
   // Line items
@@ -582,12 +587,70 @@ function ProspectSheet({
           {/* Source */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Source</Label>
-            <Input
-              value={form.source}
-              onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
-              placeholder="e.g. Referral, LinkedIn, Website"
-              className="text-[13px] h-9"
-            />
+            <Popover open={sourceOpen} onOpenChange={(o) => { setSourceOpen(o); if (o) setSourceSearch(''); }}>
+              <PopoverTrigger asChild>
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                  {form.source ? (
+                    <span>{form.source}</span>
+                  ) : (
+                    <span className="text-muted-foreground/40">Select source…</span>
+                  )}
+                  <ChevronDown size={14} className="text-muted-foreground/60" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-0" align="start">
+                <input
+                  type="text"
+                  value={sourceSearch}
+                  onChange={e => setSourceSearch(e.target.value)}
+                  placeholder="Search or add new…"
+                  className="w-full px-3 py-2 text-[13px] bg-transparent border-b border-border/20 outline-none text-foreground placeholder:text-muted-foreground/60 rounded-t-md"
+                  autoFocus
+                />
+                <div className="p-1 max-h-[200px] overflow-y-auto">
+                  {form.source && !sourceSearch && (
+                    <>
+                      <PopoverClose asChild>
+                        <button
+                          onClick={() => setForm(f => ({ ...f, source: '' }))}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-muted-foreground/30 hover:text-muted-foreground/60 hover:bg-muted/40 transition-colors"
+                        >
+                          Clear source
+                        </button>
+                      </PopoverClose>
+                      <div className="border-t border-border/20 my-1" />
+                    </>
+                  )}
+                  {sourceOptions
+                    .filter(s => s.toLowerCase().includes(sourceSearch.toLowerCase()))
+                    .map(s => (
+                      <PopoverClose asChild key={s}>
+                        <button
+                          onClick={() => setForm(f => ({ ...f, source: s }))}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.source === s ? 'bg-muted/50' : ''}`}
+                        >
+                          <span className="flex-1 text-left">{s}</span>
+                          {form.source === s && <Check size={12} className="text-primary" />}
+                        </button>
+                      </PopoverClose>
+                    ))}
+                  {sourceSearch.trim() && !sourceOptions.some(s => s.toLowerCase() === sourceSearch.trim().toLowerCase()) && (
+                    <PopoverClose asChild>
+                      <button
+                        onClick={() => setForm(f => ({ ...f, source: sourceSearch.trim() }))}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-primary hover:bg-primary/10 transition-colors"
+                      >
+                        <Plus size={12} />
+                        <span>Add &ldquo;{sourceSearch.trim()}&rdquo;</span>
+                      </button>
+                    </PopoverClose>
+                  )}
+                  {sourceOptions.filter(s => s.toLowerCase().includes(sourceSearch.toLowerCase())).length === 0 && !sourceSearch.trim() && (
+                    <div className="px-2 py-3 text-[13px] text-muted-foreground/30 text-center">No sources yet</div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Stage */}
@@ -628,40 +691,27 @@ function ProspectSheet({
           {/* Assignee */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Assignee</Label>
-            <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
-              <PopoverTrigger asChild>
-                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+            <SearchableAssigneePopover
+              value={form.assignee}
+              onChange={(v) => setForm(f => ({ ...f, assignee: v }))}
+              open={assigneeOpen}
+              onOpenChange={setAssigneeOpen}
+              trigger={
+                <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center gap-1.5 hover:border-border/40 transition-colors">
                   {form.assignee ? (
-                    <span>{form.assignee}</span>
+                    <>
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] leading-none font-medium bg-muted/40 text-muted-foreground`}>
+                        {form.assignee.charAt(0)}
+                      </span>
+                      <span className="flex-1 text-left">{form.assignee}</span>
+                    </>
                   ) : (
-                    <span className="text-muted-foreground/40">Select assignee…</span>
+                    <span className="flex-1 text-left text-muted-foreground/40">Select assignee…</span>
                   )}
                   <ChevronDown size={14} className="text-muted-foreground/60" />
                 </button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-1 max-h-56 overflow-y-auto" align="start">
-                {activeUsers.map(u => (
-                  <button
-                    key={u.id}
-                    onClick={() => { setForm(f => ({ ...f, assignee: u.full_name })); setAssigneeOpen(false); }}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] transition-colors ${
-                      form.assignee === u.full_name ? 'bg-primary/10 text-primary' : 'hover:bg-muted/60 text-muted-foreground'
-                    }`}
-                  >
-                    <span className="flex-1 text-left">{u.full_name}</span>
-                    {form.assignee === u.full_name && <Check size={12} />}
-                  </button>
-                ))}
-                {form.assignee && (
-                  <button
-                    onClick={() => { setForm(f => ({ ...f, assignee: '' })); setAssigneeOpen(false); }}
-                    className="w-full mt-1 pt-1 border-t border-border/10 px-2 py-1.5 rounded text-[13px] text-muted-foreground/60 hover:text-foreground transition-colors text-left"
-                  >
-                    Clear
-                  </button>
-                )}
-              </PopoverContent>
-            </Popover>
+              }
+            />
           </div>
 
           {/* Notes */}
@@ -855,6 +905,12 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = usePersistedState('pipeline-search', '');
   const [viewMode, setViewMode] = useState<ViewMode>('pipeline');
+
+  // Derive unique source options from existing prospects
+  const sourceOptions = useMemo(() => {
+    const sources = prospects.map(p => p.source).filter((s): s is string => !!s && s.trim() !== '');
+    return [...new Set(sources)].sort((a, b) => a.localeCompare(b));
+  }, [prospects]);
 
   // Sheet state — single unified sheet for new + edit
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -1114,6 +1170,7 @@ export default function PipelinePage() {
         editProspect={editingProspect}
         defaultStage={sheetDefaultStage}
         users={users}
+        sourceOptions={sourceOptions}
         onSaved={fetchProspects}
         onDelete={editingProspect ? () => deleteProspect(editingProspect.id) : undefined}
         onConvert={editingProspect?.stage === 'won' ? () => {
