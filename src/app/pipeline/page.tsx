@@ -5,7 +5,9 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-p
 import {
   Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, Pencil,
   BarChart3, Table2, Kanban, PoundSterling, Percent, Trophy, UserPlus, Trash2,
+  Calendar, FileText, MessageSquare, ChevronRight as ChevronRightIcon,
 } from 'lucide-react';
+import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -92,6 +94,52 @@ const emptyProspectForm: ProspectFormState = {
   lost_reason_custom: null,
 };
 
+// ── Activity helpers ─────────────────────────────────────────────────────────
+interface Activity {
+  id: string;
+  prospect_id: string;
+  type: string;
+  title: string;
+  description?: string;
+  created_by?: string;
+  created_at: string;
+}
+
+const ACTIVITY_TYPES = [
+  { value: 'call', label: 'Phone call', icon: Phone, color: '#60a5fa' },
+  { value: 'email', label: 'Email', icon: Mail, color: '#34d399' },
+  { value: 'meeting', label: 'Meeting', icon: Calendar, color: '#a78bfa' },
+  { value: 'note', label: 'Note', icon: FileText, color: '#fbbf24' },
+] as const;
+
+function getActivityIcon(type: string) {
+  switch (type) {
+    case 'call': return { icon: Phone, color: '#60a5fa' };
+    case 'email': return { icon: Mail, color: '#34d399' };
+    case 'meeting': return { icon: Calendar, color: '#a78bfa' };
+    case 'note': return { icon: FileText, color: '#fbbf24' };
+    case 'stage_change': return { icon: ChevronRightIcon, color: '#818cf8' };
+    case 'created': return { icon: Plus, color: '#6b7280' };
+    case 'won': return { icon: Trophy, color: '#34d399' };
+    case 'lost': return { icon: X, color: '#f87171' };
+    default: return { icon: MessageSquare, color: '#6b7280' };
+  }
+}
+
+function formatTimestamp(date: string) {
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
 // ── Prospect Sheet ───────────────────────────────────────────────────────────
 function ProspectSheet({
   open,
@@ -114,7 +162,40 @@ function ProspectSheet({
 }) {
   const [form, setForm] = useState<ProspectFormState>(emptyProspectForm);
   const [saving, setSaving] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // Activities
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
+  const [logType, setLogType] = useState('call');
+  const [logTitle, setLogTitle] = useState('');
+  const [logDescription, setLogDescription] = useState('');
+  const [logSaving, setLogSaving] = useState(false);
+
+  const fetchActivities = useCallback(async (prospectId: string) => {
+    try {
+      const res = await fetch(`/api/prospects/${prospectId}/activities`);
+      if (res.ok) setActivities(await res.json());
+    } catch { /* silent */ }
+  }, []);
+
+  const logActivity = async () => {
+    if (!editProspect || !logTitle.trim()) { toast.error('Title is required'); return; }
+    setLogSaving(true);
+    try {
+      await fetch(`/api/prospects/${editProspect.id}/activities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: logType, title: logTitle.trim(), description: logDescription.trim() || null }),
+      });
+      toast.success('Activity logged');
+      setLogTitle('');
+      setLogDescription('');
+      setLogOpen(false);
+      fetchActivities(editProspect.id);
+    } catch { toast.error('Failed to log activity'); }
+    finally { setLogSaving(false); }
+  };
   const [serviceOpen, setServiceOpen] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
@@ -194,11 +275,14 @@ function ProspectSheet({
 
   useEffect(() => {
     if (open) {
-      setConfirmDelete(false);
+      setDeleteDialogOpen(false);
       setLineItems([]);
       setLineItemDialogOpen(false);
+      setActivities([]);
+      setLogOpen(false);
       if (editProspect) {
         fetchLineItems(editProspect.id);
+        fetchActivities(editProspect.id);
         setForm({
           name: editProspect.name || '',
           contact_name: editProspect.contact_name || '',
@@ -553,26 +637,79 @@ function ProspectSheet({
             />
           </div>
 
+          {/* Activity Timeline */}
+          {editProspect && (
+            <div className="pt-2 border-t border-border/10">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-semibold text-muted-foreground/60">Activity</p>
+                <Popover open={logOpen} onOpenChange={setLogOpen}>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-6 text-[10px] border-border/20 px-2">
+                      <Plus size={10} className="mr-1" /> Log activity
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-3" align="end">
+                    <p className="text-[13px] font-semibold mb-2">Log activity</p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1 rounded-lg border border-border/20 bg-secondary p-0.5">
+                        {ACTIVITY_TYPES.map(at => (
+                          <button key={at.value} onClick={() => setLogType(at.value)}
+                            className={`flex-1 h-7 rounded-md text-[10px] font-medium transition-all ${logType === at.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/60 hover:text-foreground'}`}
+                          >
+                            {at.label.split(' ').pop()}
+                          </button>
+                        ))}
+                      </div>
+                      <Input value={logTitle} onChange={e => setLogTitle(e.target.value)} placeholder="Activity title..." className="h-8 text-[12px]" />
+                      <Textarea value={logDescription} onChange={e => setLogDescription(e.target.value)} placeholder="Details (optional)" className="text-[12px] min-h-[60px] resize-none" />
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => setLogOpen(false)} className="h-7 text-[11px]">Cancel</Button>
+                        <Button size="sm" onClick={logActivity} disabled={logSaving} className="h-7 text-[11px]">{logSaving ? 'Saving...' : 'Log'}</Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-0">
+                {activities.length === 0 ? (
+                  <p className="text-[12px] text-muted-foreground/40 italic py-2">No activity yet</p>
+                ) : activities.map(activity => {
+                  const { icon: Icon, color } = getActivityIcon(activity.type);
+                  return (
+                    <div key={activity.id} className="flex gap-2.5 py-2 hover:bg-muted/20 -mx-2 px-2 rounded-lg transition-colors">
+                      <div className="shrink-0 mt-0.5">
+                        <div className="h-6 w-6 rounded-full flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+                          <Icon size={11} style={{ color }} />
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-medium text-foreground truncate">{activity.title}</span>
+                          <span className="text-[10px] text-muted-foreground/40 shrink-0">{formatTimestamp(activity.created_at)}</span>
+                        </div>
+                        {activity.description && <p className="text-[11px] text-muted-foreground/60 mt-0.5">{activity.description}</p>}
+                        {activity.created_by && <span className="text-[10px] text-muted-foreground/30">by {activity.created_by}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Delete (edit mode only) */}
           {editProspect && onDelete && (
             <div className="pt-2 border-t border-border/10">
-              {confirmDelete ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-[13px] text-destructive flex-1">Delete this prospect? Cannot be undone.</span>
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancel</Button>
-                  <Button size="sm" variant="destructive" onClick={onDelete}>Delete</Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Trash2 size={14} className="mr-1.5" />
-                  Delete prospect
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteDialogOpen(true)}
+              >
+                <Trash2 size={14} className="mr-1.5" />
+                Delete prospect
+              </Button>
             </div>
           )}
         </div>
@@ -601,6 +738,17 @@ function ProspectSheet({
         </div>
       </SheetContent>
     </Sheet>
+
+    {/* Delete confirmation */}
+    {editProspect && onDelete && (
+      <ConfirmDeleteDialog
+        open={deleteDialogOpen}
+        onCancel={() => setDeleteDialogOpen(false)}
+        title="Delete prospect"
+        description={`Are you sure you want to delete "${editProspect.name}"? This action cannot be undone.`}
+        onConfirm={() => { onDelete(); setDeleteDialogOpen(false); }}
+      />
+    )}
 
     {/* Line Item Dialog */}
     <Dialog open={lineItemDialogOpen} onOpenChange={setLineItemDialogOpen}>
@@ -1095,7 +1243,7 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspec
                             }`}
                           >
                             <div className="flex items-start justify-between mb-1.5">
-                              <h3 className="text-[13px] font-semibold truncate mr-2" onClick={(e) => { e.stopPropagation(); window.location.href = `/pipeline/${prospect.id}`; }}>{prospect.name}</h3>
+                              <h3 className="text-[13px] font-semibold truncate mr-2">{prospect.name}</h3>
                               {prospect.value != null && prospect.value > 0 && (
                                 <span className="text-[11px] font-medium text-emerald-400 shrink-0">
                                   £{prospect.value.toLocaleString()}
@@ -1216,7 +1364,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
                     onClick={() => onEdit(p)}
                     className="border-b border-border/10 hover:bg-muted/20 transition-colors duration-150 cursor-pointer"
                   >
-                    <td className="px-3 py-2.5 text-[13px] font-medium"><span className="hover:text-primary cursor-pointer transition-colors" onClick={(e) => { e.stopPropagation(); window.location.href = `/pipeline/${p.id}`; }}>{p.name}</span></td>
+                    <td className="px-3 py-2.5 text-[13px] font-medium">{p.name}</td>
                     <td className="px-3 py-2.5">
                       <div className="text-[13px]">{p.contact_name || '—'}</div>
                       {p.contact_email && <div className="text-[11px] text-muted-foreground/60">{p.contact_email}</div>}
