@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { Task, Project } from '@/lib/types';
 
-import { ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, X, ChevronRight, ChevronLeft, Trash2, Plus } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, X, ChevronRight, ChevronLeft, Trash2, Plus, Copy } from 'lucide-react';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EnhancedDatePicker } from '@/components/board/enhanced-date-picker';
@@ -752,6 +752,46 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
     onUpdate();
   }, [selectedIds, onUpdate]);
 
+  const bulkDuplicate = useCallback(async () => {
+    const count = selectedIds.size;
+    const tasksToClone = tasks.filter(t => selectedIds.has(t.id));
+    
+    try {
+      const results = await Promise.all(
+        tasksToClone.map((task) => {
+          const payload = {
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            assignee: task.assignee,
+            labels: task.labels,
+            client_id: task.client_id,
+            service: task.service,
+            client_team: task.client_team,
+            status: 'todo',
+            due_date: null,
+            completed_at: null,
+          };
+          return fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+        })
+      );
+      const failed = results.filter((r) => !r.ok).length;
+      if (failed > 0) {
+        toast.error(`Failed to duplicate ${failed} of ${count} tasks`);
+      } else {
+        toast.success(`${count} task${count > 1 ? 's' : ''} duplicated`);
+      }
+    } catch {
+      toast.error('Failed to duplicate tasks');
+    }
+    setSelectedIds(new Set());
+    onUpdate();
+  }, [selectedIds, tasks, onUpdate]);
+
   const isSelected = useCallback((id: string) => selectedIds.has(id), [selectedIds]);
   const selectedBg = 'bg-primary/5';
 
@@ -793,6 +833,10 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
             }
           />
           <div className="h-4 w-px bg-primary/20" />
+          {/* Bulk Duplicate */}
+          <button onClick={bulkDuplicate} className="text-[13px] px-2.5 py-1.5 rounded-md hover:bg-muted/40 transition-colors duration-150 text-muted-foreground hover:text-foreground flex items-center gap-1">
+            <Copy className="h-3.5 w-3.5" /> Duplicate
+          </button>
           {/* Bulk Delete */}
           {bulkDeleting ? (
             <div className="flex items-center gap-2">
