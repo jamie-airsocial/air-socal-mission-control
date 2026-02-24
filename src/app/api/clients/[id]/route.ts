@@ -23,6 +23,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     'contract_value', 'contract_start', 'contract_end', 'contract_renewal',
     'sale_source', 'sold_by', 'sale_closed_at',
     'notes', 'signup_date', 'churned_at',
+    'contact_name', 'contact_email', 'contact_phone', 'website',
   ];
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };

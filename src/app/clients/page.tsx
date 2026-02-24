@@ -136,6 +136,10 @@ interface ClientFormState {
   status: string;
   signup_date: string;
   notes: string;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  website: string;
 }
 
 const emptyClientForm: ClientFormState = {
@@ -145,6 +149,10 @@ const emptyClientForm: ClientFormState = {
   status: 'active',
   signup_date: '',
   notes: '',
+  contact_name: '',
+  contact_email: '',
+  contact_phone: '',
+  website: '',
 };
 
 function ClientSheet({
@@ -178,6 +186,10 @@ function ClientSheet({
           status: editClient.status || 'active',
           signup_date: editClient.signup_date || '',
           notes: editClient.notes || '',
+          contact_name: (editClient as unknown as { contact_name?: string }).contact_name || '',
+          contact_email: (editClient as unknown as { contact_email?: string }).contact_email || '',
+          contact_phone: (editClient as unknown as { contact_phone?: string }).contact_phone || '',
+          website: (editClient as unknown as { website?: string }).website || '',
         });
       } else {
         setForm(emptyClientForm);
@@ -196,6 +208,10 @@ function ClientSheet({
         status: form.status,
         signup_date: form.signup_date || null,
         notes: form.notes || null,
+        contact_name: form.contact_name.trim() || null,
+        contact_email: form.contact_email.trim() || null,
+        contact_phone: form.contact_phone.trim() || null,
+        website: form.website.trim() || null,
       };
 
       if (editClient) {
@@ -232,37 +248,54 @@ function ClientSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="bg-card border-l border-border/20 p-0 overflow-y-auto [&>button]:hidden rounded-none md:rounded-tl-2xl md:rounded-bl-2xl !w-full md:!w-[var(--sheet-width)] md:!max-w-[600px] md:!top-3 md:!bottom-3 md:!h-auto flex flex-col">
-        <SheetHeader className="px-6 py-5 border-b border-border/20">
+      <SheetContent 
+        side="right" 
+        className="bg-card border-l border-border/20 p-0 overflow-y-auto [&>button]:hidden rounded-none md:rounded-tl-2xl md:rounded-bl-2xl !w-full md:!w-[560px] md:!max-w-[700px] md:!top-3 md:!bottom-3 md:!h-auto flex flex-col"
+        showCloseButton={false}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        {/* Header — matches task/prospect sheet */}
+        <div className="px-5 pt-4 pb-3">
           <div className="flex items-center justify-between">
-            <SheetTitle className="text-[15px]">
-              {editClient ? 'Edit Client' : 'New Client'}
-            </SheetTitle>
-            {editClient && (
-              <Link
-                href={`/clients/${editClient.id}`}
-                className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-                onClick={() => onOpenChange(false)}
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground/30">
+              {editClient?.created_at && (
+                <span>Created {new Date(editClient.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+              )}
+              {!editClient && <span>New client</span>}
+            </div>
+            <div className="flex items-center gap-0.5">
+              {editClient && (
+                <Link
+                  href={`/clients/${editClient.id}`}
+                  className="p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"
+                  onClick={() => onOpenChange(false)}
+                >
+                  <ExternalLink size={14} />
+                </Link>
+              )}
+              <button 
+                onClick={() => onOpenChange(false)} 
+                className="h-7 w-7 flex items-center justify-center rounded-lg hover:bg-muted/40 transition-colors duration-150 text-muted-foreground hover:text-foreground"
               >
-                <ExternalLink size={12} /> View full profile
-              </Link>
-            )}
+                <X size={11} />
+              </button>
+            </div>
           </div>
-        </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {/* Company Name */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] text-muted-foreground/60">Company Name *</Label>
-            <Input
+          {/* Title input */}
+          <div className="mt-2">
+            <input
               autoFocus={!editClient}
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="e.g. Acme Ltd"
-              className="text-[13px] h-9"
+              placeholder="Company name"
+              className="w-full text-[17px] font-semibold bg-transparent border border-transparent outline-none placeholder:text-muted-foreground/60 text-foreground leading-snug px-2 py-1 rounded hover:bg-muted/40 focus:bg-muted/40 focus:border-primary/30 transition-colors duration-150 -mx-1"
             />
           </div>
+        </div>
 
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           {/* Team */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Team</Label>
@@ -357,6 +390,64 @@ function ClientSheet({
             </Popover>
           </div>
 
+          {/* Divider */}
+          <div className="border-t border-border/20 -mx-5 my-4" />
+
+          {/* Contact Details Section */}
+          <div className="space-y-1 -mb-2">
+            <p className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Contact Details</p>
+          </div>
+
+          {/* Contact Name */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground/60">Contact Name</Label>
+            <Input
+              value={form.contact_name}
+              onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+              placeholder="Jane Smith"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Contact Email */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground/60">Contact Email</Label>
+            <Input
+              type="email"
+              value={form.contact_email}
+              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+              placeholder="jane@company.com"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Contact Phone */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground/60">Contact Phone</Label>
+            <Input
+              type="tel"
+              value={form.contact_phone}
+              onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))}
+              placeholder="07xxx xxxxxx"
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Website */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground/60">Website</Label>
+            <Input
+              type="url"
+              value={form.website}
+              onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
+              placeholder="https://..."
+              className="text-[13px] h-9"
+            />
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-border/20 -mx-5 my-4" />
+
           {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Notes</Label>
@@ -370,7 +461,7 @@ function ClientSheet({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border/20 flex items-center justify-end gap-2">
+        <div className="px-5 py-3 border-t border-border/20 flex items-center justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">
             Cancel
           </Button>

@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     name, team, status, services, monthly_retainer, assigned_members, color,
     signup_date, notes, sale_source, sold_by, sale_closed_at,
     contract_value, contract_start, contract_end, contract_renewal,
+    contact_name, contact_email, contact_phone, website,
   } = body;
 
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
@@ -62,6 +63,10 @@ export async function POST(request: NextRequest) {
   if (contract_start !== undefined) insertData.contract_start = contract_start;
   if (contract_end !== undefined) insertData.contract_end = contract_end;
   if (contract_renewal !== undefined) insertData.contract_renewal = contract_renewal;
+  if (contact_name !== undefined) insertData.contact_name = contact_name;
+  if (contact_email !== undefined) insertData.contact_email = contact_email;
+  if (contact_phone !== undefined) insertData.contact_phone = contact_phone;
+  if (website !== undefined) insertData.website = website;
 
   const { data, error } = await supabaseAdmin
     .from('clients')
