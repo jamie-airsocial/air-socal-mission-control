@@ -26,13 +26,15 @@ export function SearchableServicePopover({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    let cancelled = false;
     fetch('/api/services')
       .then(r => r.json())
       .then(d => { 
-        if (Array.isArray(d)) setServices(d); 
-        setLoading(false);
+        if (!cancelled && Array.isArray(d)) setServices(d); 
+        if (!cancelled) setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const handleOpenChange = (nextOpen: boolean) => {
