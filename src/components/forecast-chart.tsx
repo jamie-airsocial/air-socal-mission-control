@@ -77,7 +77,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
               >
                 <div className="w-full h-full flex flex-col justify-end">
                   <div
-                    className={`w-full rounded-t transition-all duration-200 cursor-pointer ${isSelected ? 'ring-2 ring-primary/50 ring-offset-1 ring-offset-card' : ''}`}
+                    className="w-full rounded-t transition-all duration-200 cursor-pointer"
                     style={{
                       height: `${Math.max(heightPercent, 2)}%`,
                       backgroundColor: color,
