@@ -56,6 +56,7 @@ export function MemberDrillDownSheet({
 
   useEffect(() => {
     if (!open) return;
+    let cancelled = false;
 
     const fetchAssignments = async () => {
       setLoading(true);
@@ -63,6 +64,7 @@ export function MemberDrillDownSheet({
         // Fetch all clients to build a name map
         const clientsRes = await fetch('/api/clients');
         const clients: Client[] = await clientsRes.json();
+        if (cancelled) return;
         const clientMap = new Map(clients.map(c => [c.id, c.name]));
 
         // Fetch all contract line items
@@ -72,6 +74,7 @@ export function MemberDrillDownSheet({
             .catch(() => [])
         );
         const allItemsArrays = await Promise.all(itemsPromises);
+        if (cancelled) return;
         const allItems: ContractLineItem[] = allItemsArrays.flat();
 
         // Filter items assigned to this member that are active and recurring
@@ -90,15 +93,16 @@ export function MemberDrillDownSheet({
           billingType: item.billing_type,
         }));
 
-        setAssignments(mapped);
+        if (!cancelled) setAssignments(mapped);
       } catch (error) {
         console.error('Failed to fetch assignments:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchAssignments();
+    return () => { cancelled = true; };
   }, [open, memberId]);
 
   const total = assignments.reduce((sum, a) => sum + a.amount, 0);

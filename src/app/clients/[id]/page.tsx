@@ -668,6 +668,7 @@ export default function ClientDetailPage() {
       start_date: data.start_date || null,
       end_date: data.end_date || null,
       is_active: data.is_active,
+      assignee_id: data.assignee_id || null,
     };
 
     if (editingLineItem) {
