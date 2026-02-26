@@ -341,7 +341,7 @@ export default function AdminRolesPage() {
               {/* Role name row with category headers */}
               <tr className="border-b border-border/20 bg-muted/30">
                 {/* Sticky permission column header */}
-                <th className="sticky left-0 z-10 bg-muted/30 text-left px-3 py-2 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider min-w-[200px] border-r border-border/10">
+                <th className="sticky left-0 z-10 bg-muted/30 text-left px-3 py-2 text-[11px] font-semibold text-muted-foreground/60 min-w-[200px] border-r border-border/10">
                   Permission
                 </th>
                 {orderedCategories.map(cat => {
@@ -350,11 +350,11 @@ export default function AdminRolesPage() {
                     const isProtected = PROTECTED_IDS.includes(role.id);
                     const showCategoryHeader = idx === 0;
                     return (
-                      <th key={role.id} className="px-3 py-2 text-center min-w-[120px] border-l border-border/10">
+                      <th key={role.id} className="px-3 py-2 text-center min-w-[140px] border-l border-border/10">
                         <div className="flex flex-col items-center gap-1">
                           {/* Category header */}
                           {showCategoryHeader && (
-                            <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest mb-0.5">
+                            <span className={`text-[10px] font-semibold mb-0.5 ${cat === 'delivery' ? 'text-primary/70' : 'text-muted-foreground/50'}`}>
                               {CATEGORY_LABELS[cat] || cat}
                             </span>
                           )}
@@ -402,7 +402,7 @@ export default function AdminRolesPage() {
                   <tr key={`grp-${group}`} className="border-b border-border/10">
                     <td
                       colSpan={otherRoles.length + 1}
-                      className="sticky left-0 px-3 py-1 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest bg-muted/20 border-r border-border/10"
+                      className="sticky left-0 px-3 py-1 text-[10px] font-semibold text-muted-foreground/50 bg-muted/20 border-r border-border/10"
                     >
                       {group}
                     </td>
@@ -487,7 +487,7 @@ export default function AdminRolesPage() {
               <Label className="text-[13px] text-muted-foreground">Initial permissions</Label>
               {PERMISSION_GROUPS.map(({ group, items }) => (
                 <div key={group} className="mt-2">
-                  <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider mb-1 px-1">{group}</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground/50 mb-1 px-1">{group}</p>
                   {items.map(({ key, label }) => (
                     <div key={key} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/40">
                       <span className="text-[13px] text-foreground">{label}</span>
@@ -558,7 +558,7 @@ export default function AdminRolesPage() {
               <Label className="text-[13px] text-muted-foreground">Permissions</Label>
               {PERMISSION_GROUPS.map(({ group, items }) => (
                 <div key={group} className="mt-2">
-                  <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider mb-1 px-1">{group}</p>
+                  <p className="text-[10px] font-semibold text-muted-foreground/50 mb-1 px-1">{group}</p>
                   {items.map(({ key, label }) => (
                     <div key={key} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/40">
                       <span className="text-[13px] text-foreground">{label}</span>
