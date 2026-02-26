@@ -511,6 +511,7 @@ export default function DeliveryPage() {
                   data={forecastData}
                   color={style?.color || 'var(--primary)'}
                   mode="percentage"
+                  capacityTarget={100}
                 />
               </div>
 
