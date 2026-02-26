@@ -79,12 +79,11 @@ export function MemberDrillDownSheet({
         if (cancelled) return;
         const allItems: ContractLineItem[] = allItemsArrays.flat();
 
-        // Filter items assigned to this member that are active and recurring
+        // Filter items assigned to this member that are active (both recurring and project)
         const memberItems = allItems.filter(
           item =>
             item.assignee_id === memberId &&
-            item.is_active &&
-            item.billing_type === 'recurring'
+            item.is_active
         );
 
         const mapped: MemberAssignment[] = memberItems.map(item => ({
@@ -107,29 +106,39 @@ export function MemberDrillDownSheet({
     return () => { cancelled = true; };
   }, [open, memberId]);
 
-  const total = assignments.reduce((sum, a) => sum + a.amount, 0);
+  const recurringAssignments = assignments.filter(a => a.billingType === 'recurring');
+  const projectAssignments = assignments.filter(a => a.billingType === 'one-off');
 
-  // Calculate effective capacity target from the member's assigned services
-  const memberServices = [...new Set(assignments.map(a => a.service))];
+  const recurringTotal = recurringAssignments.reduce((sum, a) => sum + a.amount, 0);
+  const projectTotal = projectAssignments.reduce((sum, a) => sum + a.amount, 0);
+  const total = recurringTotal + projectTotal;
+
+  // Calculate effective capacity target from the member's recurring services only
+  const memberServices = [...new Set(recurringAssignments.map(a => a.service))];
   const effectiveTarget = Object.keys(capacityTargets).length > 0
     ? memberServices.reduce((sum, svc) => sum + (capacityTargets[svc] || 0), 0)
     : capacityTarget;
-  const percentage = effectiveTarget > 0 ? (total / effectiveTarget) * 100 : 0;
+  const percentage = effectiveTarget > 0 ? (recurringTotal / effectiveTarget) * 100 : 0;
 
-  // Group by service
-  const byService = assignments.reduce((acc, a) => {
-    if (!acc[a.service]) acc[a.service] = [];
-    acc[a.service].push(a);
-    return acc;
-  }, {} as Record<string, MemberAssignment[]>);
+  // Group by service for each type
+  function groupByService(items: MemberAssignment[]) {
+    const byService = items.reduce((acc, a) => {
+      if (!acc[a.service]) acc[a.service] = [];
+      acc[a.service].push(a);
+      return acc;
+    }, {} as Record<string, MemberAssignment[]>);
 
-  const serviceBreakdown = Object.entries(byService)
-    .map(([service, items]) => ({
-      service,
-      amount: items.reduce((sum, i) => sum + i.amount, 0),
-      clients: items,
-    }))
-    .sort((a, b) => b.amount - a.amount);
+    return Object.entries(byService)
+      .map(([service, clients]) => ({
+        service,
+        amount: clients.reduce((sum, i) => sum + i.amount, 0),
+        clients,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }
+
+  const recurringBreakdown = groupByService(recurringAssignments);
+  const projectBreakdown = groupByService(projectAssignments);
 
   const colorClass = getAssigneeColor(memberName, memberTeam);
 
@@ -191,14 +200,14 @@ export function MemberDrillDownSheet({
                 )}
               </div>
 
-              {/* Service breakdown */}
-              {serviceBreakdown.length > 0 ? (
+              {/* Recurring breakdown */}
+              {recurringBreakdown.length > 0 && (
                 <div>
                   <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">
-                    By Service
+                    Recurring {mode === 'currency' && `· £${Math.round(recurringTotal).toLocaleString()}/mo`}
                   </p>
                   <div className="space-y-3">
-                    {serviceBreakdown.map(({ service, amount, clients }) => {
+                    {recurringBreakdown.map(({ service, amount, clients }) => {
                       const style = getServiceStyle(service);
                       const svcTarget = capacityTargets[service] || 0;
                       const svcPct = svcTarget > 0 ? (amount / svcTarget) * 100 : 0;
@@ -206,10 +215,7 @@ export function MemberDrillDownSheet({
                         <div key={service} className="space-y-1">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span
-                                className="h-2 w-2 rounded-full shrink-0"
-                                style={{ backgroundColor: style.dot }}
-                              />
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: style.dot }} />
                               <span className="text-[13px] font-medium">{style.label}</span>
                             </div>
                             <span className="text-[13px] font-bold">
@@ -220,14 +226,9 @@ export function MemberDrillDownSheet({
                           </div>
                           <div className="ml-4 space-y-0.5">
                             {clients.map((client, idx) => (
-                              <Link
-                                key={idx}
-                                href={`/clients/${client.clientId}`}
-                                className="flex items-center justify-between py-1 px-2 -mx-2 rounded hover:bg-muted/30 transition-colors group"
-                              >
-                                <span className="text-[12px] text-muted-foreground/60 group-hover:text-foreground transition-colors">
-                                  {client.clientName}
-                                </span>
+                              <Link key={idx} href={`/clients/${client.clientId}`}
+                                className="flex items-center justify-between py-1 px-2 -mx-2 rounded hover:bg-muted/30 transition-colors group">
+                                <span className="text-[12px] text-muted-foreground/60 group-hover:text-foreground transition-colors">{client.clientName}</span>
                                 <span className="text-[11px] text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
                                   {mode === 'currency'
                                     ? `£${Math.round(client.amount).toLocaleString()}`
@@ -241,7 +242,49 @@ export function MemberDrillDownSheet({
                     })}
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {/* Project breakdown */}
+              {projectBreakdown.length > 0 && (
+                <div>
+                  <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">
+                    Project {mode === 'currency' && `· £${Math.round(projectTotal).toLocaleString()}`}
+                  </p>
+                  <div className="space-y-3">
+                    {projectBreakdown.map(({ service, amount, clients }) => {
+                      const style = getServiceStyle(service);
+                      return (
+                        <div key={service} className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: style.dot }} />
+                              <span className="text-[13px] font-medium">{style.label}</span>
+                            </div>
+                            <span className="text-[13px] font-bold">
+                              {mode === 'currency' ? `£${Math.round(amount).toLocaleString()}` : ''}
+                            </span>
+                          </div>
+                          <div className="ml-4 space-y-0.5">
+                            {clients.map((client, idx) => (
+                              <Link key={idx} href={`/clients/${client.clientId}`}
+                                className="flex items-center justify-between py-1 px-2 -mx-2 rounded hover:bg-muted/30 transition-colors group">
+                                <span className="text-[12px] text-muted-foreground/60 group-hover:text-foreground transition-colors">{client.clientName}</span>
+                                {mode === 'currency' && (
+                                  <span className="text-[11px] text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
+                                    £{Math.round(client.amount).toLocaleString()}
+                                  </span>
+                                )}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {recurringBreakdown.length === 0 && projectBreakdown.length === 0 && (
                 <div className="text-center py-8">
                   <p className="text-[13px] text-muted-foreground/60">No assignments yet</p>
                 </div>
