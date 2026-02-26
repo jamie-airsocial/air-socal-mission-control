@@ -61,8 +61,7 @@ const NAV_ITEMS = [
 ];
 
 export function TopBar() {
-  const { permissions, roleName, signOut } = useAuth();
-  const isAdmin = roleName === 'Admin';
+  const { permissions, roleName, signOut, isAdmin } = useAuth();
   const [dark, setDark] = useState(true);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -377,20 +376,22 @@ export function TopBar() {
           {/* Notifications */}
           <NotificationBell />
 
-          {/* Settings */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link href="/admin">
-                <button
-                  aria-label="Settings"
-                  className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
-                >
-                  <Settings size={16} />
-                </button>
-              </Link>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[12px]">Settings</TooltipContent>
-          </Tooltip>
+          {/* Settings (admin only) */}
+          {isAdmin && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href="/admin">
+                  <button
+                    aria-label="Settings"
+                    className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
+                  >
+                    <Settings size={16} />
+                  </button>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-[12px]">Settings</TooltipContent>
+            </Tooltip>
+          )}
 
           {/* Theme toggle */}
           <Tooltip>

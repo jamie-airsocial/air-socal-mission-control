@@ -82,12 +82,12 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
 
                 {/* Simplified tooltip — total only */}
                 {isHovered && (
-                  <div className={`absolute bottom-full ${tooltipPosition} mb-2 z-50 pointer-events-none`}>
+                  <div className={`absolute bottom-full ${tooltipPosition} mb-1 z-50 pointer-events-none`}>
                     <div className="bg-popover border border-border/20 rounded-lg shadow-lg px-2.5 py-1.5 whitespace-nowrap">
                       <p className="text-[11px] font-medium">
                         {format(point.month, 'MMM yyyy')} · {mode === 'currency'
                           ? `£${Math.round(point.total).toLocaleString()}`
-                          : `${Math.round(point.total)}%`}
+                          : `${Math.round(capacityPct)}%`}
                         {mode === 'currency' && capacityTarget > 0 && (
                           <span className={`ml-1 text-[10px] font-normal ${capacityPct < 80 ? 'text-emerald-500' : capacityPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                             {Math.round(capacityPct)}%

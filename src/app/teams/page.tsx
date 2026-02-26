@@ -692,7 +692,7 @@ export default function TeamsPage() {
 
                 <div className="flex-1 overflow-y-auto">
                   {/* Forecast — full width, always expanded */}
-                  <div className="px-5 pt-5 pb-3 border-b border-border/10 relative">
+                  <div className="px-5 pt-3 pb-3 border-b border-border/10 relative">
                     <ForecastChart
                       data={selected.forecastData}
                       color={selected.style?.color || 'var(--primary)'}
