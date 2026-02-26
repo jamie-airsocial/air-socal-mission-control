@@ -165,7 +165,7 @@ export function MemberDrillDownSheet({
       }
     }
   }
-  const percentage = effectiveTarget > 0 ? (recurringTotal / effectiveTarget) * 100 : 0;
+  const percentage = effectiveTarget > 0 ? (total / effectiveTarget) * 100 : 0;
 
   const colorClass = getAssigneeColor(memberName, memberTeam);
 
