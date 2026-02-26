@@ -207,7 +207,7 @@ function ServiceCapacityRow({ row, teamColor }: { row: ServiceCapacity; teamColo
                 <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
                   {c.clientName}
                 </span>
-                <span className={`text-[10px] shrink-0 ${getCapacityColor(clientPct)}`}>
+                <span className="text-[10px] shrink-0 text-muted-foreground/40">
                   {Math.round(clientPct)}%
                 </span>
               </Link>
