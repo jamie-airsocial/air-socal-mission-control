@@ -86,11 +86,19 @@ interface ServiceCapacity {
   clients: Array<{ clientId: string; clientName: string; amount: number; billingType?: string; start_date?: string | null; end_date?: string | null }>;
 }
 
+interface UndatedProject {
+  clientId: string;
+  clientName: string;
+  service: string;
+  amount: number;
+}
+
 interface MonthlyCapacity {
   services: ServiceCapacity[];
   totalActual: number;
   totalTarget: number;
   totalPercentage: number;
+  undated: UndatedProject[];
 }
 
 function calcMonthlyCapacity(
@@ -100,6 +108,7 @@ function calcMonthlyCapacity(
   capacityTargets: CapacityTargets
 ): MonthlyCapacity {
   const byService: Record<string, { actual: number; clients: Array<{ clientId: string; clientName: string; amount: number; billingType: string; start_date?: string | null; end_date?: string | null }> }> = {};
+  const undated: UndatedProject[] = [];
 
   for (const client of teamClients) {
     const clientItems = contractItems.filter(i => i.client_id === client.id);
@@ -108,9 +117,11 @@ function calcMonthlyCapacity(
       
       let amount = 0;
       if (item.billing_type === 'one-off') {
-        if (item.start_date && item.end_date) {
-          amount = projectAllocationForMonth(item, month);
+        if (!item.start_date || !item.end_date) {
+          undated.push({ clientId: client.id, clientName: client.name, service: item.service, amount: item.monthly_value || 0 });
+          continue;
         }
+        amount = projectAllocationForMonth(item, month);
       } else {
         if (recurringActiveInMonth(item, month)) {
           amount = item.monthly_value || 0;
@@ -156,7 +167,7 @@ function calcMonthlyCapacity(
   const totalTarget = Object.values(capacityTargets).reduce((sum, t) => sum + t, 0);
   const totalPercentage = totalTarget > 0 ? (totalActual / totalTarget) * 100 : 0;
 
-  return { services, totalActual, totalTarget, totalPercentage };
+  return { services, totalActual, totalTarget, totalPercentage, undated };
 }
 
 function getCapacityColor(percentage: number): string {
@@ -313,8 +324,29 @@ function MonthlyCapacitySection({
             <ServiceCapacityRow key={row.service} row={row} teamColor={teamColor} />
           ))}
         </div>
-      ) : (
+      ) : capacity.undated.length === 0 ? (
         <p className="text-[12px] text-muted-foreground/40 italic">No billing this month</p>
+      ) : null}
+
+      {/* Undated projects warning */}
+      {capacity.undated.length > 0 && (
+        <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2">
+          <p className="text-[10px] text-amber-500/80 mb-1">
+            {capacity.undated.length} project{capacity.undated.length !== 1 ? 's' : ''} without dates
+          </p>
+          <div className="space-y-0.5">
+            {capacity.undated.map((u, i) => {
+              const s = getServiceStyle(u.service);
+              return (
+                <Link key={i} href={`/clients/${u.clientId}`} className="flex items-center justify-between group/undated py-0.5">
+                  <span className="text-[10px] text-muted-foreground/50 group-hover/undated:text-foreground transition-colors flex items-center gap-1">
+                    <span className="h-1 w-1 rounded-full" style={{ backgroundColor: s.dot }} /> {u.clientName}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
