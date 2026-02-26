@@ -180,7 +180,7 @@ export function MemberDrillDownSheet({
       />
 
       {/* Sheet */}
-      <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-card border-l border-border/20 z-50 flex flex-col animate-in slide-in-from-right duration-200">
+      <div className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-card border-l border-border/20 z-50 flex flex-col animate-in slide-in-from-right duration-200 md:top-3 md:bottom-3 md:rounded-tl-2xl md:rounded-bl-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border/10">
           <div className="flex items-center gap-3">
