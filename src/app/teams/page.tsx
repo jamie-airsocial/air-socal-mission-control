@@ -43,6 +43,10 @@ interface ContractLineItem {
 /** Services excluded from revenue breakdowns */
 const REVENUE_EXCLUDED_SERVICES = new Set(['account-management']);
 
+interface CapacityTargets {
+  [service: string]: number;
+}
+
 /** Calculate how much of a project (one-off) line item falls in a given month, pro-rata by day */
 function projectAllocationForMonth(item: ContractLineItem, month: Date): number {
   if (!item.start_date || !item.end_date) {
@@ -198,10 +202,11 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject }: { row: Servic
   );
 }
 
-function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
+function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacityTargets }: {
   teamClients: Client[];
   contractItems: ContractLineItem[];
   teamColor: string;
+  capacityTargets: CapacityTargets;
 }) {
   const [viewingNext, setViewingNext] = useState(false);
   const currentMonth = useMemo(() => startOfMonth(new Date()), []);
@@ -223,6 +228,11 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
 
   const breakdown = viewingNext ? nextBreakdown : currentBreakdown;
   const total = viewingNext ? nextTotal : currentTotal;
+
+  // Calculate capacity
+  const totalTarget = Object.values(capacityTargets).reduce((sum, t) => sum + t, 0);
+  const capacityPercentage = totalTarget > 0 ? (total / totalTarget) * 100 : 0;
+  const capacityColor = capacityPercentage < 80 ? 'text-emerald-500' : capacityPercentage < 95 ? 'text-amber-500' : 'text-red-500';
 
   return (
     <div className="px-4 py-3 border-b border-border/10 bg-muted/10">
@@ -247,8 +257,27 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor }: {
         </button>
       </div>
 
-      {/* Total */}
-      <p className="text-[18px] font-bold leading-tight mb-3">£{Math.round(total).toLocaleString()}</p>
+      {/* Total with capacity */}
+      <div className="mb-3">
+        <p className="text-[18px] font-bold leading-tight">£{Math.round(total).toLocaleString()}</p>
+        {totalTarget > 0 && (
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex-1 h-1 rounded-full bg-muted/30 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(capacityPercentage, 100)}%`,
+                  backgroundColor: teamColor,
+                  opacity: 0.6
+                }}
+              />
+            </div>
+            <span className={`text-[10px] font-medium ${capacityColor}`}>
+              {Math.round(capacityPercentage)}%
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Recurring */}
       {breakdown.recurring.length > 0 && (
@@ -377,15 +406,18 @@ export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
+  const [capacityTargets, setCapacityTargets] = useState<CapacityTargets>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/teams').then(r => r.json()).catch(() => []),
       fetch('/api/clients').then(r => r.json()).catch(() => []),
-    ]).then(async ([teamsData, clientsData]) => {
+      fetch('/api/admin/capacity').then(r => r.json()).catch(() => ({ targets: {} })),
+    ]).then(async ([teamsData, clientsData, capacityData]) => {
       setTeams(teamsData || []);
       setClients(clientsData || []);
+      setCapacityTargets(capacityData.targets || {});
 
       // Fetch contract line items for active clients
       const activeClients = (clientsData || []).filter((c: Client) => c.status === 'active');
@@ -475,6 +507,7 @@ export default function TeamsPage() {
               <MonthlyBillingSection
                 teamClients={teamClients}
                 contractItems={contractItems}
+                capacityTargets={capacityTargets}
                 teamColor={style?.color || 'var(--primary)'}
               />
 

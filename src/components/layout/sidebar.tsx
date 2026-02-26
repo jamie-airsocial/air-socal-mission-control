@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
+  BarChart3,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useSidebar } from '@/contexts/sidebar-context';
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: '/tasks', label: 'Tasks', icon: ListChecks, permKey: 'tasks' },
   { href: '/pipeline', label: 'Pipeline', icon: TrendingUp, permKey: 'pipeline' },
   { href: '/teams', label: 'Teams', icon: UsersRound, permKey: 'teams' },
+  { href: '/delivery', label: 'Delivery', icon: BarChart3, permKey: 'teams' },
   { href: '/xero', label: 'Xero', icon: Receipt, permKey: 'xero' },
 ];
 
