@@ -50,7 +50,14 @@ function BoardContent() {
   const [filterService, setFilterService] = usePersistedState<string[]>('tasks-filterService', []);
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('tasks-filterTeam', []);
   const [availableTeams, setAvailableTeams] = useState<{ slug: string; name: string }[]>([]);
+  const [availableServices, setAvailableServices] = useState<string[]>([]);
   const { users } = useUsers();
+
+  useEffect(() => {
+    fetch('/api/services').then(r => r.json()).then((data: { slug: string }[]) => {
+      setAvailableServices((data || []).map(s => s.slug).sort());
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/teams').then(r => r.json()).then(data => {
@@ -364,7 +371,7 @@ function BoardContent() {
           <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
         )}
 
-        <FilterServicePopover value={filterService} onChange={setFilterService} services={Array.from(new Set(tasks.map(t => t.service).filter(Boolean) as string[])).sort()} />
+        <FilterServicePopover value={filterService} onChange={setFilterService} services={availableServices} />
 
         {!(view === 'kanban' && kanbanGroupBy === 'project') && !(view === 'table' && groupBy === 'project') && (
           <FilterProjectPopover value={filterProject} projects={projects} onChange={setFilterProject} />
