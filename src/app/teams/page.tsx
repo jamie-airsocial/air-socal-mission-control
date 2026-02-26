@@ -232,7 +232,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
   // Calculate capacity
   const totalTarget = Object.values(capacityTargets).reduce((sum, t) => sum + t, 0);
   const capacityPercentage = totalTarget > 0 ? (total / totalTarget) * 100 : 0;
-  const capacityColor = capacityPercentage < 80 ? 'text-emerald-500' : capacityPercentage < 95 ? 'text-amber-500' : 'text-red-500';
+  const capacityColor = capacityPercentage < 80 ? 'text-emerald-500' : capacityPercentage <= 95 ? 'text-amber-500' : 'text-red-500';
 
   return (
     <div className="px-4 py-3 border-b border-border/10 bg-muted/10">

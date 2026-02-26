@@ -149,13 +149,13 @@ function calcMonthlyCapacity(
 
 function getCapacityColor(percentage: number): string {
   if (percentage < 80) return 'text-emerald-500';
-  if (percentage < 95) return 'text-amber-500';
+  if (percentage <= 95) return 'text-amber-500';
   return 'text-red-500';
 }
 
 function getCapacityBg(percentage: number): string {
   if (percentage < 80) return 'bg-emerald-500/20';
-  if (percentage < 95) return 'bg-amber-500/20';
+  if (percentage <= 95) return 'bg-amber-500/20';
   return 'bg-red-500/20';
 }
 
