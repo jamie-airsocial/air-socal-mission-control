@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { 
   Building2, 
   ListChecks, 
@@ -12,10 +13,13 @@ import {
   ChevronRight,
   Settings,
   BarChart3,
+  Eye,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { useSidebar } from '@/contexts/sidebar-context';
 import { ASSIGNEE_COLORS } from '@/lib/constants';
+import type { AppUser } from '@/lib/auth-types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const NAV_ITEMS = [
@@ -30,9 +34,18 @@ const NAV_ITEMS = [
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggleCollapsed } = useSidebar();
-  const { appUser, permissions, roleName } = useAuth();
+  const { appUser, permissions, roleName, isAdmin, viewAsUser, setViewAsUser, realUser } = useAuth();
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const [viewAsOpen, setViewAsOpen] = useState(false);
 
-  const isAdmin = roleName === 'Admin';
+  // Fetch all users for "View as" (admin only)
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(data => setAllUsers(data.filter((u: AppUser) => u.is_active)))
+      .catch(() => {});
+  }, [isAdmin]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -128,6 +141,72 @@ export function Sidebar() {
             </>
           )}
         </nav>
+
+        {/* View as (admin only) */}
+        {isAdmin && !collapsed && (
+          <div className="px-4 py-2 border-t border-border/20">
+            {viewAsUser ? (
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/20">
+                <Eye size={12} className="text-amber-500 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-amber-500 font-medium">Viewing as</p>
+                  <p className="text-[11px] truncate">{viewAsUser.full_name}</p>
+                </div>
+                <button onClick={() => setViewAsUser(null)} className="text-amber-500 hover:text-amber-400 shrink-0">
+                  <X size={12} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <button
+                  onClick={() => setViewAsOpen(!viewAsOpen)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20 transition-colors"
+                >
+                  <Eye size={14} />
+                  <span className="text-[11px]">View as...</span>
+                </button>
+                {viewAsOpen && (
+                  <div className="absolute bottom-full left-0 w-full mb-1 bg-popover border border-border/20 rounded-lg shadow-lg max-h-64 overflow-y-auto z-50">
+                    {allUsers.map(u => (
+                      <button
+                        key={u.id}
+                        onClick={() => { setViewAsUser(u); setViewAsOpen(false); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors text-left"
+                      >
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${ASSIGNEE_COLORS[u.full_name] || 'bg-primary/20 text-primary'}`}>
+                          {u.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[12px] truncate">{u.full_name}</p>
+                          <p className="text-[9px] text-muted-foreground/50">{u.role?.name || 'No role'}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+        {isAdmin && collapsed && (
+          <div className="px-2 py-2 border-t border-border/20">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => viewAsUser ? setViewAsUser(null) : setViewAsOpen(!viewAsOpen)}
+                  className={`w-full flex items-center justify-center py-2 rounded-md transition-colors ${
+                    viewAsUser ? 'bg-amber-500/10 text-amber-500' : 'text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/20'
+                  }`}
+                >
+                  <Eye size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="text-[13px]">
+                {viewAsUser ? `Viewing as ${viewAsUser.full_name} — click to reset` : 'View as...'}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
 
         {/* Collapse button */}
         <div className={`border-t border-border/20 ${collapsed ? 'px-2' : 'px-4'}`}>

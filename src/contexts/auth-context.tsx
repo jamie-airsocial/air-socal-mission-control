@@ -14,6 +14,10 @@ interface AuthContextValue {
   isAdmin: boolean;
   loading: boolean;
   signOut: () => Promise<void>;
+  /** Admin "View as" — the real admin user (null if not impersonating) */
+  realUser: AppUser | null;
+  viewAsUser: AppUser | null;
+  setViewAsUser: (user: AppUser | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -24,6 +28,9 @@ const AuthContext = createContext<AuthContextValue>({
   isAdmin: false,
   loading: true,
   signOut: async () => {},
+  realUser: null,
+  viewAsUser: null,
+  setViewAsUser: () => {},
 });
 
 const ADMIN_USER_IDS = ['83983bb2-3d05-4be3-97f3-fdac36929560']; // Jamie
@@ -35,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [roleName, setRoleName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewAsUser, setViewAsUser] = useState<AppUser | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const supabase = createBrowserClient(
@@ -155,8 +163,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = '/login';
   };
 
+  // When "View as" is active, override appUser but keep isAdmin true so admin features stay accessible
+  const effectiveAppUser = viewAsUser || appUser;
+  const effectiveRoleName = viewAsUser ? (viewAsUser.role?.name || null) : roleName;
+  const effectivePermissions = viewAsUser ? (() => {
+    const rolePerms = viewAsUser.role?.permissions || DEFAULT_PERMISSIONS;
+    const userOverrides = viewAsUser.permission_overrides || {};
+    return { ...DEFAULT_PERMISSIONS, ...rolePerms, ...userOverrides } as Permissions;
+  })() : permissions;
+
   return (
-    <AuthContext.Provider value={{ user, appUser, permissions, roleName, isAdmin, loading, signOut }}>
+    <AuthContext.Provider value={{
+      user,
+      appUser: effectiveAppUser,
+      permissions: effectivePermissions,
+      roleName: effectiveRoleName,
+      isAdmin, // Always real admin status
+      loading,
+      signOut,
+      realUser: viewAsUser ? appUser : null,
+      viewAsUser,
+      setViewAsUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );
