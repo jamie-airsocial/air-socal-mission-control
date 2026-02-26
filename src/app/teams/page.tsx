@@ -176,7 +176,7 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal, 
           </span>
           <span className="text-[11px] font-medium flex items-center gap-1.5">
             £{Math.round(row.amount).toLocaleString()}
-            {svcTarget > 0 && (
+            {!isProject && svcTarget > 0 && (
               <span className={`text-[10px] font-normal ${capacityPct < 80 ? 'text-emerald-500' : capacityPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                 {Math.round(capacityPct)}%
               </span>
@@ -186,7 +186,7 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal, 
         <div className="h-1 rounded-full bg-muted/30 overflow-hidden ml-4">
           <div
             className="h-full rounded-full"
-            style={{ width: `${Math.min(Math.max(capacityPct, 3), 100)}%`, backgroundColor: teamColor, opacity: 0.6 }}
+            style={{ width: `${isProject ? Math.max((row.amount / total) * 100, 3) : Math.min(Math.max(capacityPct, 3), 100)}%`, backgroundColor: teamColor, opacity: 0.6 }}
           />
         </div>
       </button>
@@ -208,7 +208,7 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal, 
               </span>
               <span className="text-[10px] text-muted-foreground/40 shrink-0 group-hover/client:text-foreground transition-colors">
                 £{Math.round(c.amount).toLocaleString()}
-                {svcTarget > 0 && (
+                {!isProject && svcTarget > 0 && (
                   <span className="ml-1 text-muted-foreground/30">{Math.round(clientCapPct)}%</span>
                 )}
               </span>
