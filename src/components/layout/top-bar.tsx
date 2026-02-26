@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, Users, ListChecks, TrendingUp, UsersRound, Receipt, LogOut } from 'lucide-react';
+import { Search, Sun, Moon, X, Clock, Trash2, Settings, Plus, Users, ListChecks, TrendingUp, UsersRound, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -57,7 +57,7 @@ const NAV_ITEMS = [
   { href: '/tasks', label: 'Tasks', icon: ListChecks, permKey: 'tasks' },
   { href: '/pipeline', label: 'Pipeline', icon: TrendingUp, permKey: 'pipeline' },
   { href: '/teams', label: 'Teams', icon: UsersRound, permKey: 'teams' },
-  { href: '/xero', label: 'Xero', icon: Receipt, permKey: 'xero' },
+  // Xero removed
 ];
 
 export function TopBar() {

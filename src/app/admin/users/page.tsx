@@ -957,7 +957,7 @@ export default function AdminUsersPage() {
                 <div className="space-y-2">
                   <p className="text-[12px] font-medium text-muted-foreground">Page access</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {['dashboard', 'tasks', 'clients', 'pipeline', 'teams', 'xero', 'settings'].map((perm) => {
+                    {['dashboard', 'tasks', 'clients', 'pipeline', 'teams', 'settings'].map((perm) => {
                       const overrides = permissionsTarget.permission_overrides as Record<string, boolean | undefined> | null | undefined;
                       const isOverridden = overrides && overrides[perm] !== undefined;
                       return (

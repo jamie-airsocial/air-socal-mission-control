@@ -32,7 +32,6 @@ export interface Permissions {
   clients: boolean;
   pipeline: boolean;
   teams: boolean;
-  xero?: boolean;
   settings: boolean;
   // Action permissions
   manage_users?: boolean;
@@ -48,7 +47,6 @@ export const DEFAULT_PERMISSIONS: Permissions = {
   clients: true,
   pipeline: true,
   teams: true,
-  xero: true,
   settings: true,
   manage_users: true,
   manage_clients: true,

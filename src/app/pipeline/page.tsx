@@ -781,7 +781,7 @@ function ProspectSheet({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-[13px] font-medium text-foreground truncate">{activity.title}</span>
-                          <span className="text-[11px] text-muted-foreground/40 shrink-0">{formatTimestamp(activity.created_at)}</span>
+                          <span className="text-[11px] text-muted-foreground/40 shrink-0" title={new Date(activity.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}>{formatTimestamp(activity.created_at)}</span>
                         </div>
                         {activity.description && <p className="text-[12px] text-muted-foreground/60 mt-0.5">{activity.description}</p>}
                         {activity.created_by && <span className="text-[11px] text-muted-foreground/30">by {activity.created_by}</span>}

@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userIsAdmin) {
           const fullPerms: Permissions = {
             dashboard: true, tasks: true, clients: true, pipeline: true,
-            teams: true, xero: true, settings: true,
+            teams: true, settings: true,
             manage_users: true, manage_clients: true, manage_tasks: true,
             manage_prospects: true, manage_billing: true,
           };
