@@ -436,7 +436,7 @@ export default function TeamsPage() {
   const [capacityTargets, setCapacityTargets] = useState<CapacityTargets>({});
   const [loading, setLoading] = useState(true);
   const [drillDownOpen, setDrillDownOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; team: string } | null>(null);
+  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; team: string; roleName?: string } | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -582,7 +582,7 @@ export default function TeamsPage() {
                       <button
                         key={member.id}
                         onClick={() => {
-                          setSelectedMember({ id: member.id, name: member.full_name, team: slug });
+                          setSelectedMember({ id: member.id, name: member.full_name, team: slug, roleName: member.role?.name });
                           setDrillDownOpen(true);
                         }}
                         className="w-full flex items-center gap-2.5 p-2 -mx-2 rounded-lg border border-transparent hover:border-border/20 hover:bg-muted/30 transition-all duration-150 cursor-pointer"
@@ -624,6 +624,7 @@ export default function TeamsPage() {
           memberId={selectedMember.id}
           memberName={selectedMember.name}
           memberTeam={selectedMember.team}
+          memberRole={selectedMember.roleName}
           mode="currency"
           capacityTargets={capacityTargets}
         />

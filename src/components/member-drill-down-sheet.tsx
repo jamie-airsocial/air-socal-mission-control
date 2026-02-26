@@ -34,6 +34,7 @@ interface MemberDrillDownSheetProps {
   memberId: string;
   memberName: string;
   memberTeam: string;
+  memberRole?: string;
   mode: 'currency' | 'percentage';
   capacityTarget?: number;
   capacityTargets?: Record<string, number>;
@@ -49,6 +50,7 @@ export function MemberDrillDownSheet({
   memberId,
   memberName,
   memberTeam,
+  memberRole,
   mode,
   capacityTarget = 0,
   capacityTargets = {},
@@ -113,13 +115,6 @@ export function MemberDrillDownSheet({
   const projectTotal = projectAssignments.reduce((sum, a) => sum + a.amount, 0);
   const total = recurringTotal + projectTotal;
 
-  // Calculate effective capacity target from the member's recurring services only
-  const memberServices = [...new Set(recurringAssignments.map(a => a.service))];
-  const effectiveTarget = Object.keys(capacityTargets).length > 0
-    ? memberServices.reduce((sum, svc) => sum + (capacityTargets[svc] || 0), 0)
-    : capacityTarget;
-  const percentage = effectiveTarget > 0 ? (recurringTotal / effectiveTarget) * 100 : 0;
-
   // Group by service for each type
   function groupByService(items: MemberAssignment[]) {
     const byService = items.reduce((acc, a) => {
@@ -139,6 +134,38 @@ export function MemberDrillDownSheet({
 
   const recurringBreakdown = groupByService(recurringAssignments);
   const projectBreakdown = groupByService(projectAssignments);
+
+  // Calculate effective capacity target based on the member's role (single service)
+  const ROLE_TO_SERVICE: Record<string, string> = {
+    'Paid Ads Manager': 'Paid Advertising',
+    'Social Media Manager': 'Social Media',
+    'SEO': 'SEO',
+    'Creative': 'Creative',
+  };
+
+  const memberServices = [...new Set(recurringAssignments.map(a => a.service))];
+  let effectiveTarget = capacityTarget;
+  if (Object.keys(capacityTargets).length > 0) {
+    const roleService = memberRole ? ROLE_TO_SERVICE[memberRole] : undefined;
+    if (roleService && capacityTargets[roleService]) {
+      effectiveTarget = capacityTargets[roleService];
+    } else {
+      const matchedService = memberRole
+        ? memberServices.find(svc =>
+            memberRole.toLowerCase().includes(svc.toLowerCase()) || svc.toLowerCase().includes(memberRole.toLowerCase())
+          )
+        : undefined;
+      if (matchedService) {
+        effectiveTarget = capacityTargets[matchedService] || 0;
+      } else if (memberServices.length === 1) {
+        effectiveTarget = capacityTargets[memberServices[0]] || 0;
+      } else {
+        const primaryService = recurringBreakdown[0]?.service;
+        effectiveTarget = primaryService ? (capacityTargets[primaryService] || 0) : 0;
+      }
+    }
+  }
+  const percentage = effectiveTarget > 0 ? (recurringTotal / effectiveTarget) * 100 : 0;
 
   const colorClass = getAssigneeColor(memberName, memberTeam);
 
