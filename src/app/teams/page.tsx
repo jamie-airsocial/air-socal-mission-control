@@ -524,8 +524,9 @@ export default function TeamsPage() {
     return { team, slug, style, clients: teamClients, members, forecastData };
   });
 
-  const [viewTab, setViewTab] = useState<'teams' | 'members'>('teams');
+  const [viewTab, setViewTab] = useState<'teams' | 'members' | 'split'>('teams');
   const [memberSort, setMemberSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'billing', dir: 'desc' });
+  const [selectedTeamSlug, setSelectedTeamSlug] = useState<string | null>(null);
 
   // Build all-members data for the members tab
   const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'paid-advertising', 'Social Media Manager': 'social-media', 'SEO': 'seo', 'Creative': 'creative' };
@@ -571,13 +572,13 @@ export default function TeamsPage() {
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-4">
             <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
-              {(['teams', 'members'] as const).map(tab => (
-                <button key={tab} onClick={() => setViewTab(tab)}
+              {(['teams', 'members', 'split'] as const).map(tab => (
+                <button key={tab} onClick={() => { setViewTab(tab); if (tab === 'split' && !selectedTeamSlug && teamRows.length > 0) setSelectedTeamSlug(teamRows[0].slug); }}
                   className={`h-7 px-3 rounded-md text-[12px] font-medium transition-all duration-150 ${
                     viewTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {tab === 'teams' ? 'Teams' : 'Members'}
+                  {tab === 'teams' ? 'Teams' : tab === 'members' ? 'Members' : 'Split'}
                 </button>
               ))}
             </div>
@@ -593,7 +594,162 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      {viewTab === 'members' ? (
+      {viewTab === 'split' ? (
+        /* Split view: team list left, selected team detail right */
+        loading ? (
+          <div className="flex gap-4"><div className="w-72 h-96 bg-muted/20 rounded-lg animate-pulse" /><div className="flex-1 h-96 bg-muted/20 rounded-lg animate-pulse" /></div>
+        ) : (() => {
+          const selected = teamRows.find(t => t.slug === selectedTeamSlug) || teamRows[0];
+          if (!selected) return <p className="text-[13px] text-muted-foreground">No teams</p>;
+          const teamBilling = (() => {
+            const bd = calcMonthlyBreakdown(selected.clients, contractItems, startOfMonth(new Date()));
+            return bd.recurringTotal + bd.projectTotal;
+          })();
+          const teamTarget = Object.values(capacityTargets).filter((_, i) => Object.keys(capacityTargets)[i] !== '__team_total__').reduce((s, v) => s + v, 0);
+          const teamPct = teamTarget > 0 ? (teamBilling / teamTarget) * 100 : 0;
+          const teamMembers = selected.members || [];
+          const ROLE_TO_SVC: Record<string, string> = { 'Paid Ads Manager': 'paid-advertising', 'Social Media Manager': 'social-media', 'SEO': 'seo', 'Creative': 'creative' };
+
+          return (
+            <div className="flex gap-4 min-h-[600px]">
+              {/* Left: team list */}
+              <div className="w-72 shrink-0 rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
+                <div className="px-4 py-3 border-b border-border/10">
+                  <p className="text-[11px] font-medium text-muted-foreground/60">Teams</p>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {teamRows.map(({ team, slug, style, clients: tc }) => {
+                    const isSelected = slug === (selectedTeamSlug || teamRows[0]?.slug);
+                    const bd = calcMonthlyBreakdown(tc, contractItems, startOfMonth(new Date()));
+                    const rowTotal = bd.recurringTotal + bd.projectTotal;
+                    return (
+                      <button
+                        key={team.id}
+                        onClick={() => setSelectedTeamSlug(slug)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/10 transition-colors ${
+                          isSelected ? 'bg-muted/30 border-l-2 border-l-primary' : 'hover:bg-muted/15'
+                        }`}
+                      >
+                        {style && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: style.color }} />}
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="text-[13px] font-semibold truncate">{team.name}</p>
+                          <p className="text-[11px] text-muted-foreground/60">{tc.length} client{tc.length !== 1 ? 's' : ''} · {(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</p>
+                        </div>
+                        <p className="text-[12px] font-medium text-right shrink-0">£{Math.round(rowTotal).toLocaleString()}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Right: selected team detail */}
+              <div className="flex-1 rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
+                {/* Team header */}
+                <div className="px-6 py-4 border-b border-border/10">
+                  <div className="flex items-center gap-3">
+                    {selected.style && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selected.style.color }} />}
+                    <div>
+                      <h2 className="text-[18px] font-bold">{selected.team.name}</h2>
+                      <p className="text-[13px] text-muted-foreground/60">
+                        {selected.clients.length} client{selected.clients.length !== 1 ? 's' : ''} · {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="ml-auto text-right">
+                      <p className="text-[20px] font-bold">£{Math.round(teamBilling).toLocaleString()}/mo</p>
+                      {teamTarget > 0 && (
+                        <p className={`text-[12px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                          {Math.round(teamPct)}% capacity
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                  {/* Forecast */}
+                  <div className="px-6 py-4 border-b border-border/10">
+                    <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">6-month forecast</p>
+                    <ForecastChart
+                      data={selected.forecastData}
+                      color={selected.style?.color || 'var(--primary)'}
+                      mode="currency"
+                      capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
+                    />
+                  </div>
+
+                  {/* Service breakdown */}
+                  <div className="px-6 py-4 border-b border-border/10">
+                    <MonthlyBillingSection
+                      teamClients={selected.clients}
+                      contractItems={contractItems}
+                      capacityTargets={capacityTargets}
+                      teamColor={selected.style?.color || 'var(--primary)'}
+                    />
+                  </div>
+
+                  {/* Members */}
+                  <div className="px-6 py-4 border-b border-border/10">
+                    <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Members ({teamMembers.length})</p>
+                    <div className="space-y-1">
+                      {teamMembers.map(member => {
+                        const colorClass = getAssigneeColor(member.full_name, selected.slug);
+                        const items = contractItems.filter(i => i.assignee_id === member.id && i.is_active);
+                        const memberBilling = items.reduce((s, i) => s + (i.monthly_value || 0), 0);
+                        const svc = member.role?.name ? ROLE_TO_SVC[member.role.name] : undefined;
+                        const memberTarget = svc ? (capacityTargets[svc] || 0) : 0;
+                        const memberPct = memberTarget > 0 ? (memberBilling / memberTarget) * 100 : 0;
+                        return (
+                          <button
+                            key={member.id}
+                            onClick={() => { setSelectedMember({ id: member.id, name: member.full_name, team: selected.slug, roleName: member.role?.name }); setDrillDownOpen(true); }}
+                            className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
+                          >
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${colorClass}`}>
+                              {member.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </div>
+                            <div className="min-w-0 flex-1 text-left">
+                              <p className="text-[13px] font-medium truncate">{member.full_name}</p>
+                              <p className="text-[11px] text-muted-foreground/60">{member.role?.name || 'Team Member'}</p>
+                            </div>
+                            {memberBilling > 0 && (
+                              <div className="text-right shrink-0">
+                                <p className="text-[12px] font-medium">£{Math.round(memberBilling).toLocaleString()}</p>
+                                {memberTarget > 0 && (
+                                  <p className={`text-[10px] ${memberPct < 80 ? 'text-emerald-500' : memberPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                                    {Math.round(memberPct)}%
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Active Clients */}
+                  <div className="px-6 py-4">
+                    <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Active clients ({selected.clients.length})</p>
+                    <div className="space-y-1">
+                      {selected.clients.map(client => {
+                        const rev = contractRevenueByClient[client.id] || 0;
+                        return (
+                          <Link key={client.id} href={`/clients/${client.id}`}
+                            className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/20 transition-colors"
+                          >
+                            <span className="text-[13px]">{client.name}</span>
+                            {rev > 0 && <span className="text-[12px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : viewTab === 'members' ? (
         /* Members table view */
         loading ? (
           <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-12 bg-muted/20 rounded-lg animate-pulse" />)}</div>
