@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { getServiceStyle, getAssigneeColor } from '@/lib/constants';
+import { ForecastChart } from '@/components/forecast-chart';
 import Link from 'next/link';
+import { startOfMonth, addMonths, isWithinInterval, endOfMonth, differenceInDays } from 'date-fns';
 
 interface ContractLineItem {
   id: string;
@@ -13,6 +15,8 @@ interface ContractLineItem {
   is_active: boolean;
   billing_type: string;
   assignee_id: string | null;
+  start_date: string | null;
+  end_date: string | null;
 }
 
 interface Client {
@@ -56,6 +60,7 @@ export function MemberDrillDownSheet({
   capacityTargets = {},
 }: MemberDrillDownSheetProps) {
   const [assignments, setAssignments] = useState<MemberAssignment[]>([]);
+  const [rawItems, setRawItems] = useState<ContractLineItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -96,7 +101,10 @@ export function MemberDrillDownSheet({
           billingType: item.billing_type,
         }));
 
-        if (!cancelled) setAssignments(mapped);
+        if (!cancelled) {
+          setAssignments(mapped);
+          setRawItems(memberItems);
+        }
       } catch (error) {
         console.error('Failed to fetch assignments:', error);
       } finally {
@@ -233,6 +241,56 @@ export function MemberDrillDownSheet({
                   </p>
                 )}
               </div>
+
+              {/* 6-month forecast */}
+              {rawItems.length > 0 && (
+                <div className="py-1">
+                  <ForecastChart
+                    data={(() => {
+                      const months = Array.from({ length: 6 }, (_, i) => addMonths(startOfMonth(new Date()), i));
+                      return months.map(month => {
+                        const monthEnd = endOfMonth(month);
+                        const daysInMonth = differenceInDays(monthEnd, month) + 1;
+                        let monthTotal = 0;
+                        const svcMap = new Map<string, number>();
+                        for (const item of rawItems) {
+                          let amount = 0;
+                          if (item.billing_type === 'recurring') {
+                            // Active recurring: check if not expired
+                            if (item.end_date && new Date(item.end_date) < month) continue;
+                            if (item.start_date && new Date(item.start_date) > monthEnd) continue;
+                            amount = item.monthly_value || 0;
+                          } else {
+                            // Project: pro-rata based on overlap
+                            if (!item.start_date || !item.end_date) continue;
+                            const pStart = new Date(item.start_date);
+                            const pEnd = new Date(item.end_date);
+                            if (pEnd < month || pStart > monthEnd) continue;
+                            const overlapStart = pStart > month ? pStart : month;
+                            const overlapEnd = pEnd < monthEnd ? pEnd : monthEnd;
+                            const overlapDays = differenceInDays(overlapEnd, overlapStart) + 1;
+                            const totalDays = differenceInDays(pEnd, pStart) + 1;
+                            amount = totalDays > 0 ? ((item.monthly_value || 0) / totalDays) * overlapDays : 0;
+                          }
+                          monthTotal += amount;
+                          svcMap.set(item.service, (svcMap.get(item.service) || 0) + amount);
+                        }
+                        return {
+                          month,
+                          total: mode === 'percentage' && effectiveTarget > 0 ? (monthTotal / effectiveTarget) * 100 : monthTotal,
+                          breakdown: Array.from(svcMap.entries()).map(([service, amt]) => ({
+                            service,
+                            amount: mode === 'percentage' && effectiveTarget > 0 ? (amt / effectiveTarget) * 100 : amt,
+                          })),
+                        };
+                      });
+                    })()}
+                    color="var(--primary)"
+                    mode={mode}
+                    capacityTarget={mode === 'currency' ? effectiveTarget : 100}
+                  />
+                </div>
+              )}
 
               {/* Recurring breakdown */}
               {recurringBreakdown.length > 0 && (
