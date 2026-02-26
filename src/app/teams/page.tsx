@@ -685,9 +685,9 @@ export default function TeamsPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto overflow-x-visible">
+                <div className="flex-1 overflow-y-auto">
                   {/* Forecast — full width, always expanded */}
-                  <div className="px-5 py-3 border-b border-border/10 relative overflow-visible">
+                  <div className="px-5 pt-10 pb-3 border-b border-border/10 relative">
                     <ForecastChart
                       data={selected.forecastData}
                       color={selected.style?.color || 'var(--primary)'}
@@ -700,7 +700,7 @@ export default function TeamsPage() {
                   </div>
 
                   {/* Two-column: services | clients */}
-                  <div className="flex flex-wrap">
+                  <div className="flex">
                     {/* Left: service breakdown for selected month */}
                     <div className="flex-1 min-w-0 px-5 py-3">
                       <div className="mb-3">
@@ -773,8 +773,10 @@ export default function TeamsPage() {
                       </div>
                     </div>
 
-                    {/* Members — spans full width of services+clients area */}
-                    <div className="basis-full px-5 py-3 border-t border-border/10">
+                  </div>
+
+                  {/* Members — matches width of services+clients above */}
+                  <div className="px-5 py-3 border-t border-border/10">
                     <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Members ({teamMembers.length})</p>
                     <div className="grid grid-cols-2 gap-1">
                       {teamMembers.map(member => {
@@ -811,7 +813,6 @@ export default function TeamsPage() {
                       })}
                     </div>
                   </div>
-                </div>
                 </div>
               </div>
             </div>
