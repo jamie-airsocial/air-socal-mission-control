@@ -54,8 +54,8 @@ function BoardContent() {
   const { users } = useUsers();
 
   useEffect(() => {
-    fetch('/api/services').then(r => r.json()).then((data: { slug: string }[]) => {
-      setAvailableServices((data || []).map(s => s.slug).sort());
+    fetch('/api/services').then(r => r.json()).then((data: { id: string }[]) => {
+      setAvailableServices((data || []).map(s => s.id).sort());
     }).catch(() => {});
   }, []);
 
