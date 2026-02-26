@@ -8,7 +8,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const allowedFields = ['service', 'description', 'monthly_value', 'start_date', 'end_date', 'is_active'];
+  const allowedFields = ['service', 'description', 'monthly_value', 'start_date', 'end_date', 'is_active', 'assignee_id'];
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   for (const key of allowedFields) {
@@ -19,7 +19,7 @@ export async function PATCH(
     .from('contract_line_items')
     .update(updates)
     .eq('id', id)
-    .select()
+    .select('*, assignee:app_users(id, full_name)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

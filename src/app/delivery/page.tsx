@@ -5,6 +5,8 @@ import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants
 import Link from 'next/link';
 import { ArrowUpDown, ChevronRight, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths } from 'date-fns';
+import { ForecastChart } from '@/components/forecast-chart';
+import { MemberDrillDownSheet } from '@/components/member-drill-down-sheet';
 
 interface TeamMember {
   id: string;
@@ -329,6 +331,8 @@ export default function DeliveryPage() {
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
   const [capacityTargets, setCapacityTargets] = useState<CapacityTargets>({});
   const [loading, setLoading] = useState(true);
+  const [drillDownOpen, setDrillDownOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; team: string } | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -357,13 +361,33 @@ export default function DeliveryPage() {
 
   const maxMembers = Math.max(...teams.map(t => t.members?.length ?? 0), 0);
 
+  // Calculate 6-month forecast for a team (percentage mode)
+  const calcForecastData = (teamClients: Client[]) => {
+    const totalTarget = Object.values(capacityTargets).reduce((sum, t) => sum + t, 0);
+    const months = Array.from({ length: 6 }, (_, i) => addMonths(startOfMonth(new Date()), i));
+    
+    return months.map(month => {
+      const capacity = calcMonthlyCapacity(teamClients, contractItems, month, capacityTargets);
+      const total = capacity.totalPercentage;
+      
+      // Service breakdown for tooltip (in percentage)
+      const serviceBreakdown = capacity.services.map(s => ({
+        service: s.service,
+        amount: s.percentage,
+      }));
+
+      return { month, total, breakdown: serviceBreakdown };
+    });
+  };
+
   const teamRows = teams.map(team => {
     const slug = team.name.toLowerCase();
     const style = getTeamStyle(slug);
     const teamClients = activeClients.filter(c => c.team === slug);
     const members = team.members || [];
+    const forecastData = calcForecastData(teamClients);
 
-    return { team, slug, style, clients: teamClients, members };
+    return { team, slug, style, clients: teamClients, members, forecastData };
   });
 
   return (
@@ -387,7 +411,7 @@ export default function DeliveryPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {teamRows.map(({ team, slug, style, clients: teamClients, members }) => (
+          {teamRows.map(({ team, slug, style, clients: teamClients, members, forecastData }) => (
             <div key={team.id} className="rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
               {/* Colour top bar */}
               <div
@@ -416,6 +440,15 @@ export default function DeliveryPage() {
                 teamColor={style?.color || 'var(--primary)'}
               />
 
+              {/* 6-month forecast (percentage mode) */}
+              <div className="px-4 py-3 border-b border-border/10">
+                <ForecastChart
+                  data={forecastData}
+                  color={style?.color || 'var(--primary)'}
+                  mode="percentage"
+                />
+              </div>
+
               {/* Members */}
               <div className="p-4 border-b border-border/10">
                 <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">
@@ -427,20 +460,24 @@ export default function DeliveryPage() {
                   ) : members.map(member => {
                     const colorClass = getAssigneeColor(member.full_name, slug);
                     return (
-                      <div
+                      <button
                         key={member.id}
-                        className="flex items-center gap-2.5 p-2 -mx-2 rounded-lg border border-transparent hover:border-border/20 hover:bg-muted/30 transition-all duration-150"
+                        onClick={() => {
+                          setSelectedMember({ id: member.id, name: member.full_name, team: slug });
+                          setDrillDownOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 p-2 -mx-2 rounded-lg border border-transparent hover:border-border/20 hover:bg-muted/30 transition-all duration-150 cursor-pointer"
                       >
                         <div
                           className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${colorClass}`}
                         >
                           {getInitials(member.full_name)}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 text-left">
                           <p className="text-[13px] font-medium truncate">{member.full_name}</p>
                           <p className="text-[11px] text-muted-foreground/60">{member.role?.name || 'Team Member'}</p>
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -458,6 +495,19 @@ export default function DeliveryPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Member drill-down sheet */}
+      {selectedMember && (
+        <MemberDrillDownSheet
+          open={drillDownOpen}
+          onOpenChange={setDrillDownOpen}
+          memberId={selectedMember.id}
+          memberName={selectedMember.name}
+          memberTeam={selectedMember.team}
+          mode="percentage"
+          capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
+        />
       )}
     </div>
   );

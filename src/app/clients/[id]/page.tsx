@@ -99,6 +99,8 @@ interface ContractLineItem {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  assignee_id?: string | null;
+  assignee?: { id: string; full_name: string } | null;
 }
 
 /** Base known services + any extras found in billing data */
@@ -212,6 +214,7 @@ interface LineItemFormData {
   start_date: string;
   end_date: string;
   is_active: boolean;
+  assignee_id: string;
 }
 
 const emptyLineItem: LineItemFormData = {
@@ -222,6 +225,7 @@ const emptyLineItem: LineItemFormData = {
   start_date: '',
   end_date: '',
   is_active: true,
+  assignee_id: '',
 };
 
 function LineItemDialog({
@@ -240,9 +244,12 @@ function LineItemDialog({
   const [services, setServices] = useState<{ id: string; label: string }[]>([]);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [serviceSearch, setServiceSearch] = useState('');
+  const [users, setUsers] = useState<Array<{ id: string; full_name: string; team: string | null; is_active: boolean }>>([]);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
 
   useEffect(() => {
     fetch('/api/services').then(r => r.json()).then(d => { if (Array.isArray(d)) setServices(d); }).catch(() => {});
+    fetch('/api/users').then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d.filter((u: { is_active: boolean }) => u.is_active)); }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -255,6 +262,7 @@ function LineItemDialog({
         start_date: toISODateString(initialData.start_date),
         end_date: toISODateString(initialData.end_date),
         is_active: initialData.is_active,
+        assignee_id: (initialData as any).assignee_id || '',
       } : emptyLineItem);
       setServiceSearch('');
     }
@@ -336,6 +344,43 @@ function LineItemDialog({
             <Label className="text-[13px] text-muted-foreground">Description</Label>
             <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Brief description" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Delivery person</Label>
+            <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-secondary border border-border/20 rounded-md flex items-center justify-between hover:bg-muted/40 transition-colors">
+                  {form.assignee_id ? (users.find(u => u.id === form.assignee_id)?.full_name || 'Unknown') : <span className="text-muted-foreground/40">Unassigned</span>}
+                  <ChevronDown size={14} className="text-muted-foreground/40" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
+                <div className="max-h-[200px] overflow-y-auto">
+                  <button
+                    type="button"
+                    onClick={() => { setForm(f => ({ ...f, assignee_id: '' })); setAssigneeOpen(false); }}
+                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${!form.assignee_id ? 'bg-muted/40' : ''}`}
+                  >
+                    <span className="text-muted-foreground/60">Unassigned</span>
+                    {!form.assignee_id && <Check size={14} className="text-primary" />}
+                  </button>
+                  {users.map(u => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => { setForm(f => ({ ...f, assignee_id: u.id })); setAssigneeOpen(false); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.assignee_id === u.id ? 'bg-muted/40' : ''}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{u.full_name}</span>
+                        {u.team && <span className="text-[10px] text-muted-foreground/40 capitalize">({u.team})</span>}
+                      </div>
+                      {form.assignee_id === u.id && <Check size={14} className="text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">Billing type *</Label>
@@ -1020,6 +1065,7 @@ export default function ClientDetailPage() {
                   <TableRow className="border-border/20 hover:bg-transparent">
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Service</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Description</TableHead>
+                    <TableHead className="text-[12px] text-muted-foreground font-medium">Assignee</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Type</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Value (£)</TableHead>
                     <TableHead className="text-[12px] text-muted-foreground font-medium">Start</TableHead>
@@ -1034,6 +1080,13 @@ export default function ClientDetailPage() {
                     <TableRow key={item.id} className={`border-border/20 hover:bg-secondary/30 transition-colors ${!item.is_active ? 'opacity-50' : ''}`}>
                       <TableCell className="text-[13px] font-medium">{getServiceStyle(item.service).label}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
+                      <TableCell className="text-[13px] text-muted-foreground">
+                        {item.assignee ? (
+                          <span className="text-[13px]">{item.assignee.full_name}</span>
+                        ) : (
+                          <span className="text-muted-foreground/40">Unassigned</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${BILLING_TYPE_STYLES[item.billing_type]?.bg || 'bg-muted/20'} ${BILLING_TYPE_STYLES[item.billing_type]?.text || 'text-muted-foreground'}`}>
                           {item.billing_type === 'one-off' ? 'One-off' : 'Recurring'}

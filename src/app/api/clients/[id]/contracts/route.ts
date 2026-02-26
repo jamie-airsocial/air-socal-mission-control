@@ -9,7 +9,7 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from('contract_line_items')
-    .select('*')
+    .select('*, assignee:app_users(id, full_name)')
     .eq('client_id', id)
     .order('created_at', { ascending: true });
 
@@ -24,7 +24,7 @@ export async function POST(
   const { id } = await params;
   const body = await request.json();
 
-  const { service, description, monthly_value, billing_type, start_date, end_date, is_active } = body;
+  const { service, description, monthly_value, billing_type, start_date, end_date, is_active, assignee_id } = body;
 
   if (!service) {
     return NextResponse.json({ error: 'service is required' }, { status: 400 });
@@ -41,8 +41,9 @@ export async function POST(
       start_date: start_date || null,
       end_date: end_date || null,
       is_active: is_active !== undefined ? is_active : true,
+      assignee_id: assignee_id || null,
     })
-    .select()
+    .select('*, assignee:app_users(id, full_name)')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
