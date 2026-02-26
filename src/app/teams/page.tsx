@@ -88,6 +88,7 @@ interface ServiceClientDetail {
   amount: number;
   start_date?: string | null;
   end_date?: string | null;
+  billingType?: 'recurring' | 'one-off';
 }
 
 interface ServiceRow {
@@ -128,12 +129,12 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
         const alloc = projectAllocationForMonth(item, month);
         if (alloc > 0) {
           if (!projectByService[item.service]) projectByService[item.service] = [];
-          projectByService[item.service].push({ clientId: client.id, clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date });
+          projectByService[item.service].push({ clientId: client.id, clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date, billingType: 'one-off' });
         }
       } else {
         if (recurringActiveInMonth(item, month)) {
           if (!recurringByService[item.service]) recurringByService[item.service] = [];
-          recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: item.monthly_value || 0 });
+          recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: item.monthly_value || 0, billingType: 'recurring' });
         }
       }
     }
@@ -156,7 +157,7 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
   };
 }
 
-function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal, capacityTargets }: { row: ServiceRow; total: number; teamColor: string; isProject?: boolean; capacityTotal?: number; capacityTargets?: Record<string, number> }) {
+function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTargets }: { row: ServiceRow; total: number; teamColor: string; capacityTotal?: number; capacityTargets?: Record<string, number> }) {
   const [expanded, setExpanded] = useState(false);
   const s = getServiceStyle(row.service);
   // Use per-service capacity target if available, else fall back to total
@@ -176,7 +177,7 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal, 
           </span>
           <span className="text-[11px] font-medium flex items-center gap-1.5">
             £{Math.round(row.amount).toLocaleString()}
-            {!isProject && svcTarget > 0 && (
+            {svcTarget > 0 && (
               <span className={`text-[10px] font-normal ${capacityPct < 80 ? 'text-emerald-500' : capacityPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                 {Math.round(capacityPct)}%
               </span>
@@ -186,37 +187,49 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal, 
         <div className="h-1 rounded-full bg-muted/30 overflow-hidden ml-4">
           <div
             className="h-full rounded-full"
-            style={{ width: `${isProject ? Math.max((row.amount / total) * 100, 3) : Math.min(Math.max(capacityPct, 3), 100)}%`, backgroundColor: teamColor, opacity: 0.6 }}
+            style={{ width: `${Math.min(Math.max(capacityPct, 3), 100)}%`, backgroundColor: teamColor, opacity: 0.6 }}
           />
         </div>
       </button>
-      {expanded && row.clients.length > 0 && (
-        <div className="ml-5 mt-1 mb-1 space-y-0.5">
-          {row.clients.map((c, i) => {
-            const clientCapPct = svcTarget > 0 ? (c.amount / svcTarget) * 100 : 0;
-            return (
+      {expanded && row.clients.length > 0 && (() => {
+        const recurringClients = row.clients.filter(c => c.billingType !== 'one-off');
+        const projectClients = row.clients.filter(c => c.billingType === 'one-off');
+
+        const renderClient = (c: ServiceClientDetail, i: number, showCapacity: boolean) => {
+          const clientCapPct = svcTarget > 0 ? (c.amount / svcTarget) * 100 : 0;
+          return (
             <Link key={i} href={`/clients/${c.clientId}`} className="flex items-center justify-between group/client py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors">
               <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
                 {c.clientName}
-                {isProject && (
+                {c.billingType === 'one-off' && c.start_date && c.end_date && (
                   <span className="text-muted-foreground/30 ml-1 group-hover/client:text-muted-foreground/50">
-                    {c.start_date && c.end_date
-                      ? `(${format(new Date(c.start_date), 'dd MMM yy')} – ${format(new Date(c.end_date), 'dd MMM yy')})`
-                      : '(no dates set)'}
+                    ({format(new Date(c.start_date), 'dd MMM yy')} – {format(new Date(c.end_date), 'dd MMM yy')})
                   </span>
                 )}
               </span>
               <span className="text-[10px] text-muted-foreground/40 shrink-0 group-hover/client:text-foreground transition-colors">
                 £{Math.round(c.amount).toLocaleString()}
-                {!isProject && svcTarget > 0 && (
+                {showCapacity && svcTarget > 0 && (
                   <span className="ml-1 text-muted-foreground/30">{Math.round(clientCapPct)}%</span>
                 )}
               </span>
             </Link>
-            );
-          })}
-        </div>
-      )}
+          );
+        };
+
+        return (
+          <div className="ml-5 mt-1 mb-1 space-y-0.5">
+            {recurringClients.map((c, i) => renderClient(c, i, true))}
+            {projectClients.length > 0 && (
+              <>
+                {recurringClients.length > 0 && <div className="h-px bg-border/10 my-1" />}
+                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
+                {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -298,37 +311,32 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
         )}
       </div>
 
-      {/* Recurring */}
-      {breakdown.recurring.length > 0 && (
-        <div className="mb-2">
-          <p className="text-[11px] font-semibold text-muted-foreground/60 mb-1.5">
-            Recurring · £{Math.round(breakdown.recurringTotal).toLocaleString()}
-          </p>
+      {/* Combined services */}
+      {(() => {
+        // Merge recurring and project by service
+        const combined: Record<string, ServiceRow> = {};
+        for (const row of breakdown.recurring) {
+          if (!combined[row.service]) combined[row.service] = { service: row.service, amount: 0, clients: [] };
+          combined[row.service].amount += row.amount;
+          combined[row.service].clients.push(...row.clients);
+        }
+        for (const row of breakdown.project) {
+          if (!combined[row.service]) combined[row.service] = { service: row.service, amount: 0, clients: [] };
+          combined[row.service].amount += row.amount;
+          combined[row.service].clients.push(...row.clients);
+        }
+        const combinedRows = Object.values(combined).sort((a, b) => b.amount - a.amount);
+
+        return combinedRows.length > 0 ? (
           <div className="space-y-1">
-            {breakdown.recurring.map(row => (
+            {combinedRows.map(row => (
               <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} capacityTotal={totalTarget} capacityTargets={capacityTargets} />
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Project work */}
-      {breakdown.project.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold text-muted-foreground/60 mb-1.5">
-            Project · £{Math.round(breakdown.projectTotal).toLocaleString()}
-          </p>
-          <div className="space-y-1">
-            {breakdown.project.map(row => (
-              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} isProject capacityTotal={totalTarget} capacityTargets={capacityTargets} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {breakdown.recurring.length === 0 && breakdown.project.length === 0 && breakdown.undated.length === 0 && (
-        <p className="text-[12px] text-muted-foreground/40 italic">No billing this month</p>
-      )}
+        ) : breakdown.undated.length === 0 ? (
+          <p className="text-[12px] text-muted-foreground/40 italic">No billing this month</p>
+        ) : null;
+      })()}
 
       {/* Undated projects warning */}
       {breakdown.undated.length > 0 && (
