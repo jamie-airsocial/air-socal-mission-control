@@ -26,6 +26,12 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import dynamic from 'next/dynamic';
+
+const TaskDescriptionEditor = dynamic(
+  () => import('@/components/board/task-description-editor').then(mod => ({ default: mod.TaskDescriptionEditor })),
+  { ssr: false, loading: () => <div className="h-[100px] rounded-lg bg-muted/20 animate-pulse" /> }
+);
 
 interface ClientRow {
   id: string;
@@ -129,6 +135,13 @@ function MembersMultiSelect({
 }
 
 /* ── Client Sheet (new / edit) ─────────────────────────────────────────────── */
+interface LineItemDraft {
+  service: string;
+  description: string;
+  monthly_value: string;
+  billing_type: 'recurring' | 'one-off';
+}
+
 interface ClientFormState {
   name: string;
   team: string;
@@ -140,7 +153,10 @@ interface ClientFormState {
   contact_email: string;
   contact_phone: string;
   website: string;
+  line_items: LineItemDraft[];
 }
+
+const emptyLineItem: LineItemDraft = { service: '', description: '', monthly_value: '', billing_type: 'recurring' };
 
 const emptyClientForm: ClientFormState = {
   name: '',
@@ -153,6 +169,7 @@ const emptyClientForm: ClientFormState = {
   contact_email: '',
   contact_phone: '',
   website: '',
+  line_items: [],
 };
 
 function ClientSheet({
@@ -190,6 +207,7 @@ function ClientSheet({
           contact_email: (editClient as unknown as { contact_email?: string }).contact_email || '',
           contact_phone: (editClient as unknown as { contact_phone?: string }).contact_phone || '',
           website: (editClient as unknown as { website?: string }).website || '',
+          line_items: [],
         });
       } else {
         setForm(emptyClientForm);
@@ -229,6 +247,26 @@ function ClientSheet({
           body: JSON.stringify(payload),
         });
         if (!res.ok) { toast.error('Failed to create client'); return; }
+        const newClient = await res.json();
+
+        // Create billing line items if any
+        const validItems = form.line_items.filter(li => li.service && parseFloat(li.monthly_value) > 0);
+        if (validItems.length > 0 && newClient.id) {
+          await Promise.all(validItems.map(li =>
+            fetch(`/api/clients/${newClient.id}/contracts`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                service: li.service,
+                description: li.description || null,
+                monthly_value: parseFloat(li.monthly_value),
+                billing_type: li.billing_type,
+                is_active: true,
+              }),
+            })
+          ));
+        }
+
         toast.success(`${form.name} added to clients`);
       }
       onOpenChange(false);
@@ -355,12 +393,12 @@ function ClientSheet({
             </Popover>
           </div>
 
-          {/* Assigned Members */}
+          {/* Account Manager */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] text-muted-foreground/60">Assigned Members</Label>
+            <Label className="text-[11px] text-muted-foreground/60">Account Manager</Label>
             <MembersMultiSelect
               selected={form.assigned_members}
-              onChange={v => setForm(f => ({ ...f, assigned_members: v }))}
+              onChange={v => setForm(f => ({ ...f, assigned_members: v.length > 0 ? [v[v.length - 1]] : [] }))}
               users={users}
             />
           </div>
@@ -392,11 +430,6 @@ function ClientSheet({
 
           {/* Divider */}
           <div className="border-t border-border/20 -mx-5 my-4" />
-
-          {/* Contact Details Section */}
-          <div className="space-y-1 -mb-2">
-            <p className="text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider">Contact Details</p>
-          </div>
 
           {/* Contact Name */}
           <div className="space-y-1.5">
@@ -448,14 +481,108 @@ function ClientSheet({
           {/* Divider */}
           <div className="border-t border-border/20 -mx-5 my-4" />
 
+          {/* Billing Line Items */}
+          {!editClient && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] text-muted-foreground/60">Billing</Label>
+                <button
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, line_items: [...f.line_items, { ...emptyLineItem }] }))}
+                  className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors"
+                >
+                  <Plus size={12} /> Add item
+                </button>
+              </div>
+              {form.line_items.map((li, idx) => {
+                const svc = getServiceStyle(li.service);
+                return (
+                  <div key={idx} className="rounded-lg border border-border/20 bg-muted/10 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={li.service}
+                        onChange={e => {
+                          const items = [...form.line_items];
+                          items[idx] = { ...items[idx], service: e.target.value };
+                          setForm(f => ({ ...f, line_items: items }));
+                        }}
+                        className="flex-1 h-8 px-2 text-[13px] rounded-md border border-border/20 bg-secondary"
+                      >
+                        <option value="">Service…</option>
+                        {Object.entries(SERVICE_STYLES).map(([key, s]) => (
+                          <option key={key} value={key}>{s.label}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={li.billing_type}
+                        onChange={e => {
+                          const items = [...form.line_items];
+                          items[idx] = { ...items[idx], billing_type: e.target.value as 'recurring' | 'one-off' };
+                          setForm(f => ({ ...f, line_items: items }));
+                        }}
+                        className="w-[110px] h-8 px-2 text-[13px] rounded-md border border-border/20 bg-secondary"
+                      >
+                        <option value="recurring">Recurring</option>
+                        <option value="one-off">One-off</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, line_items: f.line_items.filter((_, i) => i !== idx) }))}
+                        className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground/40">£</span>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={li.monthly_value}
+                          onChange={e => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            const items = [...form.line_items];
+                            items[idx] = { ...items[idx], monthly_value: val };
+                            setForm(f => ({ ...f, line_items: items }));
+                          }}
+                          placeholder="0.00"
+                          className="w-full h-8 pl-6 pr-2 text-[13px] rounded-md border border-border/20 bg-secondary"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={li.description}
+                        onChange={e => {
+                          const items = [...form.line_items];
+                          items[idx] = { ...items[idx], description: e.target.value };
+                          setForm(f => ({ ...f, line_items: items }));
+                        }}
+                        placeholder="Description (optional)"
+                        className="flex-1 h-8 px-2 text-[13px] rounded-md border border-border/20 bg-secondary"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {form.line_items.length > 0 && (
+                <p className="text-[11px] text-muted-foreground/40 text-right">
+                  Total: £{form.line_items.reduce((s, li) => s + (parseFloat(li.monthly_value) || 0), 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Divider */}
+          <div className="border-t border-border/20 -mx-5 my-4" />
+
           {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Notes</Label>
-            <Textarea
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            <TaskDescriptionEditor
+              content={form.notes}
+              onChange={v => setForm(f => ({ ...f, notes: v }))}
               placeholder="Any notes about this client…"
-              className="text-[13px] min-h-[80px] resize-none"
             />
           </div>
         </div>
