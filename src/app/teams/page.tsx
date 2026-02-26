@@ -528,7 +528,7 @@ export default function TeamsPage() {
     return { team, slug, style, clients: teamClients, members, forecastData };
   });
 
-  const [viewTab, setViewTab] = useState<'teams' | 'members' | 'split'>('teams');
+  const [viewTab, setViewTab] = useState<'teams' | 'members'>('teams');
   const [memberSort, setMemberSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'billing', dir: 'desc' });
   const [selectedTeamSlug, setSelectedTeamSlug] = useState<string | null>(null);
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(0);
@@ -577,13 +577,13 @@ export default function TeamsPage() {
         <div className="flex items-center justify-between mt-1">
           <div className="flex items-center gap-4">
             <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
-              {(['teams', 'members', 'split'] as const).map(tab => (
-                <button key={tab} onClick={() => { setViewTab(tab); if (tab === 'split' && !selectedTeamSlug && teamRows.length > 0) setSelectedTeamSlug(teamRows[0].slug); }}
+              {(['teams', 'members'] as const).map(tab => (
+                <button key={tab} onClick={() => { setViewTab(tab); if (tab === 'teams' && !selectedTeamSlug && teamRows.length > 0) setSelectedTeamSlug(teamRows[0].slug); }}
                   className={`h-7 px-3 rounded-md text-[12px] font-medium transition-all duration-150 ${
                     viewTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {tab === 'teams' ? 'Teams' : tab === 'members' ? 'Members' : 'Split'}
+                  {tab === 'teams' ? 'Teams' : 'Members'}
                 </button>
               ))}
             </div>
@@ -599,8 +599,8 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      {viewTab === 'split' ? (
-        /* Split view: team list left, selected team detail right */
+      {viewTab === 'teams' ? (
+        /* Teams view: team list left, selected team detail right */
         loading ? (
           <div className="flex gap-4"><div className="w-72 h-96 bg-muted/20 rounded-lg animate-pulse" /><div className="flex-1 h-96 bg-muted/20 rounded-lg animate-pulse" /></div>
         ) : (() => {
@@ -934,93 +934,7 @@ export default function TeamsPage() {
           <p className="text-[13px] font-medium text-muted-foreground">No teams yet</p>
           <p className="text-[13px] text-muted-foreground/60 mt-1">Create teams in Admin → Teams</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {teamRows.map(({ team, slug, style, clients: teamClients, members, forecastData }) => (
-            <div key={team.id} className="rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
-              {/* Colour top bar */}
-              <div
-                className="h-1 w-full"
-                style={{ backgroundColor: style?.color || 'var(--border)' }}
-              />
-
-              {/* Team header */}
-              <div className="px-4 py-3 border-b border-border/10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {style && <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: style.color }} />}
-                    <h2 className="text-[13px] font-semibold">{team.name}</h2>
-                  </div>
-                  <span className="text-[11px] text-muted-foreground/60">{teamClients.length} client{teamClients.length !== 1 ? 's' : ''}</span>
-                </div>
-              </div>
-
-              {/* Monthly billing breakdown */}
-              <MonthlyBillingSection
-                teamClients={teamClients}
-                contractItems={contractItems}
-                capacityTargets={capacityTargets}
-                teamColor={style?.color || 'var(--primary)'}
-                showCurrency={showCurrency}
-              />
-
-              {/* 6-month forecast */}
-              <div className="px-4 py-3 border-b border-border/10">
-                <ForecastChart
-                  data={forecastData}
-                  color={style?.color || 'var(--primary)'}
-                  mode={showCurrency ? "currency" : "percentage"}
-                  capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
-                />
-              </div>
-
-              {/* Members — consistent height across cards */}
-              <div className="p-4 border-b border-border/10">
-                <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">
-                  Members ({members.length})
-                </p>
-                <div className="space-y-1" style={{ minHeight: `${maxMembers * 48}px` }}>
-                  {members.length === 0 ? (
-                    <p className="text-[12px] text-muted-foreground/40 italic">No members assigned</p>
-                  ) : members.map(member => {
-                    const colorClass = getAssigneeColor(member.full_name, slug);
-                    return (
-                      <button
-                        key={member.id}
-                        onClick={() => {
-                          setSelectedMember({ id: member.id, name: member.full_name, team: slug, roleName: member.role?.name });
-                          setDrillDownOpen(true);
-                        }}
-                        className="w-full flex items-center gap-2.5 p-2 -mx-2 rounded-lg border border-transparent hover:border-border/20 hover:bg-muted/30 transition-all duration-150 cursor-pointer"
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[11px] font-bold ${colorClass}`}
-                        >
-                          {getInitials(member.full_name)}
-                        </div>
-                        <div className="min-w-0 flex-1 text-left">
-                          <p className="text-[13px] font-medium truncate">{member.full_name}</p>
-                          <p className="text-[11px] text-muted-foreground/60">{member.role?.name || 'Team Member'}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Clients — consistent height across cards */}
-              <div className="p-4 flex-1">
-                <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active Clients</p>
-                {teamClients.length === 0 ? (
-                  <p className="text-[13px] text-muted-foreground/40">No active clients</p>
-                ) : (
-                  <ClientList clients={teamClients} contractRevenueByClient={contractRevenueByClient} showCurrency={showCurrency} />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      ) : null}
 
       {/* Member drill-down sheet */}
       {selectedMember && (
