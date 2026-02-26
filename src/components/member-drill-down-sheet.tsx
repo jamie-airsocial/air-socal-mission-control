@@ -36,6 +36,7 @@ interface MemberDrillDownSheetProps {
   memberTeam: string;
   mode: 'currency' | 'percentage';
   capacityTarget?: number;
+  capacityTargets?: Record<string, number>;
 }
 
 function getInitials(name: string) {
@@ -50,6 +51,7 @@ export function MemberDrillDownSheet({
   memberTeam,
   mode,
   capacityTarget = 0,
+  capacityTargets = {},
 }: MemberDrillDownSheetProps) {
   const [assignments, setAssignments] = useState<MemberAssignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +108,13 @@ export function MemberDrillDownSheet({
   }, [open, memberId]);
 
   const total = assignments.reduce((sum, a) => sum + a.amount, 0);
-  const percentage = capacityTarget > 0 ? (total / capacityTarget) * 100 : 0;
+
+  // Calculate effective capacity target from the member's assigned services
+  const memberServices = [...new Set(assignments.map(a => a.service))];
+  const effectiveTarget = Object.keys(capacityTargets).length > 0
+    ? memberServices.reduce((sum, svc) => sum + (capacityTargets[svc] || 0), 0)
+    : capacityTarget;
+  const percentage = effectiveTarget > 0 ? (total / effectiveTarget) * 100 : 0;
 
   // Group by service
   const byService = assignments.reduce((acc, a) => {
@@ -176,9 +184,9 @@ export function MemberDrillDownSheet({
                     ? `£${Math.round(total).toLocaleString()}/mo`
                     : `${Math.round(percentage)}%`}
                 </p>
-                {mode === 'percentage' && capacityTarget > 0 && (
+                {mode === 'currency' && effectiveTarget > 0 && (
                   <p className="text-[11px] text-muted-foreground/60 mt-1">
-                    £{Math.round(total).toLocaleString()} / £{Math.round(capacityTarget).toLocaleString()}
+                    of £{Math.round(effectiveTarget).toLocaleString()} target
                   </p>
                 )}
               </div>
@@ -192,6 +200,8 @@ export function MemberDrillDownSheet({
                   <div className="space-y-3">
                     {serviceBreakdown.map(({ service, amount, clients }) => {
                       const style = getServiceStyle(service);
+                      const svcTarget = capacityTargets[service] || 0;
+                      const svcPct = svcTarget > 0 ? (amount / svcTarget) * 100 : 0;
                       return (
                         <div key={service} className="space-y-1">
                           <div className="flex items-center justify-between">
@@ -205,7 +215,7 @@ export function MemberDrillDownSheet({
                             <span className="text-[13px] font-bold">
                               {mode === 'currency'
                                 ? `£${Math.round(amount).toLocaleString()}`
-                                : `${capacityTarget > 0 ? Math.round((amount / capacityTarget) * 100) : 0}%`}
+                                : `${Math.round(svcPct)}%`}
                             </span>
                           </div>
                           <div className="ml-4 space-y-0.5">
@@ -221,7 +231,7 @@ export function MemberDrillDownSheet({
                                 <span className="text-[11px] text-muted-foreground/40 group-hover:text-muted-foreground transition-colors">
                                   {mode === 'currency'
                                     ? `£${Math.round(client.amount).toLocaleString()}`
-                                    : `${capacityTarget > 0 ? Math.round((client.amount / capacityTarget) * 100) : 0}%`}
+                                    : `${svcTarget > 0 ? Math.round((client.amount / svcTarget) * 100) : 0}%`}
                                 </span>
                               </Link>
                             ))}

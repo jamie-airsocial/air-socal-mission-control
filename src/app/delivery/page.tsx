@@ -506,7 +506,7 @@ export default function DeliveryPage() {
           memberName={selectedMember.name}
           memberTeam={selectedMember.team}
           mode="percentage"
-          capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
+          capacityTargets={capacityTargets}
         />
       )}
     </div>

@@ -604,7 +604,7 @@ export default function TeamsPage() {
           memberName={selectedMember.name}
           memberTeam={selectedMember.team}
           mode="currency"
-          capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
+          capacityTargets={capacityTargets}
         />
       )}
     </div>
