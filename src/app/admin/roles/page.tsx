@@ -338,56 +338,67 @@ export default function AdminRolesPage() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              {/* Role name row with category headers */}
+              {/* Category header row — only show for categories with 2+ roles */}
+              <tr className="border-b border-border/10">
+                <th className="sticky left-0 z-10 bg-muted/30 border-r border-border/10" />
+                {orderedCategories.map(cat => {
+                  const rolesInCat = rolesByCategory[cat] || [];
+                  if (rolesInCat.length <= 1) {
+                    return <th key={cat} className="border-l border-border/10" />;
+                  }
+                  return (
+                    <th
+                      key={cat}
+                      colSpan={rolesInCat.length}
+                      className={`px-3 py-1.5 text-center text-[11px] font-semibold border-l border-border/10 ${
+                        cat === 'delivery' ? 'text-primary bg-primary/5' : 'text-muted-foreground/50'
+                      }`}
+                    >
+                      {CATEGORY_LABELS[cat] || cat}
+                    </th>
+                  );
+                })}
+              </tr>
+              {/* Role name row */}
               <tr className="border-b border-border/20 bg-muted/30">
-                {/* Sticky permission column header */}
                 <th className="sticky left-0 z-10 bg-muted/30 text-left px-3 py-2 text-[11px] font-semibold text-muted-foreground/60 min-w-[200px] border-r border-border/10">
                   Permission
                 </th>
                 {orderedCategories.map(cat => {
                   const rolesInCat = rolesByCategory[cat] || [];
-                  return rolesInCat.map((role, idx) => {
+                  return rolesInCat.map(role => {
                     const isProtected = PROTECTED_IDS.includes(role.id);
-                    const showCategoryHeader = idx === 0;
+                    const isDelivery = cat === 'delivery';
                     return (
-                      <th key={role.id} className="px-3 py-2 text-center min-w-[140px] border-l border-border/10">
-                        <div className="flex flex-col items-center gap-1">
-                          {/* Category header */}
-                          {showCategoryHeader && (
-                            <span className={`text-[10px] font-semibold mb-0.5 ${cat === 'delivery' ? 'text-primary/70' : 'text-muted-foreground/50'}`}>
-                              {CATEGORY_LABELS[cat] || cat}
-                            </span>
+                      <th key={role.id} className={`px-3 py-2 text-center min-w-[160px] border-l border-border/10 whitespace-nowrap ${isDelivery ? 'bg-primary/5' : ''}`}>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-[13px] font-semibold text-foreground">
+                            {role.name}
+                          </span>
+                          {!isProtected && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground/30 hover:text-muted-foreground transition-colors">
+                                  <MoreHorizontal size={13} />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="center" className="w-40">
+                                <DropdownMenuItem
+                                  onClick={() => openEditDialog(role)}
+                                  className="text-[13px]"
+                                >
+                                  <Pencil size={12} className="mr-2" /> Edit role
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => setDeleteTarget(role)}
+                                  className="text-[13px] text-destructive focus:text-destructive focus:bg-destructive/10"
+                                >
+                                  <Trash2 size={12} className="mr-2" /> Delete role
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           )}
-                          {/* Role name and actions */}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[13px] font-semibold text-foreground">
-                              {role.name}
-                            </span>
-                            {!isProtected && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground/30 hover:text-muted-foreground transition-colors">
-                                    <MoreHorizontal size={13} />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="center" className="w-40">
-                                  <DropdownMenuItem
-                                    onClick={() => openEditDialog(role)}
-                                    className="text-[13px]"
-                                  >
-                                    <Pencil size={12} className="mr-2" /> Edit role
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={() => setDeleteTarget(role)}
-                                    className="text-[13px] text-destructive focus:text-destructive focus:bg-destructive/10"
-                                  >
-                                    <Trash2 size={12} className="mr-2" /> Delete role
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </div>
                         </div>
                       </th>
                     );
@@ -420,8 +431,9 @@ export default function AdminRolesPage() {
                       {/* Toggle cells */}
                       {otherRoles.map(role => {
                         const checked = role.permissions?.[key] === true;
+                        const isDelivery = role.category === 'delivery';
                         return (
-                          <td key={role.id} className="px-3 py-2 text-center border-l border-border/10">
+                          <td key={role.id} className={`px-3 py-2 text-center border-l border-border/10 ${isDelivery ? 'bg-primary/[0.02]' : ''}`}>
                             <PermissionCell
                               checked={checked}
                               disabled={false}
