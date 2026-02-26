@@ -192,7 +192,7 @@ function LineItemDialog({
             <Popover open={serviceOpen} onOpenChange={setServiceOpen}>
               <PopoverTrigger asChild>
                 <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-secondary border border-border/20 rounded-md flex items-center justify-between hover:bg-muted/40 transition-colors">
-                  {form.service ? (services.find(s => s.id === form.service)?.label || form.service) : <span className="text-muted-foreground/40">Select service...</span>}
+                  {form.service ? (services.find(s => s.id === form.service)?.label || form.service) : <span className="text-muted-foreground/40">Select service…</span>}
                   <ChevronDown size={14} className="text-muted-foreground/40" />
                 </button>
               </PopoverTrigger>
@@ -200,7 +200,7 @@ function LineItemDialog({
                 <input
                   value={serviceSearch}
                   onChange={e => setServiceSearch(e.target.value)}
-                  placeholder="Search..."
+                  placeholder="Search or create…"
                   className="w-full px-2 py-1.5 text-[13px] bg-transparent border-b border-border/10 outline-none mb-1"
                   autoFocus
                 />
@@ -216,6 +216,30 @@ function LineItemDialog({
                       {form.service === s.id && <Check size={14} className="text-primary" />}
                     </button>
                   ))}
+                  {serviceSearch.trim() && !services.some(s => s.label.toLowerCase() === serviceSearch.toLowerCase()) && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const slug = serviceSearch.trim().toLowerCase().replace(/\s+/g, '-');
+                        const res = await fetch('/api/services', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: slug, label: serviceSearch.trim() }),
+                        });
+                        if (res.ok) {
+                          const newSvc = await res.json();
+                          setServices(prev => [...prev, newSvc]);
+                          setForm(f => ({ ...f, service: newSvc.id }));
+                          toast.success(`Service "${serviceSearch.trim()}" created`);
+                        } else { toast.error('Failed to create service'); }
+                        setServiceOpen(false);
+                        setServiceSearch('');
+                      }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] text-primary hover:bg-muted/60 transition-colors"
+                    >
+                      <Plus size={12} /> Create &ldquo;{serviceSearch.trim()}&rdquo;
+                    </button>
+                  )}
                 </div>
               </PopoverContent>
             </Popover>
@@ -224,26 +248,6 @@ function LineItemDialog({
             <Label className="text-[13px] text-muted-foreground">Description</Label>
             <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Brief description" className="h-9 text-[13px] bg-secondary border-border/20" />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[13px] text-muted-foreground">Billing type *</Label>
-            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
-              {(['recurring', 'one-off'] as const).map(bt => (
-                <button key={bt} type="button" onClick={() => setForm(f => ({ ...f, billing_type: bt }))}
-                  className={`flex-1 h-8 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
-                    form.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {bt === 'recurring' ? 'Recurring' : 'One-off'}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-[13px] text-muted-foreground">{form.billing_type === 'recurring' ? 'Monthly value' : 'Project value'} *</Label>
-            <Input type="text" inputMode="numeric"
-              value={form.monthly_value} onChange={e => { if (/^\d*\.?\d*$/.test(e.target.value)) setForm(f => ({ ...f, monthly_value: e.target.value })); }}
-              placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">Delivery person</Label>
@@ -315,6 +319,26 @@ function LineItemDialog({
                 </div>
               </PopoverContent>
             </Popover>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Billing type *</Label>
+            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
+              {(['recurring', 'one-off'] as const).map(bt => (
+                <button key={bt} type="button" onClick={() => setForm(f => ({ ...f, billing_type: bt }))}
+                  className={`flex-1 h-8 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                    form.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {bt === 'recurring' ? 'Recurring' : 'One-off'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">{form.billing_type === 'recurring' ? 'Monthly value (£) *' : 'Project value (£) *'}</Label>
+            <Input type="text" inputMode="numeric"
+              value={form.monthly_value} onChange={e => { if (/^\d*\.?\d*$/.test(e.target.value)) setForm(f => ({ ...f, monthly_value: e.target.value })); }}
+              placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
           </div>
         </div>
         <DialogFooter>
