@@ -163,6 +163,8 @@ export const SERVICE_STYLES: Record<string, { icon: string; bg: string; text: st
   'paid-advertising': { icon: 'Target', bg: 'bg-amber-500/10', text: 'text-amber-400', label: 'Paid Advertising', dot: '#fbbf24' },
   'social-media': { icon: 'Share2', bg: 'bg-pink-500/10', text: 'text-pink-400', label: 'Social Media', dot: '#f472b6' },
   'account-management': { icon: 'UserCheck', bg: 'bg-indigo-500/10', text: 'text-indigo-400', label: 'Account Management', dot: '#818cf8' },
+  creative: { icon: 'Palette', bg: 'bg-violet-500/10', text: 'text-violet-400', label: 'Creative', dot: '#a78bfa' },
+  leaflets: { icon: 'FileText', bg: 'bg-sky-500/10', text: 'text-sky-400', label: 'Leaflets', dot: '#38bdf8' },
 };
 
 /** Palette for dynamically-created services (deterministic by slug hash) */
