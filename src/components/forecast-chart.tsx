@@ -91,7 +91,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
 
                 {/* Tooltip */}
                 {isHovered && (
-                  <div className={`absolute top-0 ${tooltipPosition} -mt-2 -translate-y-full z-50 pointer-events-none`}>
+                  <div className={`absolute top-full ${tooltipPosition} mt-2 z-50 pointer-events-none`}>
                     <div className="bg-popover border border-border/20 rounded-lg shadow-lg p-2 min-w-[140px] whitespace-nowrap">
                       <p className="text-[11px] font-medium mb-1.5">
                         {format(point.month, 'MMM yyyy')}
