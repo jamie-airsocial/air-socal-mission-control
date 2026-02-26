@@ -26,19 +26,13 @@ export interface Role {
 }
 
 export interface Permissions {
-  // Page access
+  // Page access — must match Roles & Permissions page
   dashboard?: boolean;
   tasks: boolean;
   clients: boolean;
   pipeline: boolean;
   teams: boolean;
   settings: boolean;
-  // Action permissions
-  manage_users?: boolean;
-  manage_clients?: boolean;
-  manage_tasks?: boolean;
-  manage_prospects?: boolean;
-  manage_billing?: boolean;
 }
 
 export const DEFAULT_PERMISSIONS: Permissions = {
@@ -48,9 +42,4 @@ export const DEFAULT_PERMISSIONS: Permissions = {
   pipeline: true,
   teams: true,
   settings: true,
-  manage_users: true,
-  manage_clients: true,
-  manage_tasks: true,
-  manage_prospects: true,
-  manage_billing: true,
 };

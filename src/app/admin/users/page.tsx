@@ -953,57 +953,40 @@ export default function AdminUsersPage() {
 
             {permissionsTarget && !permissionsTarget.is_admin && (
               <div className="space-y-4 py-2">
-                {/* Page access */}
-                <div className="space-y-2">
-                  <p className="text-[12px] font-medium text-muted-foreground">Page access</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {['dashboard', 'tasks', 'clients', 'pipeline', 'teams', 'settings'].map((perm) => {
-                      const overrides = permissionsTarget.permission_overrides as Record<string, boolean | undefined> | null | undefined;
-                      const isOverridden = overrides && overrides[perm] !== undefined;
-                      return (
-                        <div key={perm} className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-secondary/40 border border-border/20">
-                          <div className="flex items-center gap-2">
-                            {isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" title="Custom override" />}
-                            <span className="text-[13px] capitalize">{perm}</span>
+                {/* Permissions — matches Roles & Permissions page exactly */}
+                {[
+                  { group: 'Core Pages', items: [
+                    { key: 'tasks', label: 'Tasks' },
+                    { key: 'clients', label: 'Clients' },
+                    { key: 'pipeline', label: 'Pipeline' },
+                    { key: 'teams', label: 'Teams' },
+                  ]},
+                  { group: 'Administration', items: [
+                    { key: 'settings', label: 'Settings' },
+                  ]},
+                ].map(({ group, items }) => (
+                  <div key={group} className="space-y-2">
+                    <p className="text-[12px] font-medium text-muted-foreground">{group}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {items.map(({ key, label }) => {
+                        const overrides = permissionsTarget.permission_overrides as Record<string, boolean | undefined> | null | undefined;
+                        const isOverridden = overrides && overrides[key] !== undefined;
+                        return (
+                          <div key={key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-secondary/40 border border-border/20">
+                            <div className="flex items-center gap-2">
+                              {isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" title="Custom override" />}
+                              <span className="text-[13px]">{label}</span>
+                            </div>
+                            <Switch
+                              checked={customPermissions[key] || false}
+                              onCheckedChange={(checked) => setCustomPermissions(p => ({ ...p, [key]: checked }))}
+                            />
                           </div>
-                          <Switch
-                            checked={customPermissions[perm] || false}
-                            onCheckedChange={(checked) => setCustomPermissions(p => ({ ...p, [perm]: checked }))}
-                          />
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-
-                {/* Action permissions */}
-                <div className="space-y-2">
-                  <p className="text-[12px] font-medium text-muted-foreground">Action permissions</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
-                      { key: 'manage_users', label: 'Manage users' },
-                      { key: 'manage_clients', label: 'Manage clients' },
-                      { key: 'manage_tasks', label: 'Manage tasks' },
-                      { key: 'manage_prospects', label: 'Manage prospects' },
-                      { key: 'manage_billing', label: 'Manage billing' },
-                    ].map(({ key, label }) => {
-                      const overrides = permissionsTarget.permission_overrides as Record<string, boolean | undefined> | null | undefined;
-                      const isOverridden = overrides && overrides[key] !== undefined;
-                      return (
-                        <div key={key} className="flex items-center justify-between gap-3 px-3 py-2 rounded-md bg-secondary/40 border border-border/20">
-                          <div className="flex items-center gap-2">
-                            {isOverridden && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" title="Custom override" />}
-                            <span className="text-[13px]">{label}</span>
-                          </div>
-                          <Switch
-                            checked={customPermissions[key] || false}
-                            onCheckedChange={(checked) => setCustomPermissions(p => ({ ...p, [key]: checked }))}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                ))}
               </div>
             )}
 
