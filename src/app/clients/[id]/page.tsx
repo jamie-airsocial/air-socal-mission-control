@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName, CLIENT_STATUS_STYLES, BILLING_TYPE_STYLES, getServiceStyle } from '@/lib/constants';
+import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName, CLIENT_STATUS_STYLES, BILLING_TYPE_STYLES, getServiceStyle, getAssigneeColor, getInitials } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
 import { ArrowLeft, Tag, Calendar, FileText, BadgePoundSterling, Clock, Edit2, Check, X, Plus, Pencil, Trash2, User, Phone, Globe, MapPin, Mail, ChevronRight, ChevronDown, Search, Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -246,6 +246,7 @@ function LineItemDialog({
   const [serviceSearch, setServiceSearch] = useState('');
   const [users, setUsers] = useState<Array<{ id: string; full_name: string; team: string | null; is_active: boolean }>>([]);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
 
   useEffect(() => {
     fetch('/api/services').then(r => r.json()).then(d => { if (Array.isArray(d)) setServices(d); }).catch(() => {});
@@ -347,37 +348,72 @@ function LineItemDialog({
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">Delivery person</Label>
-            <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}>
+            <Popover open={assigneeOpen} onOpenChange={(open) => { setAssigneeOpen(open); if (!open) setAssigneeSearch(''); }}>
               <PopoverTrigger asChild>
                 <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-secondary border border-border/20 rounded-md flex items-center justify-between hover:bg-muted/40 transition-colors">
-                  {form.assignee_id ? (users.find(u => u.id === form.assignee_id)?.full_name || 'Unknown') : <span className="text-muted-foreground/40">Unassigned</span>}
+                  {form.assignee_id ? (() => {
+                    const selectedUser = users.find(u => u.id === form.assignee_id);
+                    if (!selectedUser) return 'Unknown';
+                    const colorClass = getAssigneeColor(selectedUser.full_name, selectedUser.team);
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium shrink-0 ${colorClass}`}>
+                          {getInitials(selectedUser.full_name)}
+                        </div>
+                        <span>{selectedUser.full_name}</span>
+                      </div>
+                    );
+                  })() : <span className="text-muted-foreground/40">Unassigned</span>}
                   <ChevronDown size={14} className="text-muted-foreground/40" />
                 </button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
+                <div className="px-1 pb-1">
+                  <div className="relative">
+                    <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/40" />
+                    <input
+                      type="text"
+                      value={assigneeSearch}
+                      onChange={e => setAssigneeSearch(e.target.value)}
+                      placeholder="Search"
+                      className="w-full h-8 pl-7 pr-2 text-[13px] bg-secondary border border-border/20 rounded-md outline-none focus:border-primary/40 transition-colors"
+                      autoFocus
+                    />
+                  </div>
+                </div>
                 <div className="max-h-[200px] overflow-y-auto">
-                  <button
-                    type="button"
-                    onClick={() => { setForm(f => ({ ...f, assignee_id: '' })); setAssigneeOpen(false); }}
-                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${!form.assignee_id ? 'bg-muted/40' : ''}`}
-                  >
-                    <span className="text-muted-foreground/60">Unassigned</span>
-                    {!form.assignee_id && <Check size={14} className="text-primary" />}
-                  </button>
-                  {users.map(u => (
+                  {(!assigneeSearch || 'unassigned'.includes(assigneeSearch.toLowerCase())) && (
                     <button
-                      key={u.id}
                       type="button"
-                      onClick={() => { setForm(f => ({ ...f, assignee_id: u.id })); setAssigneeOpen(false); }}
-                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.assignee_id === u.id ? 'bg-muted/40' : ''}`}
+                      onClick={() => { setForm(f => ({ ...f, assignee_id: '' })); setAssigneeOpen(false); setAssigneeSearch(''); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${!form.assignee_id ? 'bg-muted/40' : ''}`}
                     >
-                      <div className="flex items-center gap-2">
-                        <span>{u.full_name}</span>
-                        {u.team && <span className="text-[10px] text-muted-foreground/40 capitalize">({u.team})</span>}
-                      </div>
-                      {form.assignee_id === u.id && <Check size={14} className="text-primary" />}
+                      <span className="text-muted-foreground/60">Unassigned</span>
+                      {!form.assignee_id && <Check size={14} className="text-primary" />}
                     </button>
-                  ))}
+                  )}
+                  {users
+                    .filter(u => !assigneeSearch || u.full_name.toLowerCase().includes(assigneeSearch.toLowerCase()))
+                    .map(u => {
+                      const colorClass = getAssigneeColor(u.full_name, u.team);
+                      return (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => { setForm(f => ({ ...f, assignee_id: u.id })); setAssigneeOpen(false); setAssigneeSearch(''); }}
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.assignee_id === u.id ? 'bg-muted/40' : ''}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium shrink-0 ${colorClass}`}>
+                              {getInitials(u.full_name)}
+                            </div>
+                            <span>{u.full_name}</span>
+                            {u.team && <span className="text-[10px] text-muted-foreground/40 capitalize">({u.team})</span>}
+                          </div>
+                          {form.assignee_id === u.id && <Check size={14} className="text-primary" />}
+                        </button>
+                      );
+                    })}
                 </div>
               </PopoverContent>
             </Popover>
@@ -1083,7 +1119,12 @@ export default function ClientDetailPage() {
                       <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
                       <TableCell className="text-[13px] text-muted-foreground">
                         {item.assignee ? (
-                          <span className="text-[13px]">{item.assignee.full_name}</span>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium shrink-0 ${getAssigneeColor(item.assignee.full_name)}`}>
+                              {getInitials(item.assignee.full_name)}
+                            </div>
+                            <span className="text-[13px]">{item.assignee.full_name}</span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground/40">Unassigned</span>
                         )}
