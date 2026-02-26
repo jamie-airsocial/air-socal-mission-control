@@ -263,70 +263,70 @@ function BillingSection({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
-  const totalRecurring = lineItems.filter(i => i.billing_type === 'recurring').reduce((s, i) => s + (parseFloat(i.monthly_value) || 0), 0);
+  const totalAll = lineItems.reduce((s, i) => s + (parseFloat(i.monthly_value) || 0), 0);
+  const recurringTotal = lineItems.filter(i => i.billing_type === 'recurring').reduce((s, i) => s + (parseFloat(i.monthly_value) || 0), 0);
+  const oneOffTotal = lineItems.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (parseFloat(i.monthly_value) || 0), 0);
 
   return (
     <>
-      <div className="rounded-lg border border-border/20 bg-card">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
-          <div className="flex items-center gap-2">
-            <BadgePoundSterling size={14} className="text-muted-foreground/60" />
-            <span className="text-[13px] font-semibold">Billing</span>
-            {totalRecurring > 0 && (
-              <span className="text-[11px] text-muted-foreground/50">£{totalRecurring.toLocaleString()}/mo</span>
-            )}
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-[12px]"
-            onClick={() => { setEditingIdx(null); setDialogOpen(true); }}
-          >
-            <Plus size={12} className="mr-1" /> Add line item
-          </Button>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-[11px] text-muted-foreground/60">Services & Pricing</Label>
+          {totalAll > 0 && (
+            <span className="text-[13px] font-semibold text-emerald-400">
+              £{totalAll.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          )}
         </div>
 
-        {lineItems.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[13px] text-muted-foreground/40">
-            No billing line items yet.
+        {/* Line item cards */}
+        {lineItems.length > 0 && (
+          <div className="space-y-1.5">
+            {lineItems.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/20 bg-muted/20">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium truncate">{getServiceStyle(item.service).label || item.service}</p>
+                  <p className="text-[11px] text-muted-foreground/60">
+                    <span className={item.billing_type === 'one-off' ? 'text-amber-400' : 'text-emerald-400'}>
+                      £{parseFloat(item.monthly_value || '0').toLocaleString('en-GB', { minimumFractionDigits: 2 })}
+                    </span>
+                    {item.billing_type === 'recurring' ? '/mo' : ' one-off'}
+                  </p>
+                </div>
+                <button onClick={() => { setEditingIdx(idx); setDialogOpen(true); }}
+                  className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors">
+                  <Pencil size={12} />
+                </button>
+                <button onClick={() => onChange(lineItems.filter((_, i) => i !== idx))}
+                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+            {recurringTotal > 0 && oneOffTotal > 0 && (
+              <div className="flex items-center gap-3 px-2.5 text-[11px] text-muted-foreground/60">
+                <span>Recurring: <span className="text-emerald-400">£{recurringTotal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}/mo</span></span>
+                <span>One-off: <span className="text-amber-400">£{oneOffTotal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</span></span>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/20 hover:bg-transparent">
-                  <TableHead className="text-[12px] text-muted-foreground font-medium">Service</TableHead>
-                  <TableHead className="text-[12px] text-muted-foreground font-medium">Type</TableHead>
-                  <TableHead className="text-[12px] text-muted-foreground font-medium">Value</TableHead>
-                  <TableHead className="text-[12px] text-muted-foreground font-medium w-16">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lineItems.map((item, idx) => (
-                  <TableRow key={idx} className="border-border/20 hover:bg-secondary/30 transition-colors">
-                    <TableCell className="text-[13px] font-medium">{getServiceStyle(item.service).label || item.service}</TableCell>
-                    <TableCell>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${BILLING_TYPE_STYLES[item.billing_type]?.bg || ''} ${BILLING_TYPE_STYLES[item.billing_type]?.text || ''}`}>
-                        {item.billing_type === 'one-off' ? 'One-off' : 'Recurring'}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-[13px]">£{parseFloat(item.monthly_value || '0').toLocaleString()}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => { setEditingIdx(idx); setDialogOpen(true); }}
-                          className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors">
-                          <Pencil size={12} />
-                        </button>
-                        <button onClick={() => onChange(lineItems.filter((_, i) => i !== idx))}
-                          className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors">
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        )}
+
+        <button
+          type="button"
+          onClick={() => { setEditingIdx(null); setDialogOpen(true); }}
+          className="w-full h-8 px-3 text-[11px] rounded-lg border border-dashed border-border/30 text-muted-foreground/60 hover:border-primary/40 hover:text-muted-foreground transition-colors flex items-center justify-center gap-1"
+        >
+          <Plus size={12} /> Add line item
+        </button>
+
+        {/* Deal value */}
+        {lineItems.length > 0 && (
+          <div className="flex items-center justify-between px-2.5 py-2 rounded-lg border border-border/20 bg-muted/10">
+            <span className="text-[12px] text-muted-foreground/60 font-medium">Total value</span>
+            <span className="text-[13px] font-semibold text-foreground">
+              £{totalAll.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
           </div>
         )}
       </div>

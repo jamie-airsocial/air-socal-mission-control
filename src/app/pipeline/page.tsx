@@ -11,6 +11,12 @@ import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import dynamic from 'next/dynamic';
+
+const TaskDescriptionEditor = dynamic(
+  () => import('@/components/board/task-description-editor').then(mod => ({ default: mod.TaskDescriptionEditor })),
+  { ssr: false, loading: () => <div className="h-[80px] rounded-lg bg-muted/20 animate-pulse" /> }
+);
 import {
   Dialog,
   DialogContent,
@@ -717,11 +723,10 @@ function ProspectSheet({
           {/* Notes */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Notes</Label>
-            <Textarea
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+            <TaskDescriptionEditor
+              content={form.notes}
+              onChange={v => setForm(f => ({ ...f, notes: v }))}
               placeholder="Any notes about this prospect…"
-              className="text-[13px] min-h-[80px] resize-none"
             />
           </div>
 
