@@ -156,7 +156,7 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
   };
 }
 
-function ServiceBreakdownRow({ row, total, teamColor, isProject }: { row: ServiceRow; total: number; teamColor: string; isProject?: boolean }) {
+function ServiceBreakdownRow({ row, total, teamColor, isProject, capacityTotal }: { row: ServiceRow; total: number; teamColor: string; isProject?: boolean; capacityTotal?: number }) {
   const [expanded, setExpanded] = useState(false);
   const s = getServiceStyle(row.service);
   const pct = total > 0 ? (row.amount / total) * 100 : 0;
@@ -200,7 +200,12 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject }: { row: Servic
                   </span>
                 )}
               </span>
-              <span className="text-[10px] text-muted-foreground/40 shrink-0 group-hover/client:text-foreground transition-colors">£{Math.round(c.amount).toLocaleString()}</span>
+              <span className="text-[10px] text-muted-foreground/40 shrink-0 group-hover/client:text-foreground transition-colors">
+                £{Math.round(c.amount).toLocaleString()}
+                {capacityTotal && capacityTotal > 0 && (
+                  <span className="ml-1 text-muted-foreground/30">{Math.round((c.amount / capacityTotal) * 100)}%</span>
+                )}
+              </span>
             </Link>
           ))}
         </div>
@@ -294,7 +299,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
           </p>
           <div className="space-y-1">
             {breakdown.recurring.map(row => (
-              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} />
+              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} capacityTotal={totalTarget} />
             ))}
           </div>
         </div>
@@ -308,7 +313,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
           </p>
           <div className="space-y-1">
             {breakdown.project.map(row => (
-              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} isProject />
+              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} isProject capacityTotal={totalTarget} />
             ))}
           </div>
         </div>
