@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES, getServiceStyle } from '@/lib/constants';
-import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink, LayoutGrid, Table2, ArrowUp, ArrowDown } from 'lucide-react';
+import { TEAM_STYLES, SERVICE_STYLES, getTeamStyle, CLIENT_STATUS_STYLES, getServiceStyle, getAssigneeColor, getInitials } from '@/lib/constants';
+import { Users, Search, ChevronDown, Check, X, Plus, Clock, CalendarIcon, ExternalLink, LayoutGrid, Table2, ArrowUp, ArrowDown, Pencil, Trash2, BadgePoundSterling } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import dynamic from 'next/dynamic';
 
 const TaskDescriptionEditor = dynamic(
@@ -129,6 +132,282 @@ function MembersMultiSelect({
             </button>
           );
         })}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+const BILLING_TYPE_STYLES: Record<string, { bg: string; text: string }> = {
+  recurring: { bg: 'bg-emerald-500/10', text: 'text-emerald-500' },
+  'one-off': { bg: 'bg-amber-500/10', text: 'text-amber-500' },
+};
+
+function LineItemDialog({
+  open,
+  onOpenChange,
+  initialData,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initialData?: LineItemDraft | null;
+  onSave: (data: LineItemDraft) => void;
+}) {
+  const [form, setForm] = useState<LineItemDraft>(emptyLineItem);
+  const [services, setServices] = useState<{ id: string; label: string }[]>([]);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const [serviceSearch, setServiceSearch] = useState('');
+
+  useEffect(() => {
+    fetch('/api/services').then(r => r.json()).then(d => { if (Array.isArray(d)) setServices(d); }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setForm(initialData || { ...emptyLineItem });
+      setServiceSearch('');
+    }
+  }, [open, initialData]);
+
+  const handleSave = () => {
+    if (!form.service) { toast.error('Service is required'); return; }
+    if (!form.monthly_value || parseFloat(form.monthly_value) <= 0) { toast.error('Value is required'); return; }
+    onSave(form);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md bg-card border-border/20">
+        <DialogHeader>
+          <DialogTitle className="text-[15px]">{initialData ? 'Edit line item' : 'Add line item'}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Service *</Label>
+            <Popover open={serviceOpen} onOpenChange={setServiceOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-secondary border border-border/20 rounded-md flex items-center justify-between hover:bg-muted/40 transition-colors">
+                  {form.service ? (services.find(s => s.id === form.service)?.label || form.service) : <span className="text-muted-foreground/40">Select service...</span>}
+                  <ChevronDown size={14} className="text-muted-foreground/40" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
+                <input
+                  value={serviceSearch}
+                  onChange={e => setServiceSearch(e.target.value)}
+                  placeholder="Search..."
+                  className="w-full px-2 py-1.5 text-[13px] bg-transparent border-b border-border/10 outline-none mb-1"
+                  autoFocus
+                />
+                <div className="max-h-[200px] overflow-y-auto">
+                  {services.filter(s => s.label.toLowerCase().includes(serviceSearch.toLowerCase())).map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => { setForm(f => ({ ...f, service: s.id })); setServiceOpen(false); setServiceSearch(''); }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.service === s.id ? 'bg-muted/40' : ''}`}
+                    >
+                      <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: getServiceStyle(s.id).dot }} /> {s.label}</span>
+                      {form.service === s.id && <Check size={14} className="text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Description</Label>
+            <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Brief description" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">Billing type *</Label>
+            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
+              {(['recurring', 'one-off'] as const).map(bt => (
+                <button key={bt} type="button" onClick={() => setForm(f => ({ ...f, billing_type: bt }))}
+                  className={`flex-1 h-8 px-3 rounded-md text-[13px] font-medium transition-all duration-150 ${
+                    form.billing_type === bt ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {bt === 'recurring' ? 'Recurring' : 'One-off'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] text-muted-foreground">{form.billing_type === 'recurring' ? 'Monthly value' : 'Project value'} *</Label>
+            <Input type="text" inputMode="numeric"
+              value={form.monthly_value} onChange={e => { if (/^\d*\.?\d*$/.test(e.target.value)) setForm(f => ({ ...f, monthly_value: e.target.value })); }}
+              placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
+          <Button onClick={handleSave} className="text-[13px] h-8">
+            {initialData ? 'Save changes' : 'Add line item'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BillingSection({
+  lineItems,
+  onChange,
+}: {
+  lineItems: LineItemDraft[];
+  onChange: (items: LineItemDraft[]) => void;
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+
+  const totalRecurring = lineItems.filter(i => i.billing_type === 'recurring').reduce((s, i) => s + (parseFloat(i.monthly_value) || 0), 0);
+
+  return (
+    <>
+      <div className="rounded-lg border border-border/20 bg-card">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/20">
+          <div className="flex items-center gap-2">
+            <BadgePoundSterling size={14} className="text-muted-foreground/60" />
+            <span className="text-[13px] font-semibold">Billing</span>
+            {totalRecurring > 0 && (
+              <span className="text-[11px] text-muted-foreground/50">£{totalRecurring.toLocaleString()}/mo</span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-[12px]"
+            onClick={() => { setEditingIdx(null); setDialogOpen(true); }}
+          >
+            <Plus size={12} className="mr-1" /> Add line item
+          </Button>
+        </div>
+
+        {lineItems.length === 0 ? (
+          <div className="px-4 py-8 text-center text-[13px] text-muted-foreground/40">
+            No billing line items yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/20 hover:bg-transparent">
+                  <TableHead className="text-[12px] text-muted-foreground font-medium">Service</TableHead>
+                  <TableHead className="text-[12px] text-muted-foreground font-medium">Type</TableHead>
+                  <TableHead className="text-[12px] text-muted-foreground font-medium">Value</TableHead>
+                  <TableHead className="text-[12px] text-muted-foreground font-medium w-16">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lineItems.map((item, idx) => (
+                  <TableRow key={idx} className="border-border/20 hover:bg-secondary/30 transition-colors">
+                    <TableCell className="text-[13px] font-medium">{getServiceStyle(item.service).label || item.service}</TableCell>
+                    <TableCell>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${BILLING_TYPE_STYLES[item.billing_type]?.bg || ''} ${BILLING_TYPE_STYLES[item.billing_type]?.text || ''}`}>
+                        {item.billing_type === 'one-off' ? 'One-off' : 'Recurring'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-[13px]">£{parseFloat(item.monthly_value || '0').toLocaleString()}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { setEditingIdx(idx); setDialogOpen(true); }}
+                          className="p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors">
+                          <Pencil size={12} />
+                        </button>
+                        <button onClick={() => onChange(lineItems.filter((_, i) => i !== idx))}
+                          className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors">
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+
+      <LineItemDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialData={editingIdx !== null ? lineItems[editingIdx] : null}
+        onSave={(data) => {
+          if (editingIdx !== null) {
+            const updated = [...lineItems];
+            updated[editingIdx] = data;
+            onChange(updated);
+          } else {
+            onChange([...lineItems, data]);
+          }
+        }}
+      />
+    </>
+  );
+}
+
+function AccountManagerSelect({
+  selected,
+  onChange,
+  users,
+}: {
+  selected: string | null;
+  onChange: (v: string | null) => void;
+  users: Array<{ id: string; full_name: string; team?: string | null }>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const selectedUser = users.find(u => u.id === selected);
+  const filtered = users.filter(u => u.full_name.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <Popover open={open} onOpenChange={v => { setOpen(v); if (!v) setSearch(''); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors text-left"
+        >
+          {selectedUser ? (
+            <span className="flex items-center gap-2">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAssigneeColor(selectedUser.full_name, selectedUser.team)}`}>
+                {getInitials(selectedUser.full_name)}
+              </span>
+              <span className="truncate">{selectedUser.full_name}</span>
+            </span>
+          ) : (
+            <span className="text-muted-foreground/40">Select account manager…</span>
+          )}
+          <ChevronDown size={14} className="text-muted-foreground/60 shrink-0 ml-2" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-1" align="start">
+        <input
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Search…"
+          className="w-full px-2 py-1.5 text-[13px] bg-transparent border-b border-border/10 outline-none mb-1"
+          autoFocus
+        />
+        <div className="max-h-[200px] overflow-y-auto">
+          {filtered.map(u => (
+            <button
+              key={u.id}
+              onClick={() => { onChange(u.id); setOpen(false); setSearch(''); }}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${selected === u.id ? 'bg-muted/40' : ''}`}
+            >
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAssigneeColor(u.full_name, u.team)}`}>
+                {getInitials(u.full_name)}
+              </span>
+              <span className="truncate">{u.full_name}</span>
+              {selected === u.id && <Check size={14} className="text-primary ml-auto shrink-0" />}
+            </button>
+          ))}
+          {filtered.length === 0 && <p className="text-[12px] text-muted-foreground/40 text-center py-2">No results</p>}
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -396,9 +675,9 @@ function ClientSheet({
           {/* Account Manager */}
           <div className="space-y-1.5">
             <Label className="text-[11px] text-muted-foreground/60">Account Manager</Label>
-            <MembersMultiSelect
-              selected={form.assigned_members}
-              onChange={v => setForm(f => ({ ...f, assigned_members: v.length > 0 ? [v[v.length - 1]] : [] }))}
+            <AccountManagerSelect
+              selected={form.assigned_members[0] || null}
+              onChange={v => setForm(f => ({ ...f, assigned_members: v ? [v] : [] }))}
               users={users}
             />
           </div>
@@ -483,94 +762,10 @@ function ClientSheet({
 
           {/* Billing Line Items */}
           {!editClient && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-[11px] text-muted-foreground/60">Billing</Label>
-                <button
-                  type="button"
-                  onClick={() => setForm(f => ({ ...f, line_items: [...f.line_items, { ...emptyLineItem }] }))}
-                  className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Plus size={12} /> Add item
-                </button>
-              </div>
-              {form.line_items.map((li, idx) => {
-                const svc = getServiceStyle(li.service);
-                return (
-                  <div key={idx} className="rounded-lg border border-border/20 bg-muted/10 p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={li.service}
-                        onChange={e => {
-                          const items = [...form.line_items];
-                          items[idx] = { ...items[idx], service: e.target.value };
-                          setForm(f => ({ ...f, line_items: items }));
-                        }}
-                        className="flex-1 h-8 px-2 text-[13px] rounded-md border border-border/20 bg-secondary"
-                      >
-                        <option value="">Service…</option>
-                        {Object.entries(SERVICE_STYLES).map(([key, s]) => (
-                          <option key={key} value={key}>{s.label}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={li.billing_type}
-                        onChange={e => {
-                          const items = [...form.line_items];
-                          items[idx] = { ...items[idx], billing_type: e.target.value as 'recurring' | 'one-off' };
-                          setForm(f => ({ ...f, line_items: items }));
-                        }}
-                        className="w-[110px] h-8 px-2 text-[13px] rounded-md border border-border/20 bg-secondary"
-                      >
-                        <option value="recurring">Recurring</option>
-                        <option value="one-off">One-off</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setForm(f => ({ ...f, line_items: f.line_items.filter((_, i) => i !== idx) }))}
-                        className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground/40">£</span>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          value={li.monthly_value}
-                          onChange={e => {
-                            const val = e.target.value.replace(/[^0-9.]/g, '');
-                            const items = [...form.line_items];
-                            items[idx] = { ...items[idx], monthly_value: val };
-                            setForm(f => ({ ...f, line_items: items }));
-                          }}
-                          placeholder="0.00"
-                          className="w-full h-8 pl-6 pr-2 text-[13px] rounded-md border border-border/20 bg-secondary"
-                        />
-                      </div>
-                      <input
-                        type="text"
-                        value={li.description}
-                        onChange={e => {
-                          const items = [...form.line_items];
-                          items[idx] = { ...items[idx], description: e.target.value };
-                          setForm(f => ({ ...f, line_items: items }));
-                        }}
-                        placeholder="Description (optional)"
-                        className="flex-1 h-8 px-2 text-[13px] rounded-md border border-border/20 bg-secondary"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-              {form.line_items.length > 0 && (
-                <p className="text-[11px] text-muted-foreground/40 text-right">
-                  Total: £{form.line_items.reduce((s, li) => s + (parseFloat(li.monthly_value) || 0), 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mo
-                </p>
-              )}
-            </div>
+            <BillingSection
+              lineItems={form.line_items}
+              onChange={items => setForm(f => ({ ...f, line_items: items }))}
+            />
           )}
 
           {/* Divider */}
