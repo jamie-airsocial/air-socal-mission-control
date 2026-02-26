@@ -238,12 +238,17 @@ function ServiceCapacityRow({ row, teamColor }: { row: ServiceCapacity; teamColo
           );
         };
 
+        const hasBoth = recurringClients.length > 0 && projectClients.length > 0;
+
         return (
           <div className="ml-5 mt-1 mb-1 space-y-0.5">
+            {hasBoth && (
+              <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Recurring</p>
+            )}
             {recurringClients.map((c, i) => renderClient(c, i, true))}
             {projectClients.length > 0 && (
               <>
-                {recurringClients.length > 0 && <div className="h-px bg-border/10 my-1" />}
+                {hasBoth && <div className="h-px bg-border/10 my-1" />}
                 <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
                 {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
               </>

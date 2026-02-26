@@ -217,13 +217,26 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
           );
         };
 
+        const hasBoth = recurringClients.length > 0 && projectClients.length > 0;
+        const recurringSubtotal = recurringClients.reduce((s, c) => s + c.amount, 0);
+        const projectSubtotal = projectClients.reduce((s, c) => s + c.amount, 0);
+
         return (
           <div className="ml-5 mt-1 mb-1 space-y-0.5">
+            {hasBoth && (
+              <div className="flex items-center justify-between">
+                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Recurring</p>
+                <span className="text-[9px] text-muted-foreground/30">£{Math.round(recurringSubtotal).toLocaleString()}</span>
+              </div>
+            )}
             {recurringClients.map((c, i) => renderClient(c, i, true))}
             {projectClients.length > 0 && (
               <>
-                {recurringClients.length > 0 && <div className="h-px bg-border/10 my-1" />}
-                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
+                {hasBoth && <div className="h-px bg-border/10 my-1" />}
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
+                  {hasBoth && <span className="text-[9px] text-muted-foreground/30">£{Math.round(projectSubtotal).toLocaleString()}</span>}
+                </div>
                 {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
               </>
             )}
