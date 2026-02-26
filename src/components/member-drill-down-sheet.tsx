@@ -288,6 +288,7 @@ export function MemberDrillDownSheet({
                     color="var(--primary)"
                     mode={mode}
                     capacityTarget={mode === 'currency' ? effectiveTarget : 100}
+                    defaultExpanded
                   />
                 </div>
               )}

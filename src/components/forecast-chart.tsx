@@ -17,11 +17,12 @@ interface ForecastChartProps {
   mode: 'currency' | 'percentage';
   capacityTarget?: number;
   className?: string;
+  defaultExpanded?: boolean;
 }
 
-export function ForecastChart({ data, color, mode, capacityTarget = 0, className = '' }: ForecastChartProps) {
+export function ForecastChart({ data, color, mode, capacityTarget = 0, className = '', defaultExpanded = false }: ForecastChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   // 100% capacity = full chart height; bars show actual % of capacity
   const scaleMax = capacityTarget > 0 ? capacityTarget : Math.max(...data.map(d => d.total), 1);
