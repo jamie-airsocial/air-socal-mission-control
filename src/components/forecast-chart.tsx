@@ -74,19 +74,22 @@ export function ForecastChart({ data, color, mode, className = '' }: ForecastCha
             return (
               <div
                 key={i}
-                className="flex-1 relative group"
+                className="flex-1 relative group h-full"
                 onMouseEnter={() => setHoveredIndex(i)}
                 onMouseLeave={() => setHoveredIndex(null)}
               >
-                {/* Bar */}
-                <div
-                  className="w-full rounded-t transition-all duration-200 cursor-pointer"
-                  style={{
-                    height: `${Math.max(heightPercent, 2)}%`,
-                    backgroundColor: color,
-                    opacity: isHovered ? 1 : 0.6,
-                  }}
-                />
+                {/* Spacer to push bar to bottom */}
+                <div className="w-full h-full flex flex-col justify-end">
+                  {/* Bar */}
+                  <div
+                    className="w-full rounded-t transition-all duration-200 cursor-pointer"
+                    style={{
+                      height: `${Math.max(heightPercent, 2)}%`,
+                      backgroundColor: color,
+                      opacity: isHovered ? 1 : 0.6,
+                    }}
+                  />
+                </div>
 
                 {/* Tooltip */}
                 {isHovered && (

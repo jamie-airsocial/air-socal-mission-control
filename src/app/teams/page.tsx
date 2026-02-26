@@ -172,7 +172,12 @@ function ServiceBreakdownRow({ row, total, teamColor, isProject }: { row: Servic
             <ChevronRight size={10} className={`text-muted-foreground/30 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`} />
             <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
           </span>
-          <span className="text-[11px] font-medium">£{Math.round(row.amount).toLocaleString()}</span>
+          <span className="text-[11px] font-medium flex items-center gap-1.5">
+            £{Math.round(row.amount).toLocaleString()}
+            <span className="text-[10px] font-normal text-muted-foreground/50">
+              {Math.round(pct)}%
+            </span>
+          </span>
         </div>
         <div className="h-1 rounded-full bg-muted/30 overflow-hidden ml-4">
           <div
