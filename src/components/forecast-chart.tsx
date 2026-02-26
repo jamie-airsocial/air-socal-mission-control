@@ -43,12 +43,6 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
     <div className={`space-y-2 overflow-visible ${className}`}>
       <div className="flex items-center justify-between px-1">
         <span className="text-[11px] font-medium text-muted-foreground/60">6-month forecast</span>
-        <button
-          onClick={() => setExpanded(false)}
-          className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-        >
-          Hide
-        </button>
       </div>
 
       <div className="relative">
