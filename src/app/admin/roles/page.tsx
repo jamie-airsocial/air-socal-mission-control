@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { Plus, Trash2, MoreHorizontal, Check, Pencil, ShieldCheck, Loader2 } from 'lucide-react';
+import { Plus, Trash2, MoreHorizontal, Check, Pencil, ShieldCheck, Loader2, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,12 +32,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import type { Role, Permissions } from '@/lib/auth-types';
 
 // ── Permission definitions ────────────────────────────────────────────────────
@@ -93,6 +91,13 @@ const CATEGORY_LABELS: Record<string, string> = {
   'delivery': 'Delivery Team',
 };
 
+const CATEGORIES = [
+  { value: 'management', label: 'Management' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'delivery', label: 'Delivery Team' },
+];
+
 // ── Auto-saving toggle cell ───────────────────────────────────────────────────
 function PermissionCell({
   checked,
@@ -147,6 +152,8 @@ export default function AdminRolesPage() {
   const [newRoleName, setNewRoleName] = useState('');
   const [newPerms, setNewPerms] = useState<Permissions>(DEFAULT_PERMS);
   const [newCategory, setNewCategory] = useState<string>('delivery');
+  const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  const [editCategoryOpen, setEditCategoryOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
@@ -452,17 +459,29 @@ export default function AdminRolesPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">Category</Label>
-              <Select value={newCategory} onValueChange={setNewCategory}>
-                <SelectTrigger className="h-9 text-[13px] bg-secondary border-border/20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="management" className="text-[13px]">Management</SelectItem>
-                  <SelectItem value="sales" className="text-[13px]">Sales</SelectItem>
-                  <SelectItem value="admin" className="text-[13px]">Admin</SelectItem>
-                  <SelectItem value="delivery" className="text-[13px]">Delivery Team</SelectItem>
-                </SelectContent>
-              </Select>
+              <Popover open={newCategoryOpen} onOpenChange={setNewCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                    {CATEGORIES.find(c => c.value === newCategory)?.label || 'Select category…'}
+                    <ChevronDown size={14} className="text-muted-foreground/60" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="start">
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat.value}
+                      onClick={() => {
+                        setNewCategory(cat.value);
+                        setNewCategoryOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${newCategory === cat.value ? 'bg-muted/40' : ''}`}
+                    >
+                      <span>{cat.label}</span>
+                      {newCategory === cat.value && <Check size={14} className="text-primary" />}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label className="text-[13px] text-muted-foreground">Initial permissions</Label>
@@ -511,17 +530,29 @@ export default function AdminRolesPage() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">Category</Label>
-              <Select value={editCategory} onValueChange={setEditCategory}>
-                <SelectTrigger className="h-9 text-[13px] bg-secondary border-border/20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="management" className="text-[13px]">Management</SelectItem>
-                  <SelectItem value="sales" className="text-[13px]">Sales</SelectItem>
-                  <SelectItem value="admin" className="text-[13px]">Admin</SelectItem>
-                  <SelectItem value="delivery" className="text-[13px]">Delivery Team</SelectItem>
-                </SelectContent>
-              </Select>
+              <Popover open={editCategoryOpen} onOpenChange={setEditCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <button className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary flex items-center justify-between hover:border-border/40 transition-colors">
+                    {CATEGORIES.find(c => c.value === editCategory)?.label || 'Select category…'}
+                    <ChevronDown size={14} className="text-muted-foreground/60" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1" align="start">
+                  {CATEGORIES.map(cat => (
+                    <button
+                      key={cat.value}
+                      onClick={() => {
+                        setEditCategory(cat.value);
+                        setEditCategoryOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${editCategory === cat.value ? 'bg-muted/40' : ''}`}
+                    >
+                      <span>{cat.label}</span>
+                      {editCategory === cat.value && <Check size={14} className="text-primary" />}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-1">
               <Label className="text-[13px] text-muted-foreground">Permissions</Label>
