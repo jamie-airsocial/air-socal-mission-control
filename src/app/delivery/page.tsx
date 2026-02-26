@@ -83,7 +83,7 @@ interface ServiceCapacity {
   actual: number;
   target: number;
   percentage: number;
-  clients: Array<{ clientId: string; clientName: string }>;
+  clients: Array<{ clientId: string; clientName: string; amount: number }>;
 }
 
 interface MonthlyCapacity {
@@ -99,7 +99,7 @@ function calcMonthlyCapacity(
   month: Date,
   capacityTargets: CapacityTargets
 ): MonthlyCapacity {
-  const byService: Record<string, { actual: number; clients: Set<string> }> = {};
+  const byService: Record<string, { actual: number; clientMap: Record<string, { name: string; amount: number }> }> = {};
 
   for (const client of teamClients) {
     const clientItems = contractItems.filter(i => i.client_id === client.id);
@@ -119,15 +119,18 @@ function calcMonthlyCapacity(
 
       if (amount > 0) {
         if (!byService[item.service]) {
-          byService[item.service] = { actual: 0, clients: new Set() };
+          byService[item.service] = { actual: 0, clientMap: {} };
         }
         byService[item.service].actual += amount;
-        byService[item.service].clients.add(client.name);
+        if (!byService[item.service].clientMap[client.id]) {
+          byService[item.service].clientMap[client.id] = { name: client.name, amount: 0 };
+        }
+        byService[item.service].clientMap[client.id].amount += amount;
       }
     }
   }
 
-  const services: ServiceCapacity[] = Object.entries(byService).map(([service, { actual, clients }]) => {
+  const services: ServiceCapacity[] = Object.entries(byService).map(([service, { actual, clientMap }]) => {
     const target = capacityTargets[service] || 1;
     const percentage = (actual / target) * 100;
     return {
@@ -135,10 +138,9 @@ function calcMonthlyCapacity(
       actual,
       target,
       percentage,
-      clients: Array.from(clients).map(name => ({
-        clientId: teamClients.find(c => c.name === name)?.id || '',
-        clientName: name
-      }))
+      clients: Object.entries(clientMap)
+        .map(([clientId, { name, amount }]) => ({ clientId, clientName: name, amount }))
+        .sort((a, b) => b.amount - a.amount)
     };
   }).sort((a, b) => b.actual - a.actual);
 
@@ -194,17 +196,23 @@ function ServiceCapacityRow({ row, teamColor }: { row: ServiceCapacity; teamColo
       </button>
       {expanded && row.clients.length > 0 && (
         <div className="ml-5 mt-1 mb-1 space-y-0.5">
-          {row.clients.map((c, i) => (
-            <Link
-              key={i}
-              href={`/clients/${c.clientId}`}
-              className="flex items-center py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors group/client"
-            >
-              <span className="text-[10px] text-muted-foreground/50 truncate group-hover/client:text-foreground transition-colors">
-                {c.clientName}
-              </span>
-            </Link>
-          ))}
+          {row.clients.map((c, i) => {
+            const clientPct = row.target > 0 ? (c.amount / row.target) * 100 : 0;
+            return (
+              <Link
+                key={i}
+                href={`/clients/${c.clientId}`}
+                className="flex items-center justify-between py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors group/client"
+              >
+                <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
+                  {c.clientName}
+                </span>
+                <span className={`text-[10px] shrink-0 ${getCapacityColor(clientPct)}`}>
+                  {Math.round(clientPct)}%
+                </span>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
