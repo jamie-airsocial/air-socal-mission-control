@@ -524,14 +524,48 @@ export default function TeamsPage() {
     return { team, slug, style, clients: teamClients, members, forecastData };
   });
 
+  const [viewTab, setViewTab] = useState<'teams' | 'members'>('teams');
+
+  // Build all-members data for the members tab
+  const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'Paid Advertising', 'Social Media Manager': 'Social Media', 'SEO': 'SEO', 'Creative': 'Creative' };
+  const allMembers = useMemo(() => {
+    const members: Array<TeamMember & { teamName: string; billing: number; target: number; pct: number; clientCount: number }> = [];
+    for (const team of teams) {
+      const slug = team.name.toLowerCase();
+      for (const m of (team.members || [])) {
+        const items = contractItems.filter(i => i.assignee_id === m.id && i.is_active);
+        const billing = items.reduce((s, i) => s + (i.monthly_value || 0), 0);
+        const svc = m.role?.name ? ROLE_TO_SERVICE[m.role.name] : undefined;
+        const target = svc ? (capacityTargets[svc] || 0) : 0;
+        const pct = target > 0 ? (billing / target) * 100 : 0;
+        const clientCount = new Set(items.map(i => i.client_id)).size;
+        members.push({ ...m, teamName: team.name, billing, target, pct, clientCount });
+      }
+    }
+    return members.sort((a, b) => b.billing - a.billing);
+  }, [teams, contractItems, capacityTargets]);
+
   return (
     <div className="animate-in fade-in duration-200">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Teams</h1>
         <div className="flex items-center justify-between mt-1">
-          <p className="text-[13px] text-muted-foreground/60">
-            {totalMembers} member{totalMembers !== 1 ? 's' : ''} across {teams.length} team{teams.length !== 1 ? 's' : ''}
-          </p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center rounded-lg border border-border/20 bg-secondary p-0.5">
+              {(['teams', 'members'] as const).map(tab => (
+                <button key={tab} onClick={() => setViewTab(tab)}
+                  className={`h-7 px-3 rounded-md text-[12px] font-medium transition-all duration-150 ${
+                    viewTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {tab === 'teams' ? 'Teams' : 'Members'}
+                </button>
+              ))}
+            </div>
+            <p className="text-[13px] text-muted-foreground/60">
+              {totalMembers} member{totalMembers !== 1 ? 's' : ''} across {teams.length} team{teams.length !== 1 ? 's' : ''}
+            </p>
+          </div>
           <div className="flex items-center gap-3 text-[10px] text-muted-foreground/50">
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Under 80%</span>
             <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> 80–95%</span>
@@ -540,7 +574,77 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {viewTab === 'members' ? (
+        /* Members table view */
+        loading ? (
+          <div className="space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-12 bg-muted/20 rounded-lg animate-pulse" />)}</div>
+        ) : allMembers.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Users size={40} className="text-muted-foreground/30 mb-3" />
+            <p className="text-[13px] font-medium text-muted-foreground">No team members yet</p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border/20 bg-card overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border/20">
+                  <th className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Member</th>
+                  <th className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Team</th>
+                  <th className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Role</th>
+                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Clients</th>
+                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Billing</th>
+                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Target</th>
+                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Capacity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allMembers.map(m => {
+                  const colorClass = getAssigneeColor(m.full_name, m.teamName.toLowerCase());
+                  const teamStyle = getTeamStyle(m.teamName.toLowerCase());
+                  return (
+                    <tr key={m.id}
+                      onClick={() => { setSelectedMember({ id: m.id, name: m.full_name, team: m.teamName.toLowerCase(), roleName: m.role?.name }); setDrillDownOpen(true); }}
+                      className="border-b border-border/10 hover:bg-muted/20 transition-colors cursor-pointer"
+                    >
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${colorClass}`}>
+                            {m.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </div>
+                          <span className="text-[13px] font-medium">{m.full_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-1.5">
+                          {teamStyle && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} />}
+                          <span className="text-[13px] text-muted-foreground">{m.teamName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-[13px] text-muted-foreground">{m.role?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[13px] text-right text-muted-foreground">{m.clientCount}</td>
+                      <td className="px-4 py-2.5 text-[13px] text-right font-medium">
+                        {m.billing > 0 ? `£${Math.round(m.billing).toLocaleString()}` : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-[13px] text-right text-muted-foreground">
+                        {m.target > 0 ? `£${Math.round(m.target).toLocaleString()}` : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {m.target > 0 ? (
+                          <span className={`text-[13px] font-medium ${m.pct < 80 ? 'text-emerald-500' : m.pct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {Math.round(m.pct)}%
+                          </span>
+                        ) : (
+                          <span className="text-[13px] text-muted-foreground/40">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : loading ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => <div key={i} className="h-64 bg-muted/20 rounded-lg animate-pulse" />)}
         </div>
