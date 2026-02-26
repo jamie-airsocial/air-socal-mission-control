@@ -83,7 +83,7 @@ interface ServiceCapacity {
   actual: number;
   target: number;
   percentage: number;
-  clients: Array<{ clientId: string; clientName: string; amount: number }>;
+  clients: Array<{ clientId: string; clientName: string; amount: number; billingType?: string; start_date?: string | null; end_date?: string | null }>;
 }
 
 interface MonthlyCapacity {
@@ -99,7 +99,7 @@ function calcMonthlyCapacity(
   month: Date,
   capacityTargets: CapacityTargets
 ): MonthlyCapacity {
-  const byService: Record<string, { actual: number; clientMap: Record<string, { name: string; amount: number }> }> = {};
+  const byService: Record<string, { actual: number; clients: Array<{ clientId: string; clientName: string; amount: number; billingType: string; start_date?: string | null; end_date?: string | null }> }> = {};
 
   for (const client of teamClients) {
     const clientItems = contractItems.filter(i => i.client_id === client.id);
@@ -119,18 +119,28 @@ function calcMonthlyCapacity(
 
       if (amount > 0) {
         if (!byService[item.service]) {
-          byService[item.service] = { actual: 0, clientMap: {} };
+          byService[item.service] = { actual: 0, clients: [] };
         }
         byService[item.service].actual += amount;
-        if (!byService[item.service].clientMap[client.id]) {
-          byService[item.service].clientMap[client.id] = { name: client.name, amount: 0 };
+        // Check if this client+billingType combo already exists
+        const existing = byService[item.service].clients.find(c => c.clientId === client.id && c.billingType === item.billing_type);
+        if (existing) {
+          existing.amount += amount;
+        } else {
+          byService[item.service].clients.push({
+            clientId: client.id,
+            clientName: client.name,
+            amount,
+            billingType: item.billing_type,
+            start_date: item.start_date,
+            end_date: item.end_date,
+          });
         }
-        byService[item.service].clientMap[client.id].amount += amount;
       }
     }
   }
 
-  const services: ServiceCapacity[] = Object.entries(byService).map(([service, { actual, clientMap }]) => {
+  const services: ServiceCapacity[] = Object.entries(byService).map(([service, { actual, clients }]) => {
     const target = capacityTargets[service] || 1;
     const percentage = (actual / target) * 100;
     return {
@@ -138,9 +148,7 @@ function calcMonthlyCapacity(
       actual,
       target,
       percentage,
-      clients: Object.entries(clientMap)
-        .map(([clientId, { name, amount }]) => ({ clientId, clientName: name, amount }))
-        .sort((a, b) => b.amount - a.amount)
+      clients: clients.sort((a, b) => b.amount - a.amount),
     };
   }).sort((a, b) => b.actual - a.actual);
 
@@ -194,27 +202,44 @@ function ServiceCapacityRow({ row, teamColor }: { row: ServiceCapacity; teamColo
           />
         </div>
       </button>
-      {expanded && row.clients.length > 0 && (
-        <div className="ml-5 mt-1 mb-1 space-y-0.5">
-          {row.clients.map((c, i) => {
-            const clientPct = row.target > 0 ? (c.amount / row.target) * 100 : 0;
-            return (
-              <Link
-                key={i}
-                href={`/clients/${c.clientId}`}
-                className="flex items-center justify-between py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors group/client"
-              >
-                <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
-                  {c.clientName}
-                </span>
+      {expanded && row.clients.length > 0 && (() => {
+        const recurringClients = row.clients.filter(c => c.billingType !== 'one-off');
+        const projectClients = row.clients.filter(c => c.billingType === 'one-off');
+
+        const renderClient = (c: typeof row.clients[0], i: number, showCapacity: boolean) => {
+          const clientPct = row.target > 0 ? (c.amount / row.target) * 100 : 0;
+          return (
+            <Link key={i} href={`/clients/${c.clientId}`} className="flex items-center justify-between group/client py-0.5 -mx-1 px-1 rounded hover:bg-muted/30 transition-colors">
+              <span className="text-[10px] text-muted-foreground/50 truncate mr-2 group-hover/client:text-foreground transition-colors">
+                {c.clientName}
+                {c.billingType === 'one-off' && c.start_date && c.end_date && (
+                  <span className="text-muted-foreground/30 ml-1 group-hover/client:text-muted-foreground/50">
+                    ({format(new Date(c.start_date), 'dd MMM yy')} – {format(new Date(c.end_date), 'dd MMM yy')})
+                  </span>
+                )}
+              </span>
+              {showCapacity && (
                 <span className="text-[10px] shrink-0 text-muted-foreground/40">
                   {Math.round(clientPct)}%
                 </span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+              )}
+            </Link>
+          );
+        };
+
+        return (
+          <div className="ml-5 mt-1 mb-1 space-y-0.5">
+            {recurringClients.map((c, i) => renderClient(c, i, true))}
+            {projectClients.length > 0 && (
+              <>
+                {recurringClients.length > 0 && <div className="h-px bg-border/10 my-1" />}
+                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
+                {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
