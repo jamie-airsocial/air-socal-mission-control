@@ -465,9 +465,16 @@ export default function DeliveryPage() {
     <div className="animate-in fade-in duration-200">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Delivery</h1>
-        <p className="text-[13px] text-muted-foreground/60 mt-1">
-          {totalMembers} member{totalMembers !== 1 ? 's' : ''} across {teams.length} team{teams.length !== 1 ? 's' : ''}
-        </p>
+        <div className="flex items-center justify-between mt-1">
+          <p className="text-[13px] text-muted-foreground/60">
+            {totalMembers} member{totalMembers !== 1 ? 's' : ''} across {teams.length} team{teams.length !== 1 ? 's' : ''}
+          </p>
+          <div className="flex items-center gap-3 text-[10px] text-muted-foreground/50">
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Under 80%</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> 80–95%</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Over 95%</span>
+          </div>
+        </div>
       </div>
 
       {loading ? (
