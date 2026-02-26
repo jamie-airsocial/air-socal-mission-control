@@ -725,17 +725,23 @@ export default function TeamsPage() {
                           )}
                         </div>
                         {(() => {
-                          const allServices = new Set([...bd.recurring.map(r => r.service), ...bd.project.map(p => p.service)]);
-                          const combined = Array.from(allServices).map(svc => {
-                            const rec = bd.recurring.find(r => r.service === svc);
-                            const proj = bd.project.find(p => p.service === svc);
-                            return { service: svc, amount: (rec?.amount || 0) + (proj?.amount || 0) };
-                          }).sort((a, b) => b.amount - a.amount);
-                          const total = combined.reduce((s, c) => s + c.amount, 0);
+                          const combinedMap: Record<string, ServiceRow> = {};
+                          for (const row of bd.recurring) {
+                            if (!combinedMap[row.service]) combinedMap[row.service] = { service: row.service, amount: 0, clients: [] };
+                            combinedMap[row.service].amount += row.amount;
+                            combinedMap[row.service].clients.push(...row.clients);
+                          }
+                          for (const row of bd.project) {
+                            if (!combinedMap[row.service]) combinedMap[row.service] = { service: row.service, amount: 0, clients: [] };
+                            combinedMap[row.service].amount += row.amount;
+                            combinedMap[row.service].clients.push(...row.clients);
+                          }
+                          const combinedRows = Object.values(combinedMap).sort((a, b) => b.amount - a.amount);
+                          const total = combinedRows.reduce((s, c) => s + c.amount, 0);
                           return (
                             <div className="space-y-2">
-                              {combined.map(row => (
-                                <ServiceBreakdownRow key={row.service} row={{ service: row.service, amount: row.amount, clients: [] }} total={total} teamColor={selected.style?.color || 'var(--primary)'} capacityTargets={capacityTargets} showCurrency={showCurrency} />
+                              {combinedRows.map(row => (
+                                <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={selected.style?.color || 'var(--primary)'} capacityTargets={capacityTargets} showCurrency={showCurrency} />
                               ))}
                             </div>
                           );
