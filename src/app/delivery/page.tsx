@@ -538,12 +538,6 @@ export default function DeliveryPage() {
                     <p className="text-[12px] text-muted-foreground/40 italic">No members assigned</p>
                   ) : members.map(member => {
                     const colorClass = getAssigneeColor(member.full_name, slug);
-                    const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'Paid Advertising', 'Social Media Manager': 'Social Media', 'SEO': 'SEO', 'Creative': 'Creative' };
-                    const memberItems = contractItems.filter(i => i.assignee_id === member.id && i.is_active && i.billing_type === 'recurring');
-                    const memberTotal = memberItems.reduce((s, i) => s + (i.monthly_value || 0), 0);
-                    const roleService = member.role?.name ? ROLE_TO_SERVICE[member.role.name] : undefined;
-                    const memberTarget = roleService ? (capacityTargets[roleService] || 0) : 0;
-                    const memberPct = memberTarget > 0 ? (memberTotal / memberTarget) * 100 : 0;
                     return (
                       <button
                         key={member.id}
@@ -562,11 +556,6 @@ export default function DeliveryPage() {
                           <p className="text-[13px] font-medium truncate">{member.full_name}</p>
                           <p className="text-[11px] text-muted-foreground/60">{member.role?.name || 'Team Member'}</p>
                         </div>
-                        {memberTotal > 0 && memberTarget > 0 && (
-                          <p className={`text-[12px] font-medium shrink-0 ${memberPct < 80 ? 'text-emerald-500' : memberPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
-                            {Math.round(memberPct)}%
-                          </p>
-                        )}
                       </button>
                     );
                   })}
