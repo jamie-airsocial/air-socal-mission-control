@@ -1198,7 +1198,7 @@ export default function ClientDetailPage() {
                     <span className="text-[12px] text-muted-foreground/60">
                       {active.length} active of {contractItems.length} total
                     </span>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-start gap-6">
                       {recurringTotal > 0 && (
                         <div className="text-right">
                           <p className="text-[11px] text-muted-foreground/60">Monthly recurring</p>
