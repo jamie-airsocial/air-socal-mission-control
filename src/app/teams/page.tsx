@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowUpDown, ChevronRight, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
 import { ForecastChart } from '@/components/forecast-chart';
 import { MemberDrillDownSheet } from '@/components/member-drill-down-sheet';
+import { useAuth } from '@/contexts/auth-context';
 
 interface TeamMember {
   id: string;
@@ -158,7 +159,7 @@ function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLine
   };
 }
 
-function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTargets }: { row: ServiceRow; total: number; teamColor: string; capacityTotal?: number; capacityTargets?: Record<string, number> }) {
+function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTargets, showCurrency = true }: { row: ServiceRow; total: number; teamColor: string; capacityTotal?: number; capacityTargets?: Record<string, number>; showCurrency?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const s = getServiceStyle(row.service);
   // Use per-service capacity target if available, else fall back to total
@@ -177,7 +178,7 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
             <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} /> {s.label}
           </span>
           <span className="text-[11px] font-medium flex items-center gap-1.5">
-            £{Math.round(row.amount).toLocaleString()}
+            {showCurrency && `£${Math.round(row.amount).toLocaleString()}`}
             {svcTarget > 0 && (
               <span className={`text-[10px] font-normal ${capacityPct < 80 ? 'text-emerald-500' : capacityPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                 {Math.round(capacityPct)}%
@@ -209,9 +210,9 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
                 )}
               </span>
               <span className="text-[10px] text-muted-foreground/40 shrink-0 group-hover/client:text-foreground transition-colors">
-                £{Math.round(c.amount).toLocaleString()}
+                {showCurrency && `£${Math.round(c.amount).toLocaleString()}`}
                 {showCapacity && svcTarget > 0 && (
-                  <span className="ml-1 text-muted-foreground/30">{Math.round(clientCapPct)}%</span>
+                  <span className={showCurrency ? "ml-1 text-muted-foreground/30" : ""}>{Math.round(clientCapPct)}%</span>
                 )}
               </span>
             </Link>
@@ -227,7 +228,7 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
             {hasBoth && (
               <div className="flex items-center justify-between">
                 <p className="text-[9px] text-muted-foreground/40">Recurring</p>
-                <span className="text-[9px] text-muted-foreground/30">£{Math.round(recurringSubtotal).toLocaleString()}</span>
+                {showCurrency && <span className="text-[9px] text-muted-foreground/30">£{Math.round(recurringSubtotal).toLocaleString()}</span>}
               </div>
             )}
             {recurringClients.map((c, i) => renderClient(c, i, true))}
@@ -236,7 +237,7 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
                 {hasBoth && <div className="h-px bg-border/10 my-1" />}
                 <div className="flex items-center justify-between">
                   <p className="text-[9px] text-muted-foreground/40">Project</p>
-                  {hasBoth && <span className="text-[9px] text-muted-foreground/30">£{Math.round(projectSubtotal).toLocaleString()}</span>}
+                  {hasBoth && showCurrency && <span className="text-[9px] text-muted-foreground/30">£{Math.round(projectSubtotal).toLocaleString()}</span>}
                 </div>
                 {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
               </>
@@ -248,11 +249,12 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
   );
 }
 
-function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacityTargets }: {
+function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacityTargets, showCurrency = true }: {
   teamClients: Client[];
   contractItems: ContractLineItem[];
   teamColor: string;
   capacityTargets: CapacityTargets;
+  showCurrency?: boolean;
 }) {
   const [viewingNext, setViewingNext] = useState(false);
   const currentMonth = useMemo(() => startOfMonth(new Date()), []);
@@ -288,14 +290,14 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
           onClick={() => setViewingNext(false)}
           className={`flex-1 text-center py-1 rounded text-[11px] font-medium transition-all duration-150 ${!viewingNext ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
         >
-          {format(currentMonth, 'MMM yyyy')} · £{Math.round(currentTotal).toLocaleString()}
+          {format(currentMonth, 'MMM yyyy')} {showCurrency ? `· £${Math.round(currentTotal).toLocaleString()}` : `· ${totalTarget > 0 ? Math.round((currentTotal / totalTarget) * 100) : 0}%`}
         </button>
         <button
           onClick={() => setViewingNext(true)}
           className={`flex-1 text-center py-1 rounded text-[11px] font-medium transition-all duration-150 ${viewingNext ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground/50 hover:text-muted-foreground'}`}
         >
-          {format(nextMonth, 'MMM yyyy')} · £{Math.round(nextTotal).toLocaleString()}
-          {diff !== 0 && (
+          {format(nextMonth, 'MMM yyyy')} {showCurrency ? `· £${Math.round(nextTotal).toLocaleString()}` : `· ${totalTarget > 0 ? Math.round((nextTotal / totalTarget) * 100) : 0}%`}
+          {diff !== 0 && showCurrency && (
             <span className={`text-[9px] ml-1 ${diff > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {diff > 0 ? '↑' : '↓'}£{Math.abs(Math.round(diff)).toLocaleString()}
             </span>
@@ -305,7 +307,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
 
       {/* Total with capacity */}
       <div className="mb-3">
-        <p className="text-[18px] font-bold leading-tight">£{Math.round(total).toLocaleString()}</p>
+        <p className="text-[18px] font-bold leading-tight">{showCurrency ? `£${Math.round(total).toLocaleString()}` : `${Math.round(capacityPercentage)}%`}</p>
         {totalTarget > 0 && (
           <div className="flex items-center gap-2 mt-1">
             <div className="flex-1 h-1 rounded-full bg-muted/30 overflow-hidden">
@@ -344,7 +346,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
         return combinedRows.length > 0 ? (
           <div className="space-y-1">
             {combinedRows.map(row => (
-              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} capacityTotal={totalTarget} capacityTargets={capacityTargets} />
+              <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={teamColor} capacityTotal={totalTarget} capacityTargets={capacityTargets} showCurrency={showCurrency} />
             ))}
           </div>
         ) : breakdown.undated.length === 0 ? (
@@ -358,7 +360,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
           <div className="flex items-center gap-1.5 mb-1.5">
             <AlertTriangle size={11} className="text-amber-400 shrink-0" />
             <p className="text-[10px] font-medium text-amber-400">
-              {breakdown.undated.length} project{breakdown.undated.length !== 1 ? 's' : ''} without dates · £{Math.round(breakdown.undated.reduce((s, u) => s + u.amount, 0)).toLocaleString()} unallocated
+              {breakdown.undated.length} project{breakdown.undated.length !== 1 ? 's' : ''} without dates {showCurrency ? `· £${Math.round(breakdown.undated.reduce((s, u) => s + u.amount, 0)).toLocaleString()}` : ''} unallocated
             </p>
           </div>
           <div className="space-y-0.5">
@@ -370,7 +372,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
                     <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: s.dot }} />
                     {u.clientName} · {s.label}
                   </span>
-                  <span className="text-[10px] text-muted-foreground/40 group-hover/undated:text-foreground transition-colors">£{Math.round(u.amount).toLocaleString()}</span>
+                  {showCurrency && <span className="text-[10px] text-muted-foreground/40 group-hover/undated:text-foreground transition-colors">£{Math.round(u.amount).toLocaleString()}</span>}
                 </Link>
               );
             })}
@@ -381,7 +383,7 @@ function MonthlyBillingSection({ teamClients, contractItems, teamColor, capacity
   );
 }
 
-function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; contractRevenueByClient: Record<string, number> }) {
+function ClientList({ clients, contractRevenueByClient, showCurrency = true }: { clients: Client[]; contractRevenueByClient: Record<string, number>; showCurrency?: boolean }) {
   const [sortBy, setSortBy] = useState<'name' | 'amount'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const toggleSort = (field: 'name' | 'amount') => {
@@ -429,7 +431,7 @@ function ClientList({ clients, contractRevenueByClient }: { clients: Client[]; c
             >
               <span className="text-[13px] truncate mr-2">{client.name}</span>
               <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0">
-                {rev > 0 ? `£${rev.toLocaleString()}/mo` : '—'}
+                {showCurrency ? (rev > 0 ? `£${rev.toLocaleString()}/mo` : '—') : ''}
               </span>
             </Link>
           );
@@ -444,6 +446,8 @@ function getInitials(name: string) {
 }
 
 export default function TeamsPage() {
+  const { isAdmin } = useAuth();
+  const showCurrency = isAdmin; // Non-admins see % only, admins see £
   const [teams, setTeams] = useState<Team[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
@@ -653,7 +657,7 @@ export default function TeamsPage() {
                           <p className="text-[13px] font-semibold truncate">{team.name}</p>
                           <p className="text-[11px] text-muted-foreground/60">{tc.length} client{tc.length !== 1 ? 's' : ''} · {(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</p>
                         </div>
-                        <p className="text-[12px] font-medium text-right shrink-0">£{Math.round(rowTotal).toLocaleString()}</p>
+                        <p className="text-[12px] font-medium text-right shrink-0">{showCurrency ? `£${Math.round(rowTotal).toLocaleString()}` : `${teamTarget > 0 ? Math.round((rowTotal / teamTarget) * 100) : 0}%`}</p>
                       </button>
                     );
                   })}
@@ -673,7 +677,8 @@ export default function TeamsPage() {
                       </p>
                     </div>
                     <div className="ml-auto text-right">
-                      <p className="text-[18px] font-bold">£{Math.round(teamBilling).toLocaleString()}/mo
+                      <p className="text-[18px] font-bold">
+                        {showCurrency ? `£${Math.round(teamBilling).toLocaleString()}/mo` : `${Math.round(teamPct)}% capacity`}
                         {selectedMonthIndex > 0 && <span className="text-[11px] font-normal text-muted-foreground/60 ml-1">{format(selectedMonth, 'MMM')}</span>}
                       </p>
                       {teamTarget > 0 && (
@@ -687,11 +692,11 @@ export default function TeamsPage() {
 
                 <div className="flex-1 overflow-y-auto">
                   {/* Forecast — full width, always expanded */}
-                  <div className="px-5 pt-10 pb-3 border-b border-border/10 relative">
+                  <div className="px-5 pt-5 pb-3 border-b border-border/10 relative">
                     <ForecastChart
                       data={selected.forecastData}
                       color={selected.style?.color || 'var(--primary)'}
-                      mode="currency"
+                      mode={showCurrency ? "currency" : "percentage"}
                       capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
                       defaultExpanded
                       selectedIndex={selectedMonthIndex}
@@ -699,84 +704,57 @@ export default function TeamsPage() {
                     />
                   </div>
 
-                  {/* Two-column: services | clients */}
+                  {/* Two-column: left (services + members) | right (clients full height) */}
                   <div className="flex">
-                    {/* Left: service breakdown for selected month */}
-                    <div className="flex-1 min-w-0 px-5 py-3">
-                      <div className="mb-3">
-                        <p className="text-[11px] text-muted-foreground/60 mb-1">{format(selectedMonth, 'MMMM yyyy')}</p>
-                        <p className="text-[18px] font-bold leading-tight">£{Math.round(teamBilling).toLocaleString()}</p>
-                        {teamTarget > 0 && (
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex-1 h-1 rounded-full bg-muted/30 overflow-hidden">
-                              <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(teamPct, 100)}%`, backgroundColor: selected.style?.color || 'var(--primary)', opacity: 0.6 }} />
+                    {/* Left column: services then members */}
+                    <div className="flex-1 min-w-0">
+                      {/* Service breakdown */}
+                      <div className="px-5 py-3">
+                        <div className="mb-3">
+                          <p className="text-[11px] text-muted-foreground/60 mb-1">{format(selectedMonth, 'MMMM yyyy')}</p>
+                          <p className="text-[18px] font-bold leading-tight">
+                            {showCurrency ? `£${Math.round(teamBilling).toLocaleString()}` : `${Math.round(teamPct)}%`}
+                          </p>
+                          {teamTarget > 0 && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex-1 h-1 rounded-full bg-muted/30 overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(teamPct, 100)}%`, backgroundColor: selected.style?.color || 'var(--primary)', opacity: 0.6 }} />
+                              </div>
+                              <span className={`text-[10px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>{Math.round(teamPct)}%</span>
                             </div>
-                            <span className={`text-[10px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>{Math.round(teamPct)}%</span>
+                          )}
+                        </div>
+                        {(() => {
+                          const allServices = new Set([...bd.recurring.map(r => r.service), ...bd.project.map(p => p.service)]);
+                          const combined = Array.from(allServices).map(svc => {
+                            const rec = bd.recurring.find(r => r.service === svc);
+                            const proj = bd.project.find(p => p.service === svc);
+                            return { service: svc, amount: (rec?.amount || 0) + (proj?.amount || 0) };
+                          }).sort((a, b) => b.amount - a.amount);
+                          const total = combined.reduce((s, c) => s + c.amount, 0);
+                          return (
+                            <div className="space-y-2">
+                              {combined.map(row => (
+                                <ServiceBreakdownRow key={row.service} row={{ service: row.service, amount: row.amount, clients: [] }} total={total} teamColor={selected.style?.color || 'var(--primary)'} capacityTargets={capacityTargets} showCurrency={showCurrency} />
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        {bd.undated.length > 0 && (
+                          <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2">
+                            <p className="text-[10px] font-medium text-amber-500 mb-1">{bd.undated.length} project{bd.undated.length !== 1 ? 's' : ''} without dates · {showCurrency ? `£${bd.undated.reduce((s, u) => s + u.amount, 0).toLocaleString()}` : ''} unallocated</p>
+                            {bd.undated.map((u, idx) => (
+                              <div key={idx} className="flex items-center justify-between text-[10px] text-muted-foreground/60">
+                                <span>{u.clientName} · {getServiceStyle(u.service).label}</span>
+                                {showCurrency && <span>£{u.amount.toLocaleString()}</span>}
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
-                      {/* Combined services */}
-                      {(() => {
-                        const allServices = new Set([...bd.recurring.map(r => r.service), ...bd.project.map(p => p.service)]);
-                        const combined = Array.from(allServices).map(svc => {
-                          const rec = bd.recurring.find(r => r.service === svc);
-                          const proj = bd.project.find(p => p.service === svc);
-                          return { service: svc, amount: (rec?.amount || 0) + (proj?.amount || 0) };
-                        }).sort((a, b) => b.amount - a.amount);
-                        const total = combined.reduce((s, c) => s + c.amount, 0);
-                        return (
-                          <div className="space-y-2">
-                            {combined.map(row => (
-                              <ServiceBreakdownRow key={row.service} row={{ service: row.service, amount: row.amount, clients: [] }} total={total} teamColor={selected.style?.color || 'var(--primary)'} capacityTargets={capacityTargets} />
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      {bd.undated.length > 0 && (
-                        <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/20 p-2">
-                          <p className="text-[10px] font-medium text-amber-500 mb-1">{bd.undated.length} project{bd.undated.length !== 1 ? 's' : ''} without dates · £{bd.undated.reduce((s, u) => s + u.amount, 0).toLocaleString()} unallocated</p>
-                          {bd.undated.map((u, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-[10px] text-muted-foreground/60">
-                              <span>{u.clientName} · {getServiceStyle(u.service).label}</span>
-                              <span>£{u.amount.toLocaleString()}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Right: client list with month-specific revenue */}
-                    <div className="w-[280px] shrink-0 px-4 py-3 border-l border-border/10">
-                      <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({selected.clients.length})</p>
-                      <div className="space-y-0.5">
-                        {selected.clients.map(client => {
-                          // Calculate client revenue for the selected month
-                          const clientItems = contractItems.filter(i => i.client_id === client.id);
-                          let rev = 0;
-                          for (const item of clientItems) {
-                            if (item.billing_type === 'one-off') {
-                              if (item.start_date && item.end_date) rev += projectAllocationForMonth(item, selectedMonth);
-                            } else {
-                              if (recurringActiveInMonth(item, selectedMonth)) rev += item.monthly_value || 0;
-                            }
-                          }
-                          if (rev === 0) return null;
-                          return (
-                            <Link key={client.id} href={`/clients/${client.id}`}
-                              className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/20 transition-colors"
-                            >
-                              <span className="text-[12px]">{client.name}</span>
-                              <span className="text-[11px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>
-                            </Link>
-                          );
-                        }).filter(Boolean)}
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Members — matches width of services+clients above */}
-                  <div className="px-5 py-3 border-t border-border/10">
+                      {/* Members */}
+                      <div className="px-5 py-3 border-t border-border/10">
                     <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Members ({teamMembers.length})</p>
                     <div className="grid grid-cols-2 gap-1">
                       {teamMembers.map(member => {
@@ -800,9 +778,9 @@ export default function TeamsPage() {
                             </div>
                             {memberBilling > 0 && (
                               <div className="text-right shrink-0">
-                                <p className="text-[11px] font-medium">£{Math.round(memberBilling).toLocaleString()}</p>
+                                {showCurrency && <p className="text-[11px] font-medium">£{Math.round(memberBilling).toLocaleString()}</p>}
                                 {memberTarget > 0 && (
-                                  <p className={`text-[9px] ${memberPct < 80 ? 'text-emerald-500' : memberPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                                  <p className={`text-[${showCurrency ? '9' : '11'}px] ${showCurrency ? '' : 'font-medium '}${memberPct < 80 ? 'text-emerald-500' : memberPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                                     {Math.round(memberPct)}%
                                   </p>
                                 )}
@@ -813,6 +791,40 @@ export default function TeamsPage() {
                       })}
                     </div>
                   </div>
+                    </div>{/* end left column */}
+
+                    {/* Right column: clients list (full height) */}
+                    <div className="w-[280px] shrink-0 px-4 py-3 border-l border-border/10">
+                      <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({selected.clients.length})</p>
+                      <div className="space-y-0.5">
+                        {selected.clients.map(client => {
+                          const clientItems = contractItems.filter(i => i.client_id === client.id);
+                          let rev = 0;
+                          for (const item of clientItems) {
+                            if (item.billing_type === 'one-off') {
+                              if (item.start_date && item.end_date) rev += projectAllocationForMonth(item, selectedMonth);
+                            } else {
+                              if (recurringActiveInMonth(item, selectedMonth)) rev += item.monthly_value || 0;
+                            }
+                          }
+                          if (rev === 0) return null;
+                          return (
+                            <Link key={client.id} href={`/clients/${client.id}`}
+                              className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/20 transition-colors"
+                            >
+                              <span className="text-[12px]">{client.name}</span>
+                              {showCurrency && <span className="text-[11px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
+                              {!showCurrency && rev > 0 && (() => {
+                                const svcTarget = Object.values(capacityTargets).reduce((s, v) => s + v, 0);
+                                const pct = svcTarget > 0 ? (rev / svcTarget) * 100 : 0;
+                                return <span className="text-[11px] text-muted-foreground">{Math.round(pct)}%</span>;
+                              })()}
+                            </Link>
+                          );
+                        }).filter(Boolean)}
+                      </div>
+                    </div>
+                  </div>{/* end two-column flex */}
                 </div>
               </div>
             </div>
@@ -837,8 +849,8 @@ export default function TeamsPage() {
                     { key: 'team', label: 'Team', align: 'left' },
                     { key: 'role', label: 'Role', align: 'left' },
                     { key: 'clients', label: 'Clients', align: 'right' },
-                    { key: 'billing', label: 'Billing', align: 'right' },
-                    { key: 'target', label: 'Target', align: 'right' },
+                    ...(showCurrency ? [{ key: 'billing', label: 'Billing', align: 'right' }] : []),
+                    ...(showCurrency ? [{ key: 'target', label: 'Target', align: 'right' }] : []),
                     { key: 'capacity', label: 'Capacity', align: 'right' },
                   ] as const).map(col => (
                     <th key={col.key}
@@ -880,12 +892,16 @@ export default function TeamsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-[13px] text-muted-foreground">{m.role?.name || '—'}</td>
                       <td className="px-4 py-2.5 text-[13px] text-right text-muted-foreground">{m.clientCount}</td>
-                      <td className="px-4 py-2.5 text-[13px] text-right font-medium">
-                        {m.billing > 0 ? `£${Math.round(m.billing).toLocaleString()}` : '—'}
-                      </td>
-                      <td className="px-4 py-2.5 text-[13px] text-right text-muted-foreground">
-                        {m.target > 0 ? `£${Math.round(m.target).toLocaleString()}` : '—'}
-                      </td>
+                      {showCurrency && (
+                        <td className="px-4 py-2.5 text-[13px] text-right font-medium">
+                          {m.billing > 0 ? `£${Math.round(m.billing).toLocaleString()}` : '—'}
+                        </td>
+                      )}
+                      {showCurrency && (
+                        <td className="px-4 py-2.5 text-[13px] text-right text-muted-foreground">
+                          {m.target > 0 ? `£${Math.round(m.target).toLocaleString()}` : '—'}
+                        </td>
+                      )}
                       <td className="px-4 py-2.5 text-right">
                         {m.target > 0 ? (
                           <span className={`text-[13px] font-medium ${m.pct < 80 ? 'text-emerald-500' : m.pct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
@@ -939,6 +955,7 @@ export default function TeamsPage() {
                 contractItems={contractItems}
                 capacityTargets={capacityTargets}
                 teamColor={style?.color || 'var(--primary)'}
+                showCurrency={showCurrency}
               />
 
               {/* 6-month forecast */}
@@ -946,7 +963,7 @@ export default function TeamsPage() {
                 <ForecastChart
                   data={forecastData}
                   color={style?.color || 'var(--primary)'}
-                  mode="currency"
+                  mode={showCurrency ? "currency" : "percentage"}
                   capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
                 />
               </div>
@@ -991,7 +1008,7 @@ export default function TeamsPage() {
                 {teamClients.length === 0 ? (
                   <p className="text-[13px] text-muted-foreground/40">No active clients</p>
                 ) : (
-                  <ClientList clients={teamClients} contractRevenueByClient={contractRevenueByClient} />
+                  <ClientList clients={teamClients} contractRevenueByClient={contractRevenueByClient} showCurrency={showCurrency} />
                 )}
               </div>
             </div>
@@ -1008,7 +1025,7 @@ export default function TeamsPage() {
           memberName={selectedMember.name}
           memberTeam={selectedMember.team}
           memberRole={selectedMember.roleName}
-          mode="currency"
+          mode={showCurrency ? "currency" : "percentage"}
           capacityTargets={capacityTargets}
         />
       )}

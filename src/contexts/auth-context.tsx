@@ -172,13 +172,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { ...DEFAULT_PERMISSIONS, ...rolePerms, ...userOverrides } as Permissions;
   })() : permissions;
 
+  // When viewing as another user, isAdmin reflects THEIR status (so you see exactly what they see)
+  // But we keep realUser so the sidebar can still show the "View as" controls
+  const effectiveIsAdmin = viewAsUser ? false : isAdmin;
+
   return (
     <AuthContext.Provider value={{
       user,
       appUser: effectiveAppUser,
       permissions: effectivePermissions,
       roleName: effectiveRoleName,
-      isAdmin, // Always real admin status
+      isAdmin: effectiveIsAdmin,
       loading,
       signOut,
       realUser: viewAsUser ? appUser : null,

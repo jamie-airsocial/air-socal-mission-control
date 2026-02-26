@@ -7,12 +7,10 @@ import {
   Building2, 
   ListChecks, 
   UsersRound, 
-  Receipt,
   TrendingUp,
   ChevronLeft,
   ChevronRight,
   Settings,
-  BarChart3,
   Eye,
   X,
 } from 'lucide-react';
@@ -27,25 +25,26 @@ const NAV_ITEMS = [
   { href: '/tasks', label: 'Tasks', icon: ListChecks, permKey: 'tasks' },
   { href: '/pipeline', label: 'Pipeline', icon: TrendingUp, permKey: 'pipeline' },
   { href: '/teams', label: 'Teams', icon: UsersRound, permKey: 'teams' },
-  { href: '/delivery', label: 'Delivery', icon: BarChart3, permKey: 'teams' },
-  { href: '/xero', label: 'Xero', icon: Receipt, permKey: 'xero' },
+  // Delivery removed — Teams page handles both views (£ for admins, % for non-admins)
+  // Xero removed
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggleCollapsed } = useSidebar();
   const { appUser, permissions, roleName, isAdmin, viewAsUser, setViewAsUser, realUser } = useAuth();
+  const isRealAdmin = !!realUser || isAdmin; // True admin even when viewing as someone else
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const [viewAsOpen, setViewAsOpen] = useState(false);
 
   // Fetch all users for "View as" (admin only)
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isRealAdmin) return;
     fetch('/api/users')
       .then(r => r.json())
       .then(data => setAllUsers(data.filter((u: AppUser) => u.is_active)))
       .catch(() => {});
-  }, [isAdmin]);
+  }, [isRealAdmin]);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -143,7 +142,7 @@ export function Sidebar() {
         </nav>
 
         {/* View as (admin only) */}
-        {isAdmin && !collapsed && (
+        {isRealAdmin && !collapsed && (
           <div className="px-4 py-2 border-t border-border/20">
             {viewAsUser ? (
               <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-amber-500/10 border border-amber-500/20">
@@ -188,7 +187,7 @@ export function Sidebar() {
             )}
           </div>
         )}
-        {isAdmin && collapsed && (
+        {isRealAdmin && collapsed && (
           <div className="px-2 py-2 border-t border-border/20">
             <Tooltip>
               <TooltipTrigger asChild>
