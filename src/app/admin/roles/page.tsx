@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { Plus, Trash2, MoreHorizontal, Check, Pencil, ShieldCheck, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,85 +77,21 @@ const DEFAULT_PERMS: Permissions = {
 };
 
 const ADMIN_ROLE_NAME = 'Admin';
-const PROTECTED_IDS = [
-  '00000000-0000-0000-0000-000000000001',
-  '00000000-0000-0000-0000-000000000002',
-  '00000000-0000-0000-0000-000000000003',
-  '00000000-0000-0000-0000-000000000004',
-  '00000000-0000-0000-0000-000000000005',
-  '00000000-0000-0000-0000-000000000006',
-  '00000000-0000-0000-0000-000000000007',
-  '00000000-0000-0000-0000-000000000008',
-];
+const PROTECTED_IDS = ['00000000-0000-0000-0000-000000000001']; // Admin only
 
-const CATEGORY_ORDER = ['delivery', 'management', 'admin', 'sales', null];
-const CATEGORY_LABELS: Record<string, string> = {
-  delivery: 'Delivery',
-  management: 'Management',
-  admin: 'Admin',
-  sales: 'Sales',
+const CATEGORY_ORDER: Record<string, number> = {
+  'management': 0,
+  'sales': 1,
+  'admin': 2,
+  'delivery': 3,
 };
 
-// ── Inline editable role name ─────────────────────────────────────────────────
-function RoleNameEditor({
-  role,
-  onSave,
-  isAdmin,
-}: {
-  role: Role;
-  onSave: (id: string, name: string) => Promise<void>;
-  isAdmin: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(role.name);
-  const [saving, setSaving] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
-
-  const save = async () => {
-    const trimmed = draft.trim();
-    if (!trimmed || trimmed === role.name) { setEditing(false); setDraft(role.name); return; }
-    setSaving(true);
-    await onSave(role.id, trimmed);
-    setSaving(false);
-    setEditing(false);
-  };
-
-  if (isAdmin) {
-    return (
-      <span className="text-[13px] font-semibold text-amber-400">{role.name}</span>
-    );
-  }
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={e => setDraft(e.target.value)}
-        onBlur={save}
-        onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setEditing(false); setDraft(role.name); } }}
-        className="w-28 px-1.5 py-0.5 text-[13px] font-semibold bg-secondary border border-primary/50 rounded outline-none text-center"
-        disabled={saving}
-      />
-    );
-  }
-
-  return (
-    <button
-      data-role-rename={role.id}
-      onClick={() => { if (!PROTECTED_IDS.includes(role.id)) setEditing(true); }}
-      title="Click to rename"
-      className="flex items-center gap-1 group text-[13px] font-semibold text-foreground hover:text-primary transition-colors"
-    >
-      {role.name}
-      {!PROTECTED_IDS.includes(role.id) && (
-        <Pencil size={11} className="opacity-0 group-hover:opacity-50 transition-opacity" />
-      )}
-    </button>
-  );
-}
+const CATEGORY_LABELS: Record<string, string> = {
+  'management': 'Management',
+  'sales': 'Sales',
+  'admin': 'Admin',
+  'delivery': 'Delivery Team',
+};
 
 // ── Auto-saving toggle cell ───────────────────────────────────────────────────
 function PermissionCell({
@@ -203,10 +139,16 @@ export default function AdminRolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [editRoleName, setEditRoleName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editPerms, setEditPerms] = useState<Permissions>(DEFAULT_PERMS);
   const [newRoleName, setNewRoleName] = useState('');
   const [newPerms, setNewPerms] = useState<Permissions>(DEFAULT_PERMS);
   const [newCategory, setNewCategory] = useState<string>('delivery');
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -242,19 +184,40 @@ export default function AdminRolesPage() {
     }
   };
 
-  // Rename a role inline
-  const renameRole = async (roleId: string, name: string) => {
-    const res = await fetch(`/api/roles/${roleId}`, {
+  // Open edit dialog
+  const openEditDialog = (role: Role) => {
+    setEditingRole(role);
+    setEditRoleName(role.name);
+    setEditCategory(role.category || 'delivery');
+    setEditPerms(role.permissions || DEFAULT_PERMS);
+    setEditDialogOpen(true);
+  };
+
+  // Update role
+  const updateRole = async () => {
+    if (!editingRole || !editRoleName.trim()) { 
+      toast.error('Role name is required'); 
+      return; 
+    }
+    setUpdating(true);
+    const res = await fetch(`/api/roles/${editingRole.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ 
+        name: editRoleName.trim(), 
+        category: editCategory,
+        permissions: editPerms 
+      }),
     });
+    setUpdating(false);
     if (res.ok) {
-      const updated = await res.json();
-      setRoles(prev => prev.map(r => r.id === roleId ? { ...r, name: updated.name } : r));
-      toast.success('Role renamed');
+      toast.success('Role updated');
+      setEditDialogOpen(false);
+      setEditingRole(null);
+      loadRoles();
     } else {
-      toast.error('Failed to rename role');
+      const e = await res.json();
+      toast.error(e.error || 'Failed to update role');
     }
   };
 
@@ -302,23 +265,33 @@ export default function AdminRolesPage() {
     );
   }
 
-  // Hide Admin role from the permissions matrix and sort by category
-  const displayRoles = roles
+  // Separate Admin role and sort others by category
+  const adminRole = roles.find(r => r.name === ADMIN_ROLE_NAME);
+  const otherRoles = roles
     .filter(r => r.name !== ADMIN_ROLE_NAME)
     .sort((a, b) => {
-      const aIndex = CATEGORY_ORDER.indexOf(a.category || null);
-      const bIndex = CATEGORY_ORDER.indexOf(b.category || null);
-      if (aIndex !== bIndex) return aIndex - bIndex;
+      const aCat = a.category || 'other';
+      const bCat = b.category || 'other';
+      const aOrder = CATEGORY_ORDER[aCat] ?? 999;
+      const bOrder = CATEGORY_ORDER[bCat] ?? 999;
+      if (aOrder !== bOrder) return aOrder - bOrder;
       return a.name.localeCompare(b.name);
     });
 
-  // Group roles by category for headers
-  const rolesByCategory = displayRoles.reduce((acc, role) => {
+  // Group roles by category for rendering with headers
+  const rolesByCategory: Record<string, Role[]> = {};
+  otherRoles.forEach(role => {
     const cat = role.category || 'other';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(role);
-    return acc;
-  }, {} as Record<string, Role[]>);
+    if (!rolesByCategory[cat]) rolesByCategory[cat] = [];
+    rolesByCategory[cat].push(role);
+  });
+
+  // Order categories
+  const orderedCategories = Object.keys(rolesByCategory).sort((a, b) => {
+    const aOrder = CATEGORY_ORDER[a] ?? 999;
+    const bOrder = CATEGORY_ORDER[b] ?? 999;
+    return aOrder - bOrder;
+  });
 
   return (
     <div className="space-y-4">
@@ -329,7 +302,7 @@ export default function AdminRolesPage() {
             {roles.length} role{roles.length !== 1 ? 's' : ''} · {ALL_PERMISSION_KEYS.length} permissions
           </p>
           <p className="text-[11px] text-muted-foreground/50 mt-0.5">
-            Changes save instantly. Click a role name to rename it.
+            Permission changes save instantly
           </p>
         </div>
         <Button size="sm" onClick={() => setAddDialogOpen(true)} className="h-8 text-[13px] gap-1.5">
@@ -337,81 +310,81 @@ export default function AdminRolesPage() {
         </Button>
       </div>
 
+      {/* Admin role card - separate from matrix */}
+      {adminRole && (
+        <div className="bg-card border border-amber-400/20 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={14} className="text-amber-400" />
+            <span className="text-[13px] font-semibold text-amber-400">{adminRole.name}</span>
+            <span className="text-[10px] bg-amber-400/10 text-amber-400/80 px-1.5 py-0.5 rounded font-medium">
+              Protected
+            </span>
+            <span className="text-[11px] text-muted-foreground ml-auto">
+              Full system access
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Matrix table */}
       <div className="bg-card border border-border/20 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
-              {/* Category header row */}
-              <tr className="border-b border-border/10 bg-muted/40">
-                <th className="sticky left-0 z-10 bg-muted/40 border-r border-border/10"></th>
-                {CATEGORY_ORDER.filter(cat => rolesByCategory[cat || 'other']).map(cat => {
-                  const rolesInCat = rolesByCategory[cat || 'other'] || [];
-                  if (rolesInCat.length === 0) return null;
-                  return (
-                    <th
-                      key={cat || 'other'}
-                      colSpan={rolesInCat.length}
-                      className="px-4 py-2 text-center text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest border-r border-border/10 last:border-r-0"
-                    >
-                      {CATEGORY_LABELS[cat || 'other'] || 'Other'}
-                    </th>
-                  );
-                })}
-              </tr>
-              {/* Role name row */}
+              {/* Role name row with category headers */}
               <tr className="border-b border-border/20 bg-muted/30">
                 {/* Sticky permission column header */}
-                <th className="sticky left-0 z-10 bg-muted/30 text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider min-w-[200px] border-r border-border/10">
+                <th className="sticky left-0 z-10 bg-muted/30 text-left px-3 py-2 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider min-w-[200px] border-r border-border/10">
                   Permission
                 </th>
-                {displayRoles.map(role => {
-                  const isAdmin = role.name === ADMIN_ROLE_NAME;
-                  const isProtected = isAdmin || PROTECTED_IDS.includes(role.id);
-                  return (
-                    <th key={role.id} className="px-4 py-3 text-center min-w-[130px]">
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="flex items-center gap-1.5">
-                          {isAdmin && <ShieldCheck size={13} className="text-amber-400 shrink-0" />}
-                          <RoleNameEditor role={role} onSave={renameRole} isAdmin={isAdmin} />
-                          {!isProtected && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground/30 hover:text-muted-foreground transition-colors">
-                                  <MoreHorizontal size={13} />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="center" className="w-40">
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    // Trigger the RoleNameEditor to go into edit mode
-                                    // We'll handle this via a rename dialog instead
-                                    const el = document.querySelector<HTMLButtonElement>(`[data-role-rename="${role.id}"]`);
-                                    el?.click();
-                                  }}
-                                  className="text-[13px]"
-                                >
-                                  <Pencil size={12} className="mr-2" /> Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => setDeleteTarget(role)}
-                                  className="text-[13px] text-destructive focus:text-destructive focus:bg-destructive/10"
-                                >
-                                  <Trash2 size={12} className="mr-2" /> Delete role
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                {orderedCategories.map(cat => {
+                  const rolesInCat = rolesByCategory[cat] || [];
+                  return rolesInCat.map((role, idx) => {
+                    const isProtected = PROTECTED_IDS.includes(role.id);
+                    const showCategoryHeader = idx === 0;
+                    return (
+                      <th key={role.id} className="px-3 py-2 text-center min-w-[120px] border-l border-border/10">
+                        <div className="flex flex-col items-center gap-1">
+                          {/* Category header */}
+                          {showCategoryHeader && (
+                            <span className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest mb-0.5">
+                              {CATEGORY_LABELS[cat] || cat}
+                            </span>
                           )}
+                          {/* Role name and actions */}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[13px] font-semibold text-foreground">
+                              {role.name}
+                            </span>
+                            {!isProtected && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button className="p-0.5 rounded hover:bg-muted/60 text-muted-foreground/30 hover:text-muted-foreground transition-colors">
+                                    <MoreHorizontal size={13} />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="center" className="w-40">
+                                  <DropdownMenuItem
+                                    onClick={() => openEditDialog(role)}
+                                    className="text-[13px]"
+                                  >
+                                    <Pencil size={12} className="mr-2" /> Edit role
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => setDeleteTarget(role)}
+                                    className="text-[13px] text-destructive focus:text-destructive focus:bg-destructive/10"
+                                  >
+                                    <Trash2 size={12} className="mr-2" /> Delete role
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
                         </div>
-                        {isAdmin && (
-                          <span className="text-[10px] bg-amber-400/10 text-amber-400/80 px-1.5 py-0.5 rounded font-medium leading-none">
-                            Protected
-                          </span>
-                        )}
-                      </div>
-                    </th>
-                  );
+                      </th>
+                    );
+                  });
                 })}
               </tr>
             </thead>
@@ -421,8 +394,8 @@ export default function AdminRolesPage() {
                   {/* Group header */}
                   <tr key={`grp-${group}`} className="border-b border-border/10">
                     <td
-                      colSpan={displayRoles.length + 1}
-                      className="sticky left-0 px-4 py-1.5 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest bg-muted/20 border-r border-border/10"
+                      colSpan={otherRoles.length + 1}
+                      className="sticky left-0 px-3 py-1 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest bg-muted/20 border-r border-border/10"
                     >
                       {group}
                     </td>
@@ -431,21 +404,20 @@ export default function AdminRolesPage() {
                   {items.map(({ key, label, desc }) => (
                     <tr key={key} className="border-b border-border/10 hover:bg-secondary/20 transition-colors group/row">
                       {/* Sticky label cell */}
-                      <td className="sticky left-0 z-10 bg-card group-hover/row:bg-secondary/20 transition-colors px-4 py-3 border-r border-border/10">
+                      <td className="sticky left-0 z-10 bg-card group-hover/row:bg-secondary/20 transition-colors px-3 py-2 border-r border-border/10">
                         <div>
                           <p className="text-[13px] font-medium text-foreground leading-tight">{label}</p>
                           <p className="text-[11px] text-muted-foreground/50 mt-0.5 leading-tight">{desc}</p>
                         </div>
                       </td>
                       {/* Toggle cells */}
-                      {displayRoles.map(role => {
-                        const isAdmin = role.name === ADMIN_ROLE_NAME;
-                        const checked = isAdmin ? true : (role.permissions?.[key] === true);
+                      {otherRoles.map(role => {
+                        const checked = role.permissions?.[key] === true;
                         return (
-                          <td key={role.id} className="px-4 py-3 text-center">
+                          <td key={role.id} className="px-3 py-2 text-center border-l border-border/10">
                             <PermissionCell
                               checked={checked}
-                              disabled={isAdmin}
+                              disabled={false}
                               onChange={v => savePermission(role.id, key, v)}
                             />
                           </td>
@@ -485,10 +457,10 @@ export default function AdminRolesPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="delivery" className="text-[13px]">Delivery</SelectItem>
                   <SelectItem value="management" className="text-[13px]">Management</SelectItem>
-                  <SelectItem value="admin" className="text-[13px]">Admin</SelectItem>
                   <SelectItem value="sales" className="text-[13px]">Sales</SelectItem>
+                  <SelectItem value="admin" className="text-[13px]">Admin</SelectItem>
+                  <SelectItem value="delivery" className="text-[13px]">Delivery Team</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -514,6 +486,65 @@ export default function AdminRolesPage() {
             <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
             <Button onClick={createRole} disabled={creating} className="text-[13px] h-8">
               {creating ? 'Creating…' : 'Create role'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-sm bg-card border-border/20">
+          <DialogHeader>
+            <DialogTitle className="text-[15px]">Edit role</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Role name *</Label>
+              <Input
+                value={editRoleName}
+                onChange={e => setEditRoleName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') updateRole(); }}
+                placeholder="e.g. Content Manager"
+                className="h-9 text-[13px] bg-secondary border-border/20"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Category</Label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger className="h-9 text-[13px] bg-secondary border-border/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="management" className="text-[13px]">Management</SelectItem>
+                  <SelectItem value="sales" className="text-[13px]">Sales</SelectItem>
+                  <SelectItem value="admin" className="text-[13px]">Admin</SelectItem>
+                  <SelectItem value="delivery" className="text-[13px]">Delivery Team</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[13px] text-muted-foreground">Permissions</Label>
+              {PERMISSION_GROUPS.map(({ group, items }) => (
+                <div key={group} className="mt-2">
+                  <p className="text-[10px] font-bold text-muted-foreground/50 uppercase tracking-wider mb-1 px-1">{group}</p>
+                  {items.map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/40">
+                      <span className="text-[13px] text-foreground">{label}</span>
+                      <Switch
+                        checked={editPerms[key] === true}
+                        onCheckedChange={v => setEditPerms(p => ({ ...p, [key]: v }))}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
+            <Button onClick={updateRole} disabled={updating} className="text-[13px] h-8">
+              {updating ? 'Saving…' : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
