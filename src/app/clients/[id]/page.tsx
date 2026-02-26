@@ -244,7 +244,18 @@ function LineItemDialog({
   const [services, setServices] = useState<{ id: string; label: string }[]>([]);
   const [serviceOpen, setServiceOpen] = useState(false);
   const [serviceSearch, setServiceSearch] = useState('');
-  const [users, setUsers] = useState<Array<{ id: string; full_name: string; team: string | null; is_active: boolean }>>([]);
+  const [users, setUsers] = useState<Array<{ id: string; full_name: string; team: string | null; is_active: boolean; role?: { name: string } | null }>>([]);
+
+  const SERVICE_TO_ROLES: Record<string, string[]> = {
+    'paid-advertising': ['Paid Ads Manager'],
+    'social-media': ['Social Media Manager'],
+    'seo': ['SEO'],
+    'creative': ['Creative'],
+  };
+  const roleFiltered = form.service && SERVICE_TO_ROLES[form.service]
+    ? users.filter(u => u.role?.name && SERVICE_TO_ROLES[form.service].includes(u.role.name))
+    : users;
+  const filteredUsers = roleFiltered.length > 0 ? roleFiltered : users;
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [assigneeSearch, setAssigneeSearch] = useState('');
 
@@ -392,7 +403,7 @@ function LineItemDialog({
                       {!form.assignee_id && <Check size={14} className="text-primary" />}
                     </button>
                   )}
-                  {users
+                  {filteredUsers
                     .filter(u => !assigneeSearch || u.full_name.toLowerCase().includes(assigneeSearch.toLowerCase()))
                     .map(u => {
                       const colorClass = getAssigneeColor(u.full_name, u.team);
