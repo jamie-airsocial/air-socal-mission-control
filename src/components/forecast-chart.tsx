@@ -53,13 +53,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
             const isSelected = selectedIndex === i;
             const capacityPct = capacityTarget > 0 ? (point.total / capacityTarget) * 100 : 0;
 
-            const isLeft = i <= 1;
-            const isRight = i >= data.length - 2;
-            const tooltipPosition = isLeft
-              ? 'left-0'
-              : isRight
-                ? 'right-0'
-                : 'left-1/2 -translate-x-1/2';
+            const tooltipPosition = 'left-1/2 -translate-x-1/2';
 
             return (
               <div
