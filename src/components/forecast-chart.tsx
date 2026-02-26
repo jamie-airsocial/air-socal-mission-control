@@ -40,7 +40,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`space-y-2 overflow-visible ${className}`}>
       <div className="flex items-center justify-between px-1">
         <span className="text-[11px] font-medium text-muted-foreground/60">6-month forecast</span>
         <button
@@ -53,7 +53,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
 
       <div className="relative">
         {/* Chart container — no Y-axis */}
-        <div className="flex items-end gap-1 h-32 relative">
+        <div className="flex items-end gap-1 h-24 relative overflow-visible">
           {/* Bars */}
           {data.map((point, i) => {
             const heightPercent = scaleMax > 0 ? Math.min((point.total / scaleMax) * 100, 100) : 0;
@@ -91,7 +91,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
 
                 {/* Tooltip */}
                 {isHovered && (
-                  <div className={`absolute bottom-full ${tooltipPosition} mb-2 z-10 pointer-events-none`}>
+                  <div className={`absolute top-0 ${tooltipPosition} -mt-2 -translate-y-full z-50 pointer-events-none`}>
                     <div className="bg-popover border border-border/20 rounded-lg shadow-lg p-2 min-w-[140px] whitespace-nowrap">
                       <p className="text-[11px] font-medium mb-1.5">
                         {format(point.month, 'MMM yyyy')}

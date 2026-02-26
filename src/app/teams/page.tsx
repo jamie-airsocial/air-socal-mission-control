@@ -643,21 +643,21 @@ export default function TeamsPage() {
               </div>
 
               {/* Right: selected team detail */}
-              <div className="flex-1 rounded-lg border border-border/20 bg-card overflow-hidden flex flex-col">
+              <div className="flex-1 rounded-lg border border-border/20 bg-card flex flex-col overflow-visible">
                 {/* Team header */}
-                <div className="px-6 py-4 border-b border-border/10">
+                <div className="px-5 py-3 border-b border-border/10">
                   <div className="flex items-center gap-3">
                     {selected.style && <span className="w-3 h-3 rounded-full" style={{ backgroundColor: selected.style.color }} />}
                     <div>
-                      <h2 className="text-[18px] font-bold">{selected.team.name}</h2>
-                      <p className="text-[13px] text-muted-foreground/60">
+                      <h2 className="text-[16px] font-bold">{selected.team.name}</h2>
+                      <p className="text-[12px] text-muted-foreground/60">
                         {selected.clients.length} client{selected.clients.length !== 1 ? 's' : ''} · {teamMembers.length} member{teamMembers.length !== 1 ? 's' : ''}
                       </p>
                     </div>
                     <div className="ml-auto text-right">
-                      <p className="text-[20px] font-bold">£{Math.round(teamBilling).toLocaleString()}/mo</p>
+                      <p className="text-[18px] font-bold">£{Math.round(teamBilling).toLocaleString()}/mo</p>
                       {teamTarget > 0 && (
-                        <p className={`text-[12px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                        <p className={`text-[11px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                           {Math.round(teamPct)}% capacity
                         </p>
                       )}
@@ -665,9 +665,9 @@ export default function TeamsPage() {
                   </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto overflow-x-visible">
                   {/* Forecast — full width, always expanded */}
-                  <div className="px-6 py-4 border-b border-border/10">
+                  <div className="px-5 py-3 border-b border-border/10 relative overflow-visible">
                     <ForecastChart
                       data={selected.forecastData}
                       color={selected.style?.color || 'var(--primary)'}
@@ -678,11 +678,11 @@ export default function TeamsPage() {
                   </div>
 
                   {/* Two-column: left = service breakdown + members, right = client list */}
-                  <div className="flex divide-x divide-border/10">
+                  <div className="flex divide-x divide-border/10 min-h-0">
                     {/* Left column: service totals + members */}
                     <div className="flex-1 min-w-0">
                       {/* Service breakdown */}
-                      <div className="px-6 py-4 border-b border-border/10">
+                      <div className="px-5 py-3 border-b border-border/10">
                         <MonthlyBillingSection
                           teamClients={selected.clients}
                           contractItems={contractItems}
@@ -692,8 +692,8 @@ export default function TeamsPage() {
                       </div>
 
                       {/* Members */}
-                      <div className="px-6 py-4">
-                        <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Members ({teamMembers.length})</p>
+                      <div className="px-5 py-3">
+                        <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Members ({teamMembers.length})</p>
                         <div className="space-y-1">
                           {teamMembers.map(member => {
                             const colorClass = getAssigneeColor(member.full_name, selected.slug);
@@ -733,9 +733,9 @@ export default function TeamsPage() {
                     </div>
 
                     {/* Right column: client list */}
-                    <div className="w-[340px] shrink-0">
-                      <div className="px-5 py-4">
-                        <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Active clients ({selected.clients.length})</p>
+                    <div className="w-[300px] shrink-0">
+                      <div className="px-4 py-3">
+                        <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({selected.clients.length})</p>
                         <div className="space-y-1">
                           {selected.clients.map(client => {
                             const rev = contractRevenueByClient[client.id] || 0;
