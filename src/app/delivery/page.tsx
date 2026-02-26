@@ -244,13 +244,13 @@ function ServiceCapacityRow({ row, teamColor }: { row: ServiceCapacity; teamColo
         return (
           <div className="ml-5 mt-1 mb-1 space-y-0.5">
             {hasBoth && (
-              <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Recurring</p>
+              <p className="text-[9px] text-muted-foreground/40">Recurring</p>
             )}
             {recurringClients.map((c, i) => renderClient(c, i, true))}
             {projectClients.length > 0 && (
               <>
                 {hasBoth && <div className="h-px bg-border/10 my-1" />}
-                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
+                <p className="text-[9px] text-muted-foreground/40">Project</p>
                 {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
               </>
             )}

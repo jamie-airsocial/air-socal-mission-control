@@ -1111,11 +1111,11 @@ function ClientsPageContent() {
                 <thead>
                   <tr className="border-b border-border/20 bg-muted/30">
                     {([['name', 'Name'], ['team', 'Team'], ['status', 'Status'], ['retainer', 'Retainer'], ['tenure', 'Tenure']] as const).map(([field, label]) => (
-                      <th key={field} onClick={() => toggleSort(field)} className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors select-none">
+                      <th key={field} onClick={() => toggleSort(field)} className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60 cursor-pointer hover:text-foreground transition-colors select-none">
                         <span className="inline-flex items-center gap-1">{label} <SortIcon field={field} /></span>
                       </th>
                     ))}
-                    <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider">Services</th>
+                    <th className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60">Services</th>
                   </tr>
                 </thead>
                 <tbody>

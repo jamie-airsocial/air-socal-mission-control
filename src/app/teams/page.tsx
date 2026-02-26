@@ -226,7 +226,7 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
           <div className="ml-5 mt-1 mb-1 space-y-0.5">
             {hasBoth && (
               <div className="flex items-center justify-between">
-                <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Recurring</p>
+                <p className="text-[9px] text-muted-foreground/40">Recurring</p>
                 <span className="text-[9px] text-muted-foreground/30">£{Math.round(recurringSubtotal).toLocaleString()}</span>
               </div>
             )}
@@ -235,7 +235,7 @@ function ServiceBreakdownRow({ row, total, teamColor, capacityTotal, capacityTar
               <>
                 {hasBoth && <div className="h-px bg-border/10 my-1" />}
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] text-muted-foreground/40 uppercase tracking-wider">Project</p>
+                  <p className="text-[9px] text-muted-foreground/40">Project</p>
                   {hasBoth && <span className="text-[9px] text-muted-foreground/30">£{Math.round(projectSubtotal).toLocaleString()}</span>}
                 </div>
                 {projectClients.map((c, i) => renderClient(c, i + recurringClients.length, false))}
