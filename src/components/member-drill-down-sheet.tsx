@@ -215,11 +215,18 @@ export function MemberDrillDownSheet({
                 <p className="text-[11px] text-muted-foreground/60 mb-2">
                   {mode === 'currency' ? 'Total Billing' : 'Capacity Usage'}
                 </p>
-                <p className="text-[24px] font-bold">
-                  {mode === 'currency'
-                    ? `£${Math.round(total).toLocaleString()}/mo`
-                    : `${Math.round(percentage)}%`}
-                </p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-[24px] font-bold">
+                    {mode === 'currency'
+                      ? `£${Math.round(total).toLocaleString()}/mo`
+                      : `${Math.round(percentage)}%`}
+                  </p>
+                  {mode === 'currency' && effectiveTarget > 0 && (
+                    <span className={`text-[14px] font-medium ${percentage < 80 ? 'text-emerald-500' : percentage <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                      {Math.round(percentage)}%
+                    </span>
+                  )}
+                </div>
                 {mode === 'currency' && effectiveTarget > 0 && (
                   <p className="text-[11px] text-muted-foreground/60 mt-1">
                     of £{Math.round(effectiveTarget).toLocaleString()} target
@@ -245,10 +252,15 @@ export function MemberDrillDownSheet({
                               <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: style.dot }} />
                               <span className="text-[13px] font-medium">{style.label}</span>
                             </div>
-                            <span className="text-[13px] font-bold">
+                            <span className="text-[13px] font-bold flex items-center gap-1.5">
                               {mode === 'currency'
                                 ? `£${Math.round(amount).toLocaleString()}`
                                 : `${Math.round(svcPct)}%`}
+                              {mode === 'currency' && svcTarget > 0 && (
+                                <span className={`text-[10px] font-normal ${svcPct < 80 ? 'text-emerald-500' : svcPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                                  {Math.round(svcPct)}%
+                                </span>
+                              )}
                             </span>
                           </div>
                           <div className="ml-4 space-y-0.5">
@@ -260,6 +272,9 @@ export function MemberDrillDownSheet({
                                   {mode === 'currency'
                                     ? `£${Math.round(client.amount).toLocaleString()}`
                                     : `${svcTarget > 0 ? Math.round((client.amount / svcTarget) * 100) : 0}%`}
+                                  {mode === 'currency' && svcTarget > 0 && (
+                                    <span className="ml-1 text-muted-foreground/30">{Math.round((client.amount / svcTarget) * 100)}%</span>
+                                  )}
                                 </span>
                               </Link>
                             ))}
