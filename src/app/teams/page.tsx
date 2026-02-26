@@ -678,7 +678,7 @@ export default function TeamsPage() {
                   </div>
 
                   {/* Three-column: services | clients | (empty space used by members below) */}
-                  <div className="flex divide-x divide-border/10">
+                  <div className="flex flex-wrap">
                     {/* Left: service breakdown */}
                     <div className="flex-1 min-w-0 px-5 py-3">
                       <MonthlyBillingSection
@@ -690,7 +690,7 @@ export default function TeamsPage() {
                     </div>
 
                     {/* Right: client list */}
-                    <div className="w-[280px] shrink-0 px-4 py-3">
+                    <div className="w-[280px] shrink-0 px-4 py-3 border-l border-border/10">
                       <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({selected.clients.length})</p>
                       <div className="space-y-0.5">
                         {selected.clients.map(client => {
@@ -706,10 +706,9 @@ export default function TeamsPage() {
                         })}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Members — full width, 2-column grid */}
-                  <div className="px-5 py-3 border-t border-border/10">
+                    {/* Members — spans full width of services+clients area */}
+                    <div className="basis-full px-5 py-3 border-t border-border/10">
                     <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Members ({teamMembers.length})</p>
                     <div className="grid grid-cols-2 gap-1">
                       {teamMembers.map(member => {
@@ -747,6 +746,7 @@ export default function TeamsPage() {
                       })}
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
             </div>
