@@ -525,9 +525,10 @@ export default function TeamsPage() {
   });
 
   const [viewTab, setViewTab] = useState<'teams' | 'members'>('teams');
+  const [memberSort, setMemberSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'billing', dir: 'desc' });
 
   // Build all-members data for the members tab
-  const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'Paid Advertising', 'Social Media Manager': 'Social Media', 'SEO': 'SEO', 'Creative': 'Creative' };
+  const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'paid-advertising', 'Social Media Manager': 'social-media', 'SEO': 'seo', 'Creative': 'creative' };
   const allMembers = useMemo(() => {
     const members: Array<TeamMember & { teamName: string; billing: number; target: number; pct: number; clientCount: number }> = [];
     for (const team of teams) {
@@ -542,8 +543,26 @@ export default function TeamsPage() {
         members.push({ ...m, teamName: team.name, billing, target, pct, clientCount });
       }
     }
-    return members.sort((a, b) => b.billing - a.billing);
+    return members;
   }, [teams, contractItems, capacityTargets]);
+
+  const sortedMembers = useMemo(() => {
+    const sorted = [...allMembers];
+    const { key, dir } = memberSort;
+    sorted.sort((a, b) => {
+      let av: string | number = 0, bv: string | number = 0;
+      if (key === 'name') { av = a.full_name; bv = b.full_name; }
+      else if (key === 'team') { av = a.teamName; bv = b.teamName; }
+      else if (key === 'role') { av = a.role?.name || ''; bv = b.role?.name || ''; }
+      else if (key === 'clients') { av = a.clientCount; bv = b.clientCount; }
+      else if (key === 'billing') { av = a.billing; bv = b.billing; }
+      else if (key === 'target') { av = a.target; bv = b.target; }
+      else if (key === 'capacity') { av = a.pct; bv = b.pct; }
+      if (typeof av === 'string') return dir === 'asc' ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+      return dir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+    return sorted;
+  }, [allMembers, memberSort]);
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -588,17 +607,31 @@ export default function TeamsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/20">
-                  <th className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Member</th>
-                  <th className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Team</th>
-                  <th className="text-left text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Role</th>
-                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Clients</th>
-                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Billing</th>
-                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Target</th>
-                  <th className="text-right text-[11px] font-medium text-muted-foreground/60 uppercase tracking-wider px-4 py-2.5">Capacity</th>
+                  {([
+                    { key: 'name', label: 'Member', align: 'left' },
+                    { key: 'team', label: 'Team', align: 'left' },
+                    { key: 'role', label: 'Role', align: 'left' },
+                    { key: 'clients', label: 'Clients', align: 'right' },
+                    { key: 'billing', label: 'Billing', align: 'right' },
+                    { key: 'target', label: 'Target', align: 'right' },
+                    { key: 'capacity', label: 'Capacity', align: 'right' },
+                  ] as const).map(col => (
+                    <th key={col.key}
+                      onClick={() => setMemberSort(prev => prev.key === col.key ? { key: col.key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key: col.key, dir: 'desc' })}
+                      className={`text-${col.align} text-[11px] font-medium text-muted-foreground/60 px-4 py-2.5 cursor-pointer hover:text-muted-foreground transition-colors select-none`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {memberSort.key === col.key && (
+                          <ArrowUpDown size={10} className="text-muted-foreground/40" />
+                        )}
+                      </span>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {allMembers.map(m => {
+                {sortedMembers.map(m => {
                   const colorClass = getAssigneeColor(m.full_name, m.teamName.toLowerCase());
                   const teamStyle = getTeamStyle(m.teamName.toLowerCase());
                   return (
