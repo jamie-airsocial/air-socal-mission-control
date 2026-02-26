@@ -23,7 +23,8 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
 
-  const maxValue = useMemo(() => Math.max(...data.map(d => d.total), 1), [data]);
+  // 100% capacity = full chart height; bars show actual % of capacity
+  const scaleMax = capacityTarget > 0 ? capacityTarget : Math.max(...data.map(d => d.total), 1);
 
   if (!expanded) {
     return (
@@ -54,7 +55,7 @@ export function ForecastChart({ data, color, mode, capacityTarget = 0, className
         <div className="flex items-end gap-1 h-32 relative">
           {/* Bars */}
           {data.map((point, i) => {
-            const heightPercent = maxValue > 0 ? (point.total / maxValue) * 100 : 0;
+            const heightPercent = scaleMax > 0 ? Math.min((point.total / scaleMax) * 100, 100) : 0;
             const isHovered = hoveredIndex === i;
             const capacityPct = capacityTarget > 0 ? (point.total / capacityTarget) * 100 : 0;
 
