@@ -7,11 +7,12 @@ export async function PATCH(
 ) {
   const { id } = await params;
   const body = await request.json();
-  const { name, permissions } = body;
+  const { name, permissions, category } = body;
 
   const updates: Record<string, unknown> = {};
   if (name !== undefined) updates.name = name;
   if (permissions !== undefined) updates.permissions = permissions;
+  if (category !== undefined) updates.category = category;
 
   const { data, error } = await supabaseAdmin
     .from('roles')

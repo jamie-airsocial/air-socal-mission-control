@@ -31,6 +31,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { Role, Permissions } from '@/lib/auth-types';
 
 // ── Permission definitions ────────────────────────────────────────────────────
@@ -76,7 +83,18 @@ const PROTECTED_IDS = [
   '00000000-0000-0000-0000-000000000003',
   '00000000-0000-0000-0000-000000000004',
   '00000000-0000-0000-0000-000000000005',
+  '00000000-0000-0000-0000-000000000006',
+  '00000000-0000-0000-0000-000000000007',
+  '00000000-0000-0000-0000-000000000008',
 ];
+
+const CATEGORY_ORDER = ['delivery', 'management', 'admin', 'sales', null];
+const CATEGORY_LABELS: Record<string, string> = {
+  delivery: 'Delivery',
+  management: 'Management',
+  admin: 'Admin',
+  sales: 'Sales',
+};
 
 // ── Inline editable role name ─────────────────────────────────────────────────
 function RoleNameEditor({
@@ -186,6 +204,7 @@ export default function AdminRolesPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newPerms, setNewPerms] = useState<Permissions>(DEFAULT_PERMS);
+  const [newCategory, setNewCategory] = useState<string>('delivery');
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Role | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -244,7 +263,7 @@ export default function AdminRolesPage() {
     const res = await fetch('/api/roles', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newRoleName.trim(), permissions: newPerms }),
+      body: JSON.stringify({ name: newRoleName.trim(), permissions: newPerms, category: newCategory }),
     });
     setCreating(false);
     if (res.ok) {
@@ -252,6 +271,7 @@ export default function AdminRolesPage() {
       setAddDialogOpen(false);
       setNewRoleName('');
       setNewPerms(DEFAULT_PERMS);
+      setNewCategory('delivery');
       loadRoles();
     } else {
       const e = await res.json();
@@ -281,8 +301,23 @@ export default function AdminRolesPage() {
     );
   }
 
-  // Hide Admin role from the permissions matrix
-  const displayRoles = roles.filter(r => r.name !== ADMIN_ROLE_NAME);
+  // Hide Admin role from the permissions matrix and sort by category
+  const displayRoles = roles
+    .filter(r => r.name !== ADMIN_ROLE_NAME)
+    .sort((a, b) => {
+      const aIndex = CATEGORY_ORDER.indexOf(a.category || null);
+      const bIndex = CATEGORY_ORDER.indexOf(b.category || null);
+      if (aIndex !== bIndex) return aIndex - bIndex;
+      return a.name.localeCompare(b.name);
+    });
+
+  // Group roles by category for headers
+  const rolesByCategory = displayRoles.reduce((acc, role) => {
+    const cat = role.category || 'other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(role);
+    return acc;
+  }, {} as Record<string, Role[]>);
 
   return (
     <div className="space-y-4">
@@ -306,6 +341,24 @@ export default function AdminRolesPage() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
+              {/* Category header row */}
+              <tr className="border-b border-border/10 bg-muted/40">
+                <th className="sticky left-0 z-10 bg-muted/40 border-r border-border/10"></th>
+                {CATEGORY_ORDER.filter(cat => rolesByCategory[cat || 'other']).map(cat => {
+                  const rolesInCat = rolesByCategory[cat || 'other'] || [];
+                  if (rolesInCat.length === 0) return null;
+                  return (
+                    <th
+                      key={cat || 'other'}
+                      colSpan={rolesInCat.length}
+                      className="px-4 py-2 text-center text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest border-r border-border/10 last:border-r-0"
+                    >
+                      {CATEGORY_LABELS[cat || 'other'] || 'Other'}
+                    </th>
+                  );
+                })}
+              </tr>
+              {/* Role name row */}
               <tr className="border-b border-border/20 bg-muted/30">
                 {/* Sticky permission column header */}
                 <th className="sticky left-0 z-10 bg-muted/30 text-left px-4 py-3 text-[11px] font-semibold text-muted-foreground/60 uppercase tracking-wider min-w-[200px] border-r border-border/10">
@@ -423,6 +476,20 @@ export default function AdminRolesPage() {
                 className="h-9 text-[13px] bg-secondary border-border/20"
                 autoFocus
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Category</Label>
+              <Select value={newCategory} onValueChange={setNewCategory}>
+                <SelectTrigger className="h-9 text-[13px] bg-secondary border-border/20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="delivery" className="text-[13px]">Delivery</SelectItem>
+                  <SelectItem value="management" className="text-[13px]">Management</SelectItem>
+                  <SelectItem value="admin" className="text-[13px]">Admin</SelectItem>
+                  <SelectItem value="sales" className="text-[13px]">Sales</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-[13px] text-muted-foreground">Initial permissions</Label>

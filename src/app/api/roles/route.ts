@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { name, permissions } = body;
+  const { name, permissions, category } = body;
 
   if (!name) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from('roles')
-    .insert({ name, permissions: permissions || {} })
+    .insert({ name, permissions: permissions || {}, category: category || null })
     .select()
     .single();
 

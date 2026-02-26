@@ -21,6 +21,7 @@ export interface Role {
   id: string;
   name: string;
   permissions: Permissions;
+  category?: string | null;  // 'delivery' | 'management' | 'admin' | 'sales'
   created_at: string;
 }
 
