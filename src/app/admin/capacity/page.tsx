@@ -6,6 +6,7 @@ import { Save, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { getServiceStyle } from '@/lib/constants';
 
 interface CapacityTargets {
@@ -30,13 +31,19 @@ export default function CapacitySettingsPage() {
     'social-media': 12000,
     'creative': 5000
   });
+  const [included, setIncluded] = useState<Record<string, boolean>>({
+    'paid-advertising': true,
+    'seo': true,
+    'social-media': true,
+    'creative': true
+  });
   const [teamTotal, setTeamTotal] = useState<number>(0);
   const [useManualTotal, setUseManualTotal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Calculate auto total
-  const autoTotal = SERVICE_KEYS.reduce((sum: number, key) => sum + (Number(targets[key]) || 0), 0);
+  // Auto total only sums included services
+  const autoTotal = SERVICE_KEYS.reduce((sum: number, key) => sum + (included[key] ? (Number(targets[key]) || 0) : 0), 0);
 
   useEffect(() => {
     fetchCapacityTargets();
@@ -51,10 +58,14 @@ export default function CapacitySettingsPage() {
       if (data.targets) {
         setTargets(data.targets);
       }
+      if (data.included) {
+        setIncluded(prev => ({ ...prev, ...data.included }));
+      }
       if (data.teamTotal) {
         setTeamTotal(data.teamTotal);
         // If team total differs from auto-calculated, user has set it manually
-        const calculatedTotal = Object.values(data.targets).reduce((s: number, v) => s + Number(v), 0);
+        const includedMap = data.included || {};
+        const calculatedTotal = Object.entries(data.targets).reduce((s: number, [k, v]) => s + ((includedMap[k] !== false) ? Number(v) : 0), 0);
         setUseManualTotal(Math.abs(data.teamTotal - calculatedTotal) > 1);
       }
     } catch (err) {
@@ -68,12 +79,12 @@ export default function CapacitySettingsPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const finalTotal = useManualTotal ? teamTotal : autoTotal;
+      const finalTotal = autoTotal;
       
       const res = await fetch('/api/admin/capacity', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets, teamTotal: finalTotal })
+        body: JSON.stringify({ targets, teamTotal: finalTotal, included })
       });
 
       if (!res.ok) throw new Error('Failed to save capacity targets');
@@ -113,7 +124,14 @@ export default function CapacitySettingsPage() {
           {SERVICE_KEYS.map(serviceKey => {
             const style = getServiceStyle(serviceKey);
             return (
-              <div key={serviceKey} className="flex items-center gap-4">
+              <div key={serviceKey} className={`flex items-center gap-4 ${!included[serviceKey] ? 'opacity-40' : ''}`}>
+                <div className="shrink-0 pt-5">
+                  <Switch
+                    checked={included[serviceKey] !== false}
+                    onCheckedChange={v => setIncluded({ ...included, [serviceKey]: v })}
+                    className="data-[state=checked]:bg-primary"
+                  />
+                </div>
                 <div className="flex-1">
                   <Label htmlFor={serviceKey} className="text-[11px] text-muted-foreground flex items-center gap-2 mb-1.5">
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.dot }} />
@@ -123,17 +141,21 @@ export default function CapacitySettingsPage() {
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground/60">£</span>
                     <Input
                       id={serviceKey}
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={targets[serviceKey] || 0}
-                      onChange={e => setTargets({ ...targets, [serviceKey]: Number(e.target.value) })}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setTargets({ ...targets, [serviceKey]: Number(val) });
+                      }}
                       className="pl-7 text-[13px] h-9"
-                      min={0}
-                      step={100}
                     />
                   </div>
                 </div>
                 <div className="text-[11px] text-muted-foreground/40 w-24 text-right">
-                  {((targets[serviceKey] / (useManualTotal ? teamTotal : autoTotal)) * 100).toFixed(0)}% of total
+                  {included[serviceKey] && autoTotal > 0
+                    ? `${((targets[serviceKey] / autoTotal) * 100).toFixed(0)}% of total`
+                    : 'excluded'}
                 </div>
               </div>
             );
@@ -142,47 +164,18 @@ export default function CapacitySettingsPage() {
 
         {/* Team total */}
         <div className="pt-4 border-t border-border/10">
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <Label className="text-[11px] text-muted-foreground mb-1.5 block">
-                Team Total Target
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-[11px] text-muted-foreground mb-1 block">
+                Team total target
               </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground/60">£</span>
-                <Input
-                  type="number"
-                  value={useManualTotal ? teamTotal : autoTotal}
-                  onChange={e => {
-                    setTeamTotal(Number(e.target.value));
-                    setUseManualTotal(true);
-                  }}
-                  disabled={!useManualTotal}
-                  className="pl-7 text-[13px] h-9 font-medium"
-                  min={0}
-                  step={100}
-                />
-              </div>
-            </div>
-            <div className="pt-6">
-              <Button
-                variant={useManualTotal ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setUseManualTotal(!useManualTotal);
-                  if (useManualTotal) {
-                    setTeamTotal(autoTotal);
-                  }
-                }}
-                className="text-[11px] h-9"
-              >
-                {useManualTotal ? 'Manual' : 'Auto'}
-              </Button>
+              <p className="text-[18px] font-bold text-foreground">
+                £{autoTotal.toLocaleString()}
+              </p>
             </div>
           </div>
-          <p className="text-[10px] text-muted-foreground/60 mt-1.5">
-            {useManualTotal
-              ? 'Using manual team total (click Auto to calculate from services)'
-              : 'Auto-calculated from service targets (click Manual to override)'}
+          <p className="text-[10px] text-muted-foreground/60 mt-1">
+            Auto-calculated from included services. Toggle services on/off above.
           </p>
         </div>
 

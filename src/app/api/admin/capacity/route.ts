@@ -14,10 +14,13 @@ export async function GET() {
   // Transform into a more usable format
   const targets: Record<string, number> = {};
   let teamTotal = 0;
+  let included: Record<string, boolean> = {};
 
   for (const row of data || []) {
     if (row.service === '__team_total__') {
       teamTotal = Number(row.monthly_target);
+    } else if (row.service === '__included__') {
+      try { included = JSON.parse(String(row.monthly_target)); } catch { /* ignore */ }
     } else {
       targets[row.service] = Number(row.monthly_target);
     }
@@ -28,12 +31,12 @@ export async function GET() {
     teamTotal = Object.values(targets).reduce((sum, val) => sum + val, 0);
   }
 
-  return NextResponse.json({ targets, teamTotal });
+  return NextResponse.json({ targets, teamTotal, included });
 }
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { targets, teamTotal } = body;
+  const { targets, teamTotal, included } = body;
 
   if (!targets || typeof teamTotal !== 'number') {
     return NextResponse.json(
@@ -56,6 +59,15 @@ export async function PUT(request: NextRequest) {
       monthly_target: Number(teamTotal),
       updated_at: new Date().toISOString()
     });
+
+    // Store included toggles as JSON in a special row
+    if (included) {
+      upserts.push({
+        service: '__included__',
+        monthly_target: JSON.stringify(included) as unknown as number,
+        updated_at: new Date().toISOString()
+      });
+    }
 
     const { error } = await supabaseAdmin
       .from('capacity_targets')
