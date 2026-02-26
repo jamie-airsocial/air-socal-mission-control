@@ -50,12 +50,6 @@ const PERMISSION_GROUPS: { group: string; items: { key: keyof Permissions; label
     ],
   },
   {
-    group: 'Finance',
-    items: [
-      { key: 'xero', label: 'Xero', desc: 'Access revenue and billing data' },
-    ],
-  },
-  {
     group: 'Administration',
     items: [
       { key: 'settings', label: 'Settings', desc: 'Manage users, roles, and system settings' },
@@ -70,7 +64,6 @@ const DEFAULT_PERMS: Permissions = {
   tasks: true,
   pipeline: false,
   teams: true,
-  xero: false,
   settings: false,
 };
 

@@ -32,7 +32,7 @@ export interface Permissions {
   clients: boolean;
   pipeline: boolean;
   teams: boolean;
-  xero: boolean;
+  xero?: boolean;
   settings: boolean;
   // Action permissions
   manage_users?: boolean;
