@@ -544,6 +544,7 @@ export default function TeamsPage() {
                   data={forecastData}
                   color={style?.color || 'var(--primary)'}
                   mode="currency"
+                  capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
                 />
               </div>
 

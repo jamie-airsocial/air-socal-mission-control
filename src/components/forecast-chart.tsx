@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { format, addMonths, startOfMonth } from 'date-fns';
+import { format } from 'date-fns';
 import { getServiceStyle } from '@/lib/constants';
 import { ChevronDown } from 'lucide-react';
 
@@ -15,20 +15,15 @@ interface ForecastChartProps {
   data: ForecastDataPoint[];
   color: string;
   mode: 'currency' | 'percentage';
+  capacityTarget?: number;
   className?: string;
 }
 
-export function ForecastChart({ data, color, mode, className = '' }: ForecastChartProps) {
+export function ForecastChart({ data, color, mode, capacityTarget = 0, className = '' }: ForecastChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
 
   const maxValue = useMemo(() => Math.max(...data.map(d => d.total), 1), [data]);
-
-  // Calculate Y-axis labels (5 steps)
-  const yAxisLabels = useMemo(() => {
-    const step = Math.ceil(maxValue / 4);
-    return [0, step, step * 2, step * 3, maxValue].reverse();
-  }, [maxValue]);
 
   if (!expanded) {
     return (
@@ -55,21 +50,22 @@ export function ForecastChart({ data, color, mode, className = '' }: ForecastCha
       </div>
 
       <div className="relative">
-        {/* Chart container */}
+        {/* Chart container — no Y-axis */}
         <div className="flex items-end gap-1 h-32 relative">
-          {/* Y-axis labels */}
-          <div className="absolute -left-8 top-0 bottom-0 flex flex-col justify-between text-[9px] text-muted-foreground/40 tabular-nums">
-            {yAxisLabels.map((val, i) => (
-              <span key={i}>
-                {mode === 'currency' ? `£${Math.round(val / 1000)}k` : `${Math.round(val)}%`}
-              </span>
-            ))}
-          </div>
-
           {/* Bars */}
           {data.map((point, i) => {
             const heightPercent = maxValue > 0 ? (point.total / maxValue) * 100 : 0;
             const isHovered = hoveredIndex === i;
+            const capacityPct = capacityTarget > 0 ? (point.total / capacityTarget) * 100 : 0;
+
+            // Tooltip alignment: left-align first 2 bars, right-align last 2, center the rest
+            const isLeft = i <= 1;
+            const isRight = i >= data.length - 2;
+            const tooltipPosition = isLeft
+              ? 'left-0'
+              : isRight
+                ? 'right-0'
+                : 'left-1/2 -translate-x-1/2';
 
             return (
               <div
@@ -93,18 +89,23 @@ export function ForecastChart({ data, color, mode, className = '' }: ForecastCha
 
                 {/* Tooltip */}
                 {isHovered && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-10 pointer-events-none">
+                  <div className={`absolute bottom-full ${tooltipPosition} mb-2 z-10 pointer-events-none`}>
                     <div className="bg-popover border border-border/20 rounded-lg shadow-lg p-2 min-w-[140px]">
                       <p className="text-[11px] font-medium mb-1.5">
                         {format(point.month, 'MMM yyyy')}
                       </p>
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-4">
                           <span className="text-[10px] text-muted-foreground/60">Total</span>
                           <span className="text-[11px] font-bold">
                             {mode === 'currency'
                               ? `£${Math.round(point.total).toLocaleString()}`
                               : `${Math.round(point.total)}%`}
+                            {mode === 'currency' && capacityTarget > 0 && (
+                              <span className={`ml-1 text-[10px] font-normal ${capacityPct < 80 ? 'text-emerald-500' : capacityPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                                {Math.round(capacityPct)}%
+                              </span>
+                            )}
                           </span>
                         </div>
                         {point.breakdown.length > 0 && (
@@ -114,8 +115,9 @@ export function ForecastChart({ data, color, mode, className = '' }: ForecastCha
                               .sort((a, b) => b.amount - a.amount)
                               .map((item, idx) => {
                                 const style = getServiceStyle(item.service);
+                                const itemPct = capacityTarget > 0 ? (item.amount / capacityTarget) * 100 : 0;
                                 return (
-                                  <div key={idx} className="flex items-center justify-between">
+                                  <div key={idx} className="flex items-center justify-between gap-3">
                                     <div className="flex items-center gap-1">
                                       <span
                                         className="h-1.5 w-1.5 rounded-full shrink-0"
@@ -129,6 +131,11 @@ export function ForecastChart({ data, color, mode, className = '' }: ForecastCha
                                       {mode === 'currency'
                                         ? `£${Math.round(item.amount).toLocaleString()}`
                                         : `${Math.round(item.amount)}%`}
+                                      {mode === 'currency' && capacityTarget > 0 && (
+                                        <span className="ml-1 text-muted-foreground/40">
+                                          {Math.round(itemPct)}%
+                                        </span>
+                                      )}
                                     </span>
                                   </div>
                                 );
