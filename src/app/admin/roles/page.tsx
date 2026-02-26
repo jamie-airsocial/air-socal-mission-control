@@ -144,6 +144,7 @@ function RoleNameEditor({
 
   return (
     <button
+      data-role-rename={role.id}
       onClick={() => { if (!PROTECTED_IDS.includes(role.id)) setEditing(true); }}
       title="Click to rename"
       className="flex items-center gap-1 group text-[13px] font-semibold text-foreground hover:text-primary transition-colors"
