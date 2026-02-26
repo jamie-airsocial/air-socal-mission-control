@@ -666,82 +666,90 @@ export default function TeamsPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                  {/* Forecast */}
+                  {/* Forecast — full width, always expanded */}
                   <div className="px-6 py-4 border-b border-border/10">
-                    <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">6-month forecast</p>
                     <ForecastChart
                       data={selected.forecastData}
                       color={selected.style?.color || 'var(--primary)'}
                       mode="currency"
                       capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
+                      defaultExpanded
                     />
                   </div>
 
-                  {/* Service breakdown */}
-                  <div className="px-6 py-4 border-b border-border/10">
-                    <MonthlyBillingSection
-                      teamClients={selected.clients}
-                      contractItems={contractItems}
-                      capacityTargets={capacityTargets}
-                      teamColor={selected.style?.color || 'var(--primary)'}
-                    />
-                  </div>
+                  {/* Two-column: left = service breakdown + members, right = client list */}
+                  <div className="flex divide-x divide-border/10">
+                    {/* Left column: service totals + members */}
+                    <div className="flex-1 min-w-0">
+                      {/* Service breakdown */}
+                      <div className="px-6 py-4 border-b border-border/10">
+                        <MonthlyBillingSection
+                          teamClients={selected.clients}
+                          contractItems={contractItems}
+                          capacityTargets={capacityTargets}
+                          teamColor={selected.style?.color || 'var(--primary)'}
+                        />
+                      </div>
 
-                  {/* Members */}
-                  <div className="px-6 py-4 border-b border-border/10">
-                    <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Members ({teamMembers.length})</p>
-                    <div className="space-y-1">
-                      {teamMembers.map(member => {
-                        const colorClass = getAssigneeColor(member.full_name, selected.slug);
-                        const items = contractItems.filter(i => i.assignee_id === member.id && i.is_active);
-                        const memberBilling = items.reduce((s, i) => s + (i.monthly_value || 0), 0);
-                        const svc = member.role?.name ? ROLE_TO_SVC[member.role.name] : undefined;
-                        const memberTarget = svc ? (capacityTargets[svc] || 0) : 0;
-                        const memberPct = memberTarget > 0 ? (memberBilling / memberTarget) * 100 : 0;
-                        return (
-                          <button
-                            key={member.id}
-                            onClick={() => { setSelectedMember({ id: member.id, name: member.full_name, team: selected.slug, roleName: member.role?.name }); setDrillDownOpen(true); }}
-                            className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
-                          >
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${colorClass}`}>
-                              {member.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-                            </div>
-                            <div className="min-w-0 flex-1 text-left">
-                              <p className="text-[13px] font-medium truncate">{member.full_name}</p>
-                              <p className="text-[11px] text-muted-foreground/60">{member.role?.name || 'Team Member'}</p>
-                            </div>
-                            {memberBilling > 0 && (
-                              <div className="text-right shrink-0">
-                                <p className="text-[12px] font-medium">£{Math.round(memberBilling).toLocaleString()}</p>
-                                {memberTarget > 0 && (
-                                  <p className={`text-[10px] ${memberPct < 80 ? 'text-emerald-500' : memberPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
-                                    {Math.round(memberPct)}%
-                                  </p>
+                      {/* Members */}
+                      <div className="px-6 py-4">
+                        <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Members ({teamMembers.length})</p>
+                        <div className="space-y-1">
+                          {teamMembers.map(member => {
+                            const colorClass = getAssigneeColor(member.full_name, selected.slug);
+                            const items = contractItems.filter(i => i.assignee_id === member.id && i.is_active);
+                            const memberBilling = items.reduce((s, i) => s + (i.monthly_value || 0), 0);
+                            const svc = member.role?.name ? ROLE_TO_SVC[member.role.name] : undefined;
+                            const memberTarget = svc ? (capacityTargets[svc] || 0) : 0;
+                            const memberPct = memberTarget > 0 ? (memberBilling / memberTarget) * 100 : 0;
+                            return (
+                              <button
+                                key={member.id}
+                                onClick={() => { setSelectedMember({ id: member.id, name: member.full_name, team: selected.slug, roleName: member.role?.name }); setDrillDownOpen(true); }}
+                                className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer"
+                              >
+                                <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${colorClass}`}>
+                                  {member.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                                </div>
+                                <div className="min-w-0 flex-1 text-left">
+                                  <p className="text-[13px] font-medium truncate">{member.full_name}</p>
+                                  <p className="text-[11px] text-muted-foreground/60">{member.role?.name || 'Team Member'}</p>
+                                </div>
+                                {memberBilling > 0 && (
+                                  <div className="text-right shrink-0">
+                                    <p className="text-[12px] font-medium">£{Math.round(memberBilling).toLocaleString()}</p>
+                                    {memberTarget > 0 && (
+                                      <p className={`text-[10px] ${memberPct < 80 ? 'text-emerald-500' : memberPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
+                                        {Math.round(memberPct)}%
+                                      </p>
+                                    )}
+                                  </div>
                                 )}
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Active Clients */}
-                  <div className="px-6 py-4">
-                    <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Active clients ({selected.clients.length})</p>
-                    <div className="space-y-1">
-                      {selected.clients.map(client => {
-                        const rev = contractRevenueByClient[client.id] || 0;
-                        return (
-                          <Link key={client.id} href={`/clients/${client.id}`}
-                            className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/20 transition-colors"
-                          >
-                            <span className="text-[13px]">{client.name}</span>
-                            {rev > 0 && <span className="text-[12px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
-                          </Link>
-                        );
-                      })}
+                    {/* Right column: client list */}
+                    <div className="w-[340px] shrink-0">
+                      <div className="px-5 py-4">
+                        <p className="text-[11px] font-medium text-muted-foreground/60 mb-3">Active clients ({selected.clients.length})</p>
+                        <div className="space-y-1">
+                          {selected.clients.map(client => {
+                            const rev = contractRevenueByClient[client.id] || 0;
+                            return (
+                              <Link key={client.id} href={`/clients/${client.id}`}
+                                className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-muted/20 transition-colors"
+                              >
+                                <span className="text-[13px]">{client.name}</span>
+                                {rev > 0 && <span className="text-[12px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
