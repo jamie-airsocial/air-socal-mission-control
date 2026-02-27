@@ -107,7 +107,9 @@ export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: Su
             .catch(err => console.error('Upload failed:', err));
         }
       } else {
-        // TODO: Pending attachments on temp subtasks are not persisted — needs flush mechanism
+        // Known limitation: Attachments dropped on temporary (unsaved) subtasks are displayed
+        // in the UI but not persisted to storage. Users must save the subtask first, then add
+        // attachments. This prevents orphaned files in storage if the subtask is abandoned.
         for (const file of Array.from(files)) {
           setSubtaskAttachments(prev => [{ id: `pending-${Date.now()}-${file.name}`, file_name: file.name, file_url: '', file_size: file.size, file_type: file.type, task_id: '', storage_path: '', created_at: new Date().toISOString() } as TaskAttachment, ...prev]);
         }

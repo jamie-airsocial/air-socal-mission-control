@@ -80,25 +80,6 @@ function DropIndicator({ height }: { height: number }) {
   );
 }
 
-// TODO: Replace hardcoded Tailwind colour classes with CSS variable approach
-// (e.g. [background:var(--color-status-todo)]) once design tokens for status/priority
-// dot colours are defined in the global CSS. Hardcoded classes are used for now
-// because Tailwind requires full class names at build time and our semantic tokens
-// don't currently have solid (non-opacity-modified) equivalents.
-const PRIORITY_DOT_CLASSES: Record<string, string> = {
-  P1: 'bg-red-500',
-  P2: 'bg-amber-500',
-  P3: 'bg-indigo-500',
-  P4: 'bg-emerald-500',
-};
-
-const STATUS_DOT_CLASSES: Record<string, string> = {
-  todo: 'bg-amber-500',
-  doing: 'bg-purple-500',
-  review: 'bg-blue-500',
-  done: 'bg-emerald-500',
-};
-
 /** Per-assignee dot colours — solid, no opacity modifier */
 const ASSIGNEE_DOT_CLASSES: Record<string, string> = {
   jamie: 'bg-green-400',
@@ -112,6 +93,28 @@ const ASSIGNEE_DOT_CLASSES: Record<string, string> = {
   trainer: 'bg-orange-400',
   heartbeat: 'bg-pink-400',
 };
+
+/** Get CSS variable for status dot colour */
+function getStatusDotColor(status: string): string {
+  const varMap: Record<string, string> = {
+    todo: 'var(--status-todo)',
+    doing: 'var(--status-doing)',
+    review: 'var(--status-review)',
+    done: 'var(--status-done)',
+  };
+  return varMap[status] || 'var(--muted-foreground)';
+}
+
+/** Get CSS variable for priority dot colour */
+function getPriorityDotColor(priority: string): string {
+  const varMap: Record<string, string> = {
+    P1: 'var(--priority-p1)',
+    P2: 'var(--priority-p2)',
+    P3: 'var(--priority-p3)',
+    P4: 'var(--priority-p4)',
+  };
+  return varMap[priority] || 'var(--muted-foreground)';
+}
 
 export function KanbanBoard({
   tasks,
@@ -144,7 +147,7 @@ export function KanbanBoard({
       const cols: KanbanColumn[] = PRIORITIES.map((p) => ({
         id: p,
         label: PRIORITY_STYLES[p]?.label || p,
-        dotClass: PRIORITY_DOT_CLASSES[p],
+        dotColor: getPriorityDotColor(p),
       }));
       // Only show "No Priority" column if at least one task has no priority
       if (tasks.some((t) => !t.priority)) {
@@ -227,16 +230,14 @@ export function KanbanBoard({
       const slug = typeof status === 'string' ? status : status.slug;
       const label = typeof status === 'string' ? (STATUS_STYLES[status]?.label || status) : status.label;
       
-      // For dynamic statuses (TaskStatus objects with dot_colour), use dotColor (inline style)
-      // For hardcoded/fallback statuses, use dotClass (Tailwind class)
+      // For dynamic statuses (TaskStatus objects with dot_colour), use that colour
+      // For hardcoded/fallback statuses, use CSS variables
       const isDynamicStatus = typeof status === 'object' && 'dot_colour' in status;
-      const dotColor = isDynamicStatus ? (status.dot_colour || status.colour) : undefined;
-      const dotClass = !isDynamicStatus ? STATUS_DOT_CLASSES[slug] : undefined;
+      const dotColor = isDynamicStatus ? (status.dot_colour || status.colour) : getStatusDotColor(slug);
       
       return {
         id: slug,
         label,
-        dotClass,
         dotColor,
       };
     });

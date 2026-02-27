@@ -106,7 +106,9 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename,
   };
 
   const handleBulkDownload = () => {
-    // TODO: Implement ZIP download
+    // ZIP download planned but not yet implemented. Button is disabled in UI.
+    // When implemented, this should create a ZIP archive of selected files server-side
+    // and stream it to the client, or use a client-side ZIP library like JSZip.
     toast.info(`ZIP download coming soon (${selectedFiles.size} files selected)`);
   };
 

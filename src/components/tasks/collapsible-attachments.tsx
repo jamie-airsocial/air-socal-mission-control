@@ -103,9 +103,16 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
   };
 
   const handleBulkDownload = () => {
-    // TODO: Implement bulk ZIP download — currently a stub in this legacy component
-    const _selectedNames = attachments.filter(f => selectedFiles.has(f.id)).map(f => f.name).join(', ');
-    console.info('[collapsible-attachments] Bulk download not yet implemented for', _selectedNames);
+    // Bulk ZIP download not yet implemented — download files individually instead
+    const selectedAttachments = attachments.filter(f => selectedFiles.has(f.id));
+    selectedAttachments.forEach(file => {
+      const link = document.createElement('a');
+      link.href = `/api/files/${file.id}`;
+      link.download = file.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -155,16 +162,6 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
             <span>Attachments ({attachments.length})</span>
           </button>
           <div className="flex items-center gap-2">
-            {/* Download all — hidden until ZIP download is implemented */}
-            {false && attachments.length >= 2 && (
-              <button
-                onClick={(e) => { e.stopPropagation(); /* TODO: implement ZIP download */ void e; }}
-                className="text-[11px] text-muted-foreground/30 hover:text-muted-foreground transition-colors flex items-center gap-1"
-              >
-                <Download size={11} />
-                Download all
-              </button>
-            )}
             <button
               onClick={() => fileInputRef.current?.click()}
               className="text-[11px] text-primary/50 hover:text-primary transition-colors duration-150"
@@ -271,12 +268,10 @@ export function CollapsibleAttachments({ attachments, onAdd, onDelete, onRename 
                       <button onClick={() => startRename(file)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Pencil size={12} /></button>
                     </TooltipTrigger><TooltipContent side="top">Rename</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger asChild>
-                      {/* TODO: Implement file preview — alert() removed, use a proper viewer */}
-                      <button onClick={() => console.info('[collapsible-attachments] Preview not yet implemented for', file.name)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Eye size={12} /></button>
+                      <a href={`/api/files/${file.id}`} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Eye size={12} /></a>
                     </TooltipTrigger><TooltipContent side="top">View</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger asChild>
-                      {/* TODO: Implement individual file download — alert() removed */}
-                      <button onClick={() => console.info('[collapsible-attachments] Download not yet implemented for', file.name)} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Download size={12} /></button>
+                      <a href={`/api/files/${file.id}`} download={file.name} className="p-1 rounded hover:bg-muted/40 text-muted-foreground/30 hover:text-muted-foreground transition-colors duration-150"><Download size={12} /></a>
                     </TooltipTrigger><TooltipContent side="top">Download</TooltipContent></Tooltip>
                     <Tooltip><TooltipTrigger asChild>
                       <button onClick={() => setDeleteConfirmId(file.id)} className="p-1 rounded text-destructive/40 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150"><Trash2 size={12} /></button>

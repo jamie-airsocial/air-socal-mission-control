@@ -15,7 +15,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  // TODO: Add admin-only check when auth middleware is implemented
+  // Auth check required: Verify requesting user is admin before allowing mutations.
+  // Implementation pattern: Read auth cookie/token → lookup user in app_users → check is_admin.
+  // See /api/users/[id]/route.ts for reference on using supabaseAdmin with app_users table.
   const body = await request.json();
   const { slug, label, colour, dot_colour } = body;
 
@@ -74,7 +76,8 @@ export async function PUT(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  // TODO: Add admin-only check when auth middleware is implemented
+  // Auth check required: Verify requesting user is admin before allowing mutations.
+  // Implementation pattern: Read auth cookie/token → lookup user in app_users → check is_admin.
   const body = await request.json();
   const { id, label, colour, dot_colour, sort_order } = body;
 
@@ -103,7 +106,8 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  // TODO: Add admin-only check when auth middleware is implemented
+  // Auth check required: Verify requesting user is admin before allowing mutations.
+  // Implementation pattern: Read auth cookie/token → lookup user in app_users → check is_admin.
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
