@@ -178,7 +178,7 @@ export function CompactEmojiPicker({ onSelect }: EmojiPickerProps) {
       {/* Emojis grid */}
       <div className="p-1.5 max-h-[180px] overflow-y-auto">
         {!search && (
-          <div className="text-[9px] uppercase tracking-wider text-muted-foreground/30 font-medium px-1 mb-1">
+          <div className="text-[9px] tracking-wider text-muted-foreground/30 font-medium px-1 mb-1">
             {CATEGORIES[activeCategory].name}
           </div>
         )}

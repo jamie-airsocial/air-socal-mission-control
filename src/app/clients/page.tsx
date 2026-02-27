@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import dynamic from 'next/dynamic';
 
@@ -351,6 +352,35 @@ function LineItemDialog({
               value={form.monthly_value} onChange={e => { if (/^\d*\.?\d*$/.test(e.target.value)) setForm(f => ({ ...f, monthly_value: e.target.value })); }}
               placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">Start date</Label>
+              <div className="relative">
+                <DatePicker value={form.start_date} onChange={v => setForm(f => ({ ...f, start_date: v }))} placeholder="DD/MM/YYYY" />
+                {form.start_date && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setForm(f => ({ ...f, start_date: '' })); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors z-10">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[13px] text-muted-foreground">End date</Label>
+              <div className="relative">
+                <DatePicker value={form.end_date} onChange={v => {
+                  if (form.start_date && v && v < form.start_date) { toast.error('End date cannot be before start date'); return; }
+                  setForm(f => ({ ...f, end_date: v }));
+                }} placeholder="DD/MM/YYYY" />
+                {form.end_date && (
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setForm(f => ({ ...f, end_date: '' })); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors z-10">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
@@ -530,6 +560,8 @@ interface LineItemDraft {
   monthly_value: string;
   billing_type: 'recurring' | 'one-off';
   assignee_id: string;
+  start_date: string;
+  end_date: string;
 }
 
 interface ClientFormState {
@@ -546,7 +578,7 @@ interface ClientFormState {
   line_items: LineItemDraft[];
 }
 
-const emptyLineItem: LineItemDraft = { service: '', description: '', monthly_value: '', billing_type: 'recurring', assignee_id: '' };
+const emptyLineItem: LineItemDraft = { service: '', description: '', monthly_value: '', billing_type: 'recurring', assignee_id: '', start_date: '', end_date: '' };
 
 const emptyClientForm: ClientFormState = {
   name: '',
@@ -651,6 +683,9 @@ function ClientSheet({
                 description: li.description || null,
                 monthly_value: parseFloat(li.monthly_value),
                 billing_type: li.billing_type,
+                start_date: li.start_date || null,
+                end_date: li.end_date || null,
+                assignee_id: li.assignee_id || null,
                 is_active: true,
               }),
             })

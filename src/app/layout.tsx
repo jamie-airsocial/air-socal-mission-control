@@ -4,6 +4,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from '@/contexts/auth-context';
 import { SidebarProvider } from '@/contexts/sidebar-context';
 import { AppShell } from '@/components/layout/app-shell';
+import { ErrorBoundary } from '@/components/error-boundary';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -28,9 +29,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <SidebarProvider>
-            <AppShell>
-              {children}
-            </AppShell>
+            <ErrorBoundary>
+              <AppShell>
+                {children}
+              </AppShell>
+            </ErrorBoundary>
             <Toaster
               position="bottom-right"
               toastOptions={{
