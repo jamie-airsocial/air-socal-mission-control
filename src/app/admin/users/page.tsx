@@ -657,16 +657,16 @@ export default function AdminUsersPage() {
                             ) : (
                               <Clock size={11} className="shrink-0" />
                             )}
-                            <span>{user.last_active_at ? relativeTime(user.last_active_at) : relativeTime(user.last_sign_in_at)}</span>
+                            <span>{user.last_active_at ? relativeTime(user.last_active_at) : 'Never'}</span>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="text-[12px]">
                           {user.last_active_at ? (
                             <div>
                               <p className="font-medium">Last active: {absoluteTime(user.last_active_at)}</p>
-                              <p className="text-muted-foreground/60 mt-0.5">Last login: {absoluteTime(user.last_sign_in_at)}</p>
+                              {user.last_sign_in_at && <p className="text-muted-foreground/60 mt-0.5">Last login: {absoluteTime(user.last_sign_in_at)}</p>}
                             </div>
-                          ) : absoluteTime(user.last_sign_in_at)}
+                          ) : 'Never'}
                         </TooltipContent>
                       </Tooltip>
                     </TableCell>
