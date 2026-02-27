@@ -854,18 +854,18 @@ function ProspectSheet({
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px] text-muted-foreground">{liForm.billing_type === 'recurring' ? 'Monthly value (£) *' : 'Project value (£) *'}</Label>
-            <Input type="number" min="0" step="0.01"
-              value={liForm.monthly_value} onChange={e => setLiForm(f => ({ ...f, monthly_value: e.target.value }))}
+            <Input type="text" inputMode="numeric"
+              value={liForm.monthly_value} onChange={e => { if (/^\d*\.?\d{0,2}$/.test(e.target.value)) setLiForm(f => ({ ...f, monthly_value: e.target.value })); }}
               placeholder="0.00" className="h-9 text-[13px] bg-secondary border-border/20" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">Start date</Label>
-              <div className="flex items-center gap-1">
+              <div className="relative">
                 <DatePicker value={liForm.start_date} onChange={v => setLiForm(f => ({ ...f, start_date: v }))} placeholder="DD/MM/YYYY" />
                 {liForm.start_date && (
-                  <button type="button" onClick={() => setLiForm(f => ({ ...f, start_date: '' }))}
-                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setLiForm(f => ({ ...f, start_date: '' })); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors z-10">
                     <X size={12} />
                   </button>
                 )}
@@ -873,14 +873,14 @@ function ProspectSheet({
             </div>
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">End date</Label>
-              <div className="flex items-center gap-1">
+              <div className="relative">
                 <DatePicker value={liForm.end_date} onChange={v => {
                   if (liForm.start_date && v && v < liForm.start_date) { toast.error('End date cannot be before start date'); return; }
                   setLiForm(f => ({ ...f, end_date: v }));
                 }} placeholder="DD/MM/YYYY" />
                 {liForm.end_date && (
-                  <button type="button" onClick={() => setLiForm(f => ({ ...f, end_date: '' }))}
-                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setLiForm(f => ({ ...f, end_date: '' })); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors z-10">
                     <X size={12} />
                   </button>
                 )}
@@ -1660,9 +1660,10 @@ function ConvertToClientDialog({ prospect, onClose, onConverted }: {
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-muted-foreground">£</span>
               <Input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={monthlyRetainer}
-                onChange={e => setMonthlyRetainer(e.target.value)}
+                onChange={e => { if (/^\d*\.?\d{0,2}$/.test(e.target.value)) setMonthlyRetainer(e.target.value); }}
                 className="h-9 pl-7 text-[13px] bg-secondary border-border/20"
                 placeholder="0"
               />

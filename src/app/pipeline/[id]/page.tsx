@@ -297,11 +297,11 @@ function LineItemDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">Start date</Label>
-              <div className="flex items-center gap-1">
+              <div className="relative">
                 <DatePicker value={form.start_date} onChange={v => setForm(f => ({ ...f, start_date: v }))} placeholder="DD/MM/YYYY" />
                 {form.start_date && (
-                  <button type="button" onClick={() => setForm(f => ({ ...f, start_date: '' }))}
-                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setForm(f => ({ ...f, start_date: '' })); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors z-10">
                     <X size={12} />
                   </button>
                 )}
@@ -309,7 +309,7 @@ function LineItemDialog({
             </div>
             <div className="space-y-1.5">
               <Label className="text-[13px] text-muted-foreground">End date</Label>
-              <div className="flex items-center gap-1">
+              <div className="relative">
                 <DatePicker
                   value={form.end_date}
                   onChange={v => {
@@ -319,8 +319,8 @@ function LineItemDialog({
                   placeholder="DD/MM/YYYY"
                 />
                 {form.end_date && (
-                  <button type="button" onClick={() => setForm(f => ({ ...f, end_date: '' }))}
-                    className="p-1 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); setForm(f => ({ ...f, end_date: '' })); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors z-10">
                     <X size={12} />
                   </button>
                 )}
