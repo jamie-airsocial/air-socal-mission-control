@@ -201,6 +201,14 @@ export default function AdminUsersPage() {
   const [customPermissions, setCustomPermissions] = useState<Partial<Record<string, boolean>>>({});
   const [savingPermissions, setSavingPermissions] = useState(false);
 
+  // Password reset dialog
+  const [passwordTarget, setPasswordTarget] = useState<AppUser | null>(null);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordMode, setPasswordMode] = useState<'email' | 'manual'>('email');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [sendingPassword, setSendingPassword] = useState(false);
+
   const loadData = useCallback(async () => {
     const [usersRes, rolesRes, teamsRes] = await Promise.all([
       fetch('/api/users', { cache: 'no-store' }),
@@ -257,14 +265,55 @@ export default function AdminUsersPage() {
   };
 
   // ── Reset password ─────────────────────────────────────────────────────────
-  const handleResetPassword = async (user: AppUser) => {
+  const openPasswordDialog = (user: AppUser) => {
+    setPasswordTarget(user);
+    setPasswordMode('email');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordDialogOpen(true);
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!passwordTarget) return;
+    setSendingPassword(true);
     try {
-      const res = await fetch(`/api/users/${user.id}`, { method: 'POST' });
+      const res = await fetch(`/api/users/${passwordTarget.id}`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send reset email');
       toast.success('Password reset email sent', { description: `Reset link sent to ${data.email}` });
+      setPasswordDialogOpen(false);
     } catch (err) {
       toast.error('Failed to send reset email', { description: err instanceof Error ? err.message : 'Something went wrong' });
+    } finally {
+      setSendingPassword(false);
+    }
+  };
+
+  const handleSetPassword = async () => {
+    if (!passwordTarget) return;
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setSendingPassword(true);
+    try {
+      const res = await fetch(`/api/users/${passwordTarget.id}/password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to set password');
+      toast.success('Password updated', { description: `New password set for ${data.full_name}` });
+      setPasswordDialogOpen(false);
+    } catch (err) {
+      toast.error('Failed to set password', { description: err instanceof Error ? err.message : 'Something went wrong' });
+    } finally {
+      setSendingPassword(false);
     }
   };
 
@@ -684,12 +733,12 @@ export default function AdminUsersPage() {
                         {/* Reset password */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => handleResetPassword(user)}
+                            <button onClick={() => openPasswordDialog(user)}
                               className="p-1.5 rounded hover:bg-amber-500/10 text-muted-foreground/60 hover:text-amber-400 transition-colors">
                               <LockKeyhole size={14} />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-[12px]">Send password reset</TooltipContent>
+                          <TooltipContent side="top" className="text-[12px]">Reset password</TooltipContent>
                         </Tooltip>
 
                         {/* Deactivate / Reactivate */}
@@ -931,6 +980,98 @@ export default function AdminUsersPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* ── Password reset dialog ─────────────────────────────────────────── */}
+        <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+          <DialogContent className="sm:max-w-md bg-card border-border/20">
+            <DialogHeader>
+              <DialogTitle className="text-[15px]">Reset password for {passwordTarget?.full_name}</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Mode selection */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPasswordMode('email')}
+                  className={`flex-1 h-9 px-3 text-[13px] rounded-md border transition-colors ${
+                    passwordMode === 'email'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/20 bg-secondary text-muted-foreground hover:border-border/40'
+                  }`}
+                >
+                  Send reset email
+                </button>
+                <button
+                  onClick={() => setPasswordMode('manual')}
+                  className={`flex-1 h-9 px-3 text-[13px] rounded-md border transition-colors ${
+                    passwordMode === 'manual'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/20 bg-secondary text-muted-foreground hover:border-border/40'
+                  }`}
+                >
+                  Set password manually
+                </button>
+              </div>
+
+              {/* Email mode */}
+              {passwordMode === 'email' && (
+                <div className="py-2">
+                  <p className="text-[13px] text-muted-foreground">
+                    A password reset link will be sent to <span className="font-medium text-foreground">{passwordTarget?.email}</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Manual mode */}
+              {passwordMode === 'manual' && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[13px] text-muted-foreground">New password</Label>
+                    <Input
+                      type="password"
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      className="h-9 text-[13px] bg-secondary border-border/20"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[13px] text-muted-foreground">Confirm password</Label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter password"
+                      className="h-9 text-[13px] bg-secondary border-border/20"
+                    />
+                  </div>
+                  {newPassword && confirmPassword && newPassword !== confirmPassword && (
+                    <p className="text-[12px] text-destructive">Passwords do not match</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setPasswordDialogOpen(false)}
+                className="text-[13px] h-8 border-border/20"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={passwordMode === 'email' ? handleSendResetEmail : handleSetPassword}
+                disabled={sendingPassword || (passwordMode === 'manual' && (!newPassword || newPassword !== confirmPassword))}
+                className="text-[13px] h-8"
+              >
+                {sendingPassword
+                  ? passwordMode === 'email' ? 'Sending…' : 'Setting…'
+                  : passwordMode === 'email' ? 'Send reset email' : 'Set password'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Permissions dialog ────────────────────────────────────────────── */}
         <Dialog open={permissionsOpen} onOpenChange={setPermissionsOpen}>
