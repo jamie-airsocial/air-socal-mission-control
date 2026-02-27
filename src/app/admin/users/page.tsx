@@ -733,12 +733,12 @@ export default function AdminUsersPage() {
                         {/* Reset password */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => openPasswordDialog(user)}
-                              className="p-1.5 rounded hover:bg-amber-500/10 text-muted-foreground/60 hover:text-amber-400 transition-colors">
+                            <button onClick={() => !OWNER_USER_IDS.includes(user.id) && openPasswordDialog(user)}
+                              className={`p-1.5 rounded transition-colors ${OWNER_USER_IDS.includes(user.id) ? 'text-muted-foreground/30 cursor-not-allowed' : 'hover:bg-amber-500/10 text-muted-foreground/60 hover:text-amber-400'}`}>
                               <LockKeyhole size={14} />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-[12px]">Reset password</TooltipContent>
+                          <TooltipContent side="top" className="text-[12px]">{OWNER_USER_IDS.includes(user.id) ? 'Owner — cannot be changed' : 'Reset password'}</TooltipContent>
                         </Tooltip>
 
                         {/* Deactivate / Reactivate */}
