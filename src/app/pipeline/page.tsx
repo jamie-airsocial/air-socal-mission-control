@@ -932,8 +932,18 @@ export default function PipelinePage() {
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
   const [filterStage, setFilterStage] = usePersistedState<string[]>('pipeline-filterStage', []);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [availableServices, setAvailableServices] = useState<{ value: string; label: string; dot?: string }[]>([]);
 
   const { users } = useUsers();
+
+  useEffect(() => {
+    fetch('/api/services').then(r => r.json()).then((data: { id: string }[]) => {
+      setAvailableServices((data || []).map(s => {
+        const style = getServiceStyle(s.id);
+        return { value: s.id, label: style.label, dot: style.dot };
+      }));
+    }).catch(() => {});
+  }, []);
 
   const fetchProspects = useCallback(async () => {
     try {
@@ -1129,7 +1139,7 @@ export default function PipelinePage() {
         {/* Service filter */}
         <FilterPopover
           label="Service"
-          options={Object.entries(SERVICE_STYLES).map(([key]) => { const s = getServiceStyle(key); return { value: key, label: s.label, dot: s.dot }; })}
+          options={availableServices}
           selected={filterService}
           onSelectionChange={setFilterService}
           width="w-52"

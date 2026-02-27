@@ -114,16 +114,9 @@ function BoardContent() {
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
 
   // Build filter options
-  const statusOptions = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'doing', label: 'In Progress' },
-    { value: 'done', label: 'Done' },
-  ];
   const priorityOptions = Object.entries(PRIORITY_STYLES).map(([key, s]) => ({ value: key, label: `${key} · ${s.label}` }));
   const projectOptions = projects.map(p => ({ value: p.id, label: p.name }));
-  const assigneeOptions = users.length > 0
-    ? users.map(u => ({ value: u.full_name.toLowerCase().replace(/\s+/g, '-'), label: u.full_name }))
-    : Object.entries({ 'Sophie Gore': 'sophie-gore', 'Jamie Ludlow': 'jamie-ludlow', 'Sophie Collins': 'sophie-collins', 'Chloe Taylor': 'chloe-taylor', 'Dave Gibbs': 'dave-gibbs', 'Jack Underwood': 'jack-underwood', 'Chloe Hodgetts': 'chloe-hodgetts', 'Aaron Lewis': 'aaron-lewis', 'Marcus Yeatman': 'marcus-yeatman' }).map(([name, slug]) => ({ value: slug, label: name }));
+  const assigneeOptions = users.map(u => ({ value: u.full_name.toLowerCase().replace(/\s+/g, '-'), label: u.full_name }));
 
   // Augment hasFilters/clearAll with service filter
   const hasAnyFilters = hasFilters || filterService.length > 0 || filterTeam.length > 0;

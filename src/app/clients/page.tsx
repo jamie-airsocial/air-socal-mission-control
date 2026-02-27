@@ -958,6 +958,7 @@ function ClientsPageContent() {
   const [sortField, setSortField] = useState<'name' | 'team' | 'status' | 'retainer' | 'tenure'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [availableServices, setAvailableServices] = useState<{ value: string; label: string; dot: string }[]>([]);
 
   // Sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -988,6 +989,12 @@ function ClientsPageContent() {
         }
       })
       .catch(() => {});
+    fetch('/api/services').then(r => r.json()).then((data: { id: string }[]) => {
+      setAvailableServices((data || []).map(s => {
+        const style = getServiceStyle(s.id);
+        return { value: s.id, label: style.label, dot: style.dot };
+      }));
+    }).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredClients = clients.filter(client => {
@@ -1078,7 +1085,7 @@ function ClientsPageContent() {
         <FilterPopover
           label="Service"
           selected={filterService}
-          options={deriveServiceOptions(clients)}
+          options={availableServices}
           onSelectionChange={setFilterService}
         />
 
