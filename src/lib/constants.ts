@@ -36,28 +36,70 @@ export const PRIORITY_BADGE: Record<string, { label: string; className: string }
   P4: { label: 'LOW', className: 'bg-green-500/20 text-green-400 border-green-500/30' },
 };
 
+/** Unique hex colour per assignee — every person gets a distinct colour */
+export const ASSIGNEE_HEX: Record<string, string> = {
+  // Synergy
+  'sophie-gore':   '#3b82f6', // blue
+  'jamie-ludlow':  '#22c55e', // green
+  'sophie-collins': '#06b6d4', // cyan
+  // Ignite
+  'chloe-taylor':  '#f97316', // orange  (NOTE: Chloe Taylor moved to Alliance)
+  'dave-gibbs':    '#eab308', // yellow
+  'jack-underwood': '#ef4444', // red
+  'chloe-hodgetts': '#d946ef', // fuchsia (NOTE: moved to Ignite)
+  // Alliance
+  'aaron-lewis':    '#ec4899', // pink
+  'marcus-yeatman': '#8b5cf6', // violet
+  // Create
+  'anna-campbell':     '#14b8a6', // teal
+  'jonathan-pickford': '#f59e0b', // amber
+  // No team / other
+  'alex-vinall':    '#6366f1', // indigo
+  'charley-jacobs': '#a855f7', // purple
+  'james-wright':   '#0ea5e9', // sky
+  'luke-taylor':    '#84cc16', // lime
+  'paul-mackenzie-ross': '#f43f5e', // rose
+};
+
+/** Convert slug or display name to a hex colour */
+export function getAssigneeHex(nameOrSlug: string): string {
+  const slug = nameOrSlug.toLowerCase().replace(/\s+/g, '-');
+  return ASSIGNEE_HEX[slug] || '#6b7280'; // gray fallback
+}
+
 export const ASSIGNEE_COLORS: Record<string, string> = {
-  // Synergy (blue tones)
   'Sophie Gore': 'bg-blue-500/20 text-blue-400',
   'sophie-gore': 'bg-blue-500/20 text-blue-400',
   'Jamie Ludlow': 'bg-green-500/20 text-green-400',
   'jamie-ludlow': 'bg-green-500/20 text-green-400',
   'Sophie Collins': 'bg-cyan-500/20 text-cyan-400',
   'sophie-collins': 'bg-cyan-500/20 text-cyan-400',
-  // Ignite (orange tones)
   'Chloe Taylor': 'bg-orange-500/20 text-orange-400',
   'chloe-taylor': 'bg-orange-500/20 text-orange-400',
-  'Dave Gibbs': 'bg-amber-500/20 text-amber-400',
-  'dave-gibbs': 'bg-amber-500/20 text-amber-400',
-  'Jack Underwood': 'bg-yellow-500/20 text-yellow-400',
-  'jack-underwood': 'bg-yellow-500/20 text-yellow-400',
-  // Alliance (purple tones)
-  'Chloe Hodgetts': 'bg-purple-500/20 text-purple-400',
-  'chloe-hodgetts': 'bg-purple-500/20 text-purple-400',
+  'Dave Gibbs': 'bg-yellow-500/20 text-yellow-400',
+  'dave-gibbs': 'bg-yellow-500/20 text-yellow-400',
+  'Jack Underwood': 'bg-red-500/20 text-red-400',
+  'jack-underwood': 'bg-red-500/20 text-red-400',
+  'Chloe Hodgetts': 'bg-fuchsia-500/20 text-fuchsia-400',
+  'chloe-hodgetts': 'bg-fuchsia-500/20 text-fuchsia-400',
   'Aaron Lewis': 'bg-pink-500/20 text-pink-400',
   'aaron-lewis': 'bg-pink-500/20 text-pink-400',
   'Marcus Yeatman': 'bg-violet-500/20 text-violet-400',
   'marcus-yeatman': 'bg-violet-500/20 text-violet-400',
+  'Anna Campbell': 'bg-teal-500/20 text-teal-400',
+  'anna-campbell': 'bg-teal-500/20 text-teal-400',
+  'Jonathan Pickford': 'bg-amber-500/20 text-amber-400',
+  'jonathan-pickford': 'bg-amber-500/20 text-amber-400',
+  'Alex Vinall': 'bg-indigo-500/20 text-indigo-400',
+  'alex-vinall': 'bg-indigo-500/20 text-indigo-400',
+  'Charley Jacobs': 'bg-purple-500/20 text-purple-400',
+  'charley-jacobs': 'bg-purple-500/20 text-purple-400',
+  'James Wright': 'bg-sky-500/20 text-sky-400',
+  'james-wright': 'bg-sky-500/20 text-sky-400',
+  'Luke Taylor': 'bg-lime-500/20 text-lime-400',
+  'luke-taylor': 'bg-lime-500/20 text-lime-400',
+  'Paul Mackenzie Ross': 'bg-rose-500/20 text-rose-400',
+  'paul-mackenzie-ross': 'bg-rose-500/20 text-rose-400',
 };
 
 /** Get colour for an assignee given their team — used for dynamic users from DB */
@@ -65,6 +107,7 @@ export function getAssigneeColorByTeam(team: string | null | undefined): string 
   if (team === 'synergy') return 'bg-blue-500/20 text-blue-400';
   if (team === 'ignite') return 'bg-orange-500/20 text-orange-400';
   if (team === 'alliance') return 'bg-purple-500/20 text-purple-400';
+  if (team === 'create') return 'bg-teal-500/20 text-teal-400';
   return 'bg-muted/40 text-muted-foreground';
 }
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, toDisplayName, getInitials, getTeamStyle } from '@/lib/constants';
+import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, toDisplayName, getInitials, getTeamStyle, getAssigneeHex } from '@/lib/constants';
 import { useStatuses } from '@/hooks/use-statuses';
 
 interface CalendarViewProps {
@@ -786,7 +786,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
             </div>
             {/* Spanning task overlays — single continuous bars positioned over the grid */}
             {spanOverlays.map((overlay) => {
-              const color = overlay.task.project_color || 'var(--primary)';
+              const color = overlay.task.assignee ? getAssigneeHex(overlay.task.assignee) : (overlay.task.project_color || 'var(--primary)');
               const cellWidthPct = 100 / colCount;
               const left = overlay.startCol * cellWidthPct;
               const width = (overlay.endCol - overlay.startCol + 1) * cellWidthPct;
@@ -903,7 +903,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
                   </div>
                   {/* Spanning bars overlaid on the all-day row */}
                   {weekSpanBars.map((bar, idx) => {
-                    const color = bar.task.project_color || 'var(--primary)';
+                    const color = bar.task.assignee ? getAssigneeHex(bar.task.assignee) : (bar.task.project_color || 'var(--primary)');
                     // 50px for the time label column, then equal columns
                     const colWidthPct = (100 - (50 / (monthGridRef.current?.parentElement?.offsetWidth || 1000) * 100));
                     return (
