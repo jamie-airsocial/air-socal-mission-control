@@ -97,7 +97,12 @@ export function toSlug(nameOrSlug: string): string {
 }
 
 export function toDisplayName(slugOrName: string): string {
-  return SLUG_TO_NAME[slugOrName] || slugOrName;
+  if (SLUG_TO_NAME[slugOrName]) return SLUG_TO_NAME[slugOrName];
+  // Convert slug like "anna-campbell" → "Anna Campbell"
+  if (slugOrName.includes('-')) {
+    return slugOrName.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  }
+  return slugOrName;
 }
 
 /** Get 2-character initials from a display name or slug */
