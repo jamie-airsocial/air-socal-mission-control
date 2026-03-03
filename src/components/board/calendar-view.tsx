@@ -838,38 +838,103 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
               ))}
             </div>
 
-            {/* All-day tasks row */}
+            {/* All-day tasks row — spanning tasks render as continuous bars */}
             {(() => {
               const filteredDays = filteredWeekDays;
-              const hasAllDay = filteredDays.some(day => {
-                const dayTasks = tasksByDate.get(getDateKey(day.date)) || [];
-                return dayTasks.some(t => !hasSpecificTime(t));
+              // Separate spanning vs single-day all-day tasks
+              const weekSpanning: ExtTask[] = [];
+              const weekSingleDay = new Map<string, ExtTask[]>();
+              filteredDays.forEach(day => {
+                const dayKey = getDateKey(day.date);
+                const dayTasks = (tasksByDate.get(dayKey) || []).filter(t => !hasSpecificTime(t));
+                dayTasks.forEach(task => {
+                  if (isSpanningTask(task)) {
+                    if (!weekSpanning.find(t => t.id === task.id)) weekSpanning.push(task);
+                  } else {
+                    if (!weekSingleDay.has(dayKey)) weekSingleDay.set(dayKey, []);
+                    weekSingleDay.get(dayKey)!.push(task);
+                  }
+                });
               });
+              const hasAllDay = weekSpanning.length > 0 || [...weekSingleDay.values()].some(t => t.length > 0);
               if (!hasAllDay) return null;
+
+              // Calculate spanning bar positions for the week
+              const weekSpanBars = weekSpanning.map(task => {
+                const tStart = new Date(task.start_date!); tStart.setHours(0,0,0,0);
+                const tEnd = new Date(task.due_date!); tEnd.setHours(0,0,0,0);
+                const weekStart = filteredDays[0].date;
+                const weekEnd = filteredDays[filteredDays.length - 1].date;
+                const startCol = tStart <= weekStart ? 0 : filteredDays.findIndex(d => getDateKey(d.date) === getDateKey(tStart));
+                const endCol = tEnd >= weekEnd ? filteredDays.length - 1 : filteredDays.findIndex(d => getDateKey(d.date) === getDateKey(tEnd));
+                const isStart = tStart >= weekStart;
+                const isEnd = tEnd <= weekEnd;
+                return { task, startCol: Math.max(0, startCol), endCol: Math.max(0, endCol), isStart, isEnd };
+              });
+
               return (
-                <div className={`grid gap-px bg-border/10 border-t border-border/20`} style={{ gridTemplateColumns: `50px repeat(${colCount}, 1fr)` }}>
-                  <div className="bg-card p-1 flex items-start justify-end pr-2 pt-1.5">
-                    <span className="text-[10px] text-muted-foreground/60">All day</span>
-                  </div>
-                  {filteredDays.map((day, i) => {
-                    const dayTasks = (tasksByDate.get(getDateKey(day.date)) || []).filter(t => !hasSpecificTime(t));
-                    return (
-                      <div
-                        key={getDateKey(day.date)}
-                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
-                        onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) handleAllDayDrop(id, day.date); }}
-                        className={`bg-card p-1 min-h-[32px] overflow-hidden ${day.isToday ? 'bg-primary/[0.03]' : ''}`}
-                      >
-                        <div className="space-y-0.5">
-                          {dayTasks.slice(0, 3).map(task => (
-                            <div key={task.id}>
-                              {draggedTaskId === task.id && <div className="rounded px-1.5 py-0.5" style={{ border: '1.5px dashed var(--muted-foreground)', opacity: 0.2, height: 22 }} />}
-                              <TaskPill task={task} onTaskClick={onTaskClick} draggable onDragStart={handlePillDragStart} onDragEnd={handlePillDragEnd} isBeingDragged={draggedTaskId === task.id} />
-                            </div>
-                          ))}
-                          {dayTasks.length > 3 && <OverflowPopover tasks={dayTasks.slice(3)} onTaskClick={onTaskClick} />}
+                <div className="relative border-t border-border/20">
+                  <div className={`grid gap-px bg-border/10`} style={{ gridTemplateColumns: `50px repeat(${colCount}, 1fr)` }}>
+                    <div className="bg-card p-1 flex items-start justify-end pr-2 pt-1.5">
+                      <span className="text-[10px] text-muted-foreground/60">All day</span>
+                    </div>
+                    {filteredDays.map((day) => {
+                      const dayKey = getDateKey(day.date);
+                      const singleTasks = weekSingleDay.get(dayKey) || [];
+                      const spanCount = weekSpanning.length;
+                      return (
+                        <div
+                          key={dayKey}
+                          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                          onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); if (id) handleAllDayDrop(id, day.date); }}
+                          className={`bg-card p-1 overflow-visible ${day.isToday ? 'bg-primary/[0.03]' : ''}`}
+                          style={{ minHeight: `${Math.max(32, spanCount * 22 + (singleTasks.length > 0 ? 24 : 0))}px` }}
+                        >
+                          <div className="space-y-0.5" style={{ marginTop: spanCount > 0 ? `${spanCount * 22}px` : undefined }}>
+                            {singleTasks.slice(0, 3).map(task => (
+                              <div key={task.id}>
+                                <TaskPill task={task} onTaskClick={onTaskClick} draggable onDragStart={handlePillDragStart} onDragEnd={handlePillDragEnd} isBeingDragged={draggedTaskId === task.id} />
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      );
+                    })}
+                  </div>
+                  {/* Spanning bars overlaid on the all-day row */}
+                  {weekSpanBars.map((bar, idx) => {
+                    const color = bar.task.project_color || 'var(--primary)';
+                    // 50px for the time label column, then equal columns
+                    const colWidthPct = (100 - (50 / (monthGridRef.current?.parentElement?.offsetWidth || 1000) * 100));
+                    return (
+                      <Tooltip key={bar.task.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onTaskClick(bar.task); }}
+                            className={`absolute h-[18px] z-10 transition-opacity hover:opacity-80 cursor-pointer ${bar.isStart ? 'rounded-l-sm' : ''} ${bar.isEnd ? 'rounded-r-sm' : ''}`}
+                            style={{
+                              backgroundColor: `color-mix(in oklab, ${color} 30%, var(--card))`,
+                              borderTop: `2px solid ${color}`,
+                              top: `${4 + idx * 22}px`,
+                              left: `calc(50px + ${bar.startCol} * ((100% - 50px) / ${colCount}) + ${bar.isStart ? 4 : 0}px)`,
+                              width: `calc(${bar.endCol - bar.startCol + 1} * ((100% - 50px) / ${colCount}) - ${(bar.isStart ? 4 : 0) + (bar.isEnd ? 4 : 0)}px)`,
+                            }}
+                          >
+                            {(bar.isStart || bar.startCol === 0) && (
+                              <span className="text-[10px] text-foreground truncate px-1.5 leading-[16px] block">{bar.task.title}</span>
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={4} className="max-w-[220px] p-2">
+                          <div className="text-[11px] space-y-0.5">
+                            <p className="text-[13px] font-medium text-foreground">{bar.task.title}</p>
+                            <p className="text-muted-foreground">
+                              {new Date(bar.task.start_date!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {new Date(bar.task.due_date!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                            {bar.task.assignee && <p className="text-muted-foreground">{toDisplayName(bar.task.assignee)}</p>}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
                     );
                   })}
                 </div>
