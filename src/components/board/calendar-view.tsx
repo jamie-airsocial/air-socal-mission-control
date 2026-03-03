@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, toDisplayName, getInitials } from '@/lib/constants';
+import { STATUS_STYLES, PRIORITY_STYLES, ASSIGNEE_COLORS, toDisplayName, getInitials, getTeamStyle } from '@/lib/constants';
 import { useStatuses } from '@/hooks/use-statuses';
 
 interface CalendarViewProps {
@@ -197,6 +197,69 @@ function TaskPill({ task, onTaskClick, showTime = false, draggable = false, onDr
   );
 }
 
+function isSpanningTask(task: ExtTask): boolean {
+  if (!task.start_date || !task.due_date) return false;
+  const start = new Date(task.start_date);
+  const end = new Date(task.due_date);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return start.getTime() !== end.getTime();
+}
+
+function getSpanPosition(task: ExtTask, cellDate: Date): 'start' | 'middle' | 'end' | 'single' {
+  if (!task.start_date || !task.due_date) return 'single';
+  const start = new Date(task.start_date);
+  const end = new Date(task.due_date);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const cell = new Date(cellDate);
+  cell.setHours(0, 0, 0, 0);
+  if (cell.getTime() === start.getTime()) return 'start';
+  if (cell.getTime() === end.getTime()) return 'end';
+  return 'middle';
+}
+
+function SpanningBar({ task, position, onTaskClick }: { task: ExtTask; position: 'start' | 'middle' | 'end' | 'single'; onTaskClick: (t: ExtTask) => void }) {
+  const color = task.project_color || 'var(--primary)';
+  const roundedLeft = position === 'start' || position === 'single' ? 'rounded-l' : '';
+  const roundedRight = position === 'end' || position === 'single' ? 'rounded-r' : '';
+  const marginLeft = position === 'start' ? 'ml-0.5' : '-ml-[1px]';
+  const marginRight = position === 'end' ? 'mr-0.5' : '-mr-[1px]';
+  
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
+          className={`w-full text-left h-[20px] ${roundedLeft} ${roundedRight} ${marginLeft} ${marginRight} transition-opacity hover:opacity-80 overflow-hidden`}
+          style={{ backgroundColor: `color-mix(in oklab, ${color} 25%, var(--card))`, borderTop: `2px solid ${color}` }}
+        >
+          {position === 'start' && (
+            <span className="text-[10px] text-foreground truncate px-1.5 leading-[18px]">{task.title}</span>
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={8} className="max-w-[220px] p-2">
+        <div className="text-[11px] space-y-0.5">
+          <p className="text-[13px] font-medium text-foreground">{task.title}</p>
+          {task.start_date && task.due_date && (
+            <p className="text-muted-foreground">
+              {new Date(task.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {new Date(task.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </p>
+          )}
+          {task.assignee && <p className="text-muted-foreground">{toDisplayName(task.assignee)}</p>}
+          {task.project_name && (
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+              <span className="text-muted-foreground">{task.project_name}</span>
+            </div>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 // Month view day cell
 function MonthDayCell({
   date, isCurrentMonth, isToday, tasks, onTaskClick, onDrop, draggedTaskId, isSource, isDragOver, onDragOverCell, onPillDragStart, onPillDragEnd, onCreateTask,
@@ -209,8 +272,10 @@ function MonthDayCell({
   onPillDragStart: (id: string) => void; onPillDragEnd: () => void;
   onCreateTask?: (defaultDate: string) => void;
 }) {
-  const visible = tasks.slice(0, 2);
-  const overflow = tasks.length - 2;
+  const spanning = tasks.filter(t => isSpanningTask(t));
+  const singleDay = tasks.filter(t => !isSpanningTask(t));
+  const visible = singleDay.slice(0, Math.max(0, 2 - spanning.length));
+  const overflow = singleDay.length - visible.length;
   const cellKey = getDateKey(date);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; onDragOverCell(cellKey); };
@@ -248,6 +313,11 @@ function MonthDayCell({
         </div>
       )}
       <div className="space-y-0.5">
+        {spanning.map(task => (
+          <div key={`span-${task.id}`} className="task-pill relative z-[2]">
+            <SpanningBar task={task} position={getSpanPosition(task, date)} onTaskClick={onTaskClick} />
+          </div>
+        ))}
         {visible.map(task => (
           <div key={task.id} className="task-pill relative z-[1]">
             {draggedTaskId === task.id && (
@@ -260,7 +330,7 @@ function MonthDayCell({
           <div className="rounded mt-0.5" style={{ border: '1.5px dashed var(--primary)', opacity: 0.4, background: 'color-mix(in oklab, var(--primary) 6%, transparent)', height: 22 }} />
         )}
         {overflow > 0 && (
-          <OverflowPopover tasks={tasks.slice(2)} onTaskClick={onTaskClick} />
+          <OverflowPopover tasks={singleDay.slice(visible.length)} onTaskClick={onTaskClick} />
         )}
       </div>
     </div>
@@ -387,10 +457,27 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   const month = currentDate.getMonth();
 
   // Group tasks by date key — memoised so the Map is only rebuilt when tasks change
+  // Tasks with start_date + due_date appear on every day in the range
   const tasksByDate = useMemo(() => {
     const map = new Map<string, ExtTask[]>();
     tasks.forEach(task => {
-      if (task.due_date) {
+      if (task.start_date && task.due_date) {
+        // Multi-day task: add to every date in range
+        const start = new Date(task.start_date);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(task.due_date);
+        end.setHours(0, 0, 0, 0);
+        const cursor = new Date(start);
+        while (cursor <= end) {
+          const key = getDateKey(cursor);
+          if (!map.has(key)) map.set(key, []);
+          // Avoid duplicates
+          if (!map.get(key)!.find(t => t.id === task.id)) {
+            map.get(key)!.push(task);
+          }
+          cursor.setDate(cursor.getDate() + 1);
+        }
+      } else if (task.due_date) {
         const d = new Date(task.due_date);
         const key = getDateKey(d);
         if (!map.has(key)) map.set(key, []);
@@ -398,6 +485,11 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
       }
     });
     return map;
+  }, [tasks]);
+
+  // Multi-day (spanning) tasks for month view
+  const spanningTasks = useMemo(() => {
+    return tasks.filter(t => t.start_date && t.due_date);
   }, [tasks]);
 
   const handleModeChange = (mode: 'month' | 'week') => {
@@ -548,7 +640,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   const sourceCellKey = draggedTask?.due_date ? getDateKey(new Date(draggedTask.due_date)) : null;
   const sourceHour = draggedTask?.due_date && hasSpecificTime(draggedTask) ? Math.floor(getTaskHour(draggedTask)) : null;
 
-  const tasksWithDueDates = tasks.filter(t => t.due_date);
+  const tasksWithDueDates = tasks.filter(t => t.due_date || t.start_date);
 
   return (
     <TooltipProvider>
