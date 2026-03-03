@@ -1447,7 +1447,7 @@ export function TaskSheet({
               </button>
               <button
                 onClick={async () => {
-                  if (!form.title.trim()) return;
+                  if (!form.title.trim()) { toast.error('Title is required'); return; }
                   // Cancel any pending debounce timer to avoid a duplicate save
                   // racing with the explicit Create action below.
                   if (saveTimerRef.current) {

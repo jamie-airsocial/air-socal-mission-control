@@ -221,18 +221,21 @@ function getSpanPosition(task: ExtTask, cellDate: Date): 'start' | 'middle' | 'e
 
 function SpanningBar({ task, position, onTaskClick }: { task: ExtTask; position: 'start' | 'middle' | 'end' | 'single'; onTaskClick: (t: ExtTask) => void }) {
   const color = task.project_color || 'var(--primary)';
-  const roundedLeft = position === 'start' || position === 'single' ? 'rounded-l' : '';
-  const roundedRight = position === 'end' || position === 'single' ? 'rounded-r' : '';
-  const marginLeft = position === 'start' ? 'ml-0.5' : '-ml-[1px]';
-  const marginRight = position === 'end' ? 'mr-0.5' : '-mr-[1px]';
+  const isStart = position === 'start' || position === 'single';
+  const isEnd = position === 'end' || position === 'single';
   
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
-          className={`w-full text-left h-[20px] ${roundedLeft} ${roundedRight} ${marginLeft} ${marginRight} transition-opacity hover:opacity-80 overflow-hidden`}
-          style={{ backgroundColor: `color-mix(in oklab, ${color} 25%, var(--card))`, borderTop: `2px solid ${color}` }}
+          className={`text-left h-[20px] transition-opacity hover:opacity-80 overflow-visible relative z-[3] ${isStart ? 'rounded-l-sm ml-0.5' : ''} ${isEnd ? 'rounded-r-sm mr-0.5' : ''}`}
+          style={{
+            backgroundColor: `color-mix(in oklab, ${color} 25%, var(--card))`,
+            borderTop: `2px solid ${color}`,
+            width: !isEnd ? 'calc(100% + 1px)' : undefined,
+            marginLeft: !isStart ? '-1px' : undefined,
+          }}
         >
           {position === 'start' && (
             <span className="text-[10px] text-foreground truncate px-1.5 leading-[18px]">{task.title}</span>
@@ -292,7 +295,7 @@ function MonthDayCell({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={(e) => { if (onCreateTask && !(e.target as HTMLElement).closest('.task-pill')) onCreateTask(date.toISOString()); }}
-      className={`day-cell bg-card p-1.5 min-h-[90px] overflow-hidden min-w-0 transition-colors duration-150 cursor-pointer hover:bg-muted/20 group/daycell relative ${isToday ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : ''} ${!isCurrentMonth ? 'opacity-35' : ''}`}
+      className={`day-cell bg-card p-1.5 min-h-[90px] overflow-visible min-w-0 transition-colors duration-150 cursor-pointer hover:bg-muted/20 group/daycell relative ${isToday ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : ''} ${!isCurrentMonth ? 'opacity-35' : ''}`}
     >
       <div className={`text-[11px] mb-1 pl-0.5 ${isToday ? 'text-primary font-semibold' : 'text-muted-foreground/60'}`}>
         {date.getDate()}
