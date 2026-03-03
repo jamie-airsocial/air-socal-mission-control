@@ -135,6 +135,7 @@ export const TEAM_STYLES: Record<string, TeamStyle> = {
   synergy:  { color: '#3b82f6', bg: 'bg-blue-500/10',   text: 'text-blue-400',   label: 'Synergy'  },
   ignite:   { color: '#f97316', bg: 'bg-orange-500/10', text: 'text-orange-400', label: 'Ignite'   },
   alliance: { color: '#a855f7', bg: 'bg-purple-500/10', text: 'text-purple-400', label: 'Alliance' },
+  create:   { color: '#10b981', bg: 'bg-emerald-500/10', text: 'text-emerald-400', label: 'Create'  },
 };
 
 /** Fallback colours for unknown teams — cycles through a palette */
