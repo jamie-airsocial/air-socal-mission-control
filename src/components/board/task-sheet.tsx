@@ -22,6 +22,8 @@ import { SearchableStatusPopover } from './searchable-status-popover';
 import { SearchablePriorityPopover } from './searchable-priority-popover';
 import { SearchableAssigneePopover } from './searchable-assignee-popover';
 import { SearchableProjectPopover } from './searchable-project-popover';
+import { SearchableTeamPopover } from './searchable-team-popover';
+import { useUsers } from '@/hooks/use-users';
 import { EnhancedDatePicker, formatRelativeDate } from './enhanced-date-picker';
 import { LabelCombobox } from './label-combobox';
 import { useStatuses } from '@/hooks/use-statuses';
@@ -54,6 +56,7 @@ interface TaskSheetProps {
   allTasks?: (Task & { project_name?: string; project_color?: string })[];
   onTaskClick?: (task: Task & { project_name?: string; project_color?: string }) => void;
   allLabels?: string[];
+  teams?: { slug: string; name: string; color?: string }[];
 }
 
 // Labels are now dynamically loaded from all tasks - no hardcoded options needed
@@ -104,6 +107,7 @@ export function TaskSheet({
   allTasks = [], 
   onTaskClick,
   allLabels: allLabelsProp,
+  teams: teamsProp = [],
 }: TaskSheetProps) {
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const { statuses: dynStatuses } = useStatuses();
@@ -146,6 +150,8 @@ export function TaskSheet({
   const [statusOpen, setStatusOpen] = useState(false);
   const [priorityOpen, setPriorityOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
+  const { users } = useUsers();
   const [dueDateOpen, setDueDateOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
@@ -523,6 +529,7 @@ export function TaskSheet({
       priority: f.priority || null,
       assignee: f.assignee ? toSlug(f.assignee) : null,
       client_id: f.project_id || null,
+      team: f.client_team || null,
       service: f.service || null,
       due_date: finalDueDate,
       labels: f.labels || [],
@@ -556,7 +563,7 @@ export function TaskSheet({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveNow(task.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.status, form.priority, form.assignee, form.project_id, form.service, form.due_date, form.due_time, form.labels]);
+  }, [form.status, form.priority, form.assignee, form.project_id, form.client_team, form.service, form.due_date, form.due_time, form.labels]);
 
   // Debounced save for text fields (title, description)
   useEffect(() => {
@@ -1047,21 +1054,31 @@ export function TaskSheet({
             <PropertyRow icon={<User size={13} />} label="Assignee">
               <SearchableAssigneePopover
                 value={form.assignee}
-                onChange={(assignee) => setForm({ ...form, assignee })}
+                onChange={(assignee) => {
+                  // Auto-set team from assignee's team if team is currently empty or matches previous assignee's team
+                  const assigneeUser = users.find(u => u.full_name === assignee);
+                  const prevUser = form.assignee ? users.find(u => u.full_name === form.assignee) : null;
+                  const prevTeam = prevUser?.team || '';
+                  const shouldAutoSet = !form.client_team || form.client_team === prevTeam;
+                  setForm({
+                    ...form,
+                    assignee,
+                    client_team: shouldAutoSet && assigneeUser?.team ? assigneeUser.team : form.client_team,
+                  });
+                }}
                 open={assigneeOpen}
                 onOpenChange={setAssigneeOpen}
               />
             </PropertyRow>
             
             <PropertyRow icon={<Users size={13} />} label="Team">
-              {form.client_team ? (
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getTeamStyle(form.client_team).color }} />
-                  <span className="text-[13px]">{getTeamStyle(form.client_team).label}</span>
-                </div>
-              ) : (
-                <span className="text-[13px] text-muted-foreground/30">—</span>
-              )}
+              <SearchableTeamPopover
+                value={form.client_team}
+                onChange={(team) => setForm({ ...form, client_team: team })}
+                teams={teamsProp}
+                open={teamOpen}
+                onOpenChange={setTeamOpen}
+              />
             </PropertyRow>
             
             <PropertyRow icon={<Folder size={13} />} label="Client">

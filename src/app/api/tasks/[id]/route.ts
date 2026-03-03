@@ -14,7 +14,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const client = data.clients as { name: string; color: string; team: string } | null;
-  let resolvedTeam = client?.team || null;
+  let resolvedTeam = data.team || client?.team || null;
   if (!resolvedTeam && data.assignee) {
     const assigneeName = (data.assignee as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const { data: userRow } = await supabaseAdmin
@@ -37,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const body = await request.json();
   const updates: Record<string, unknown> = {};
 
-  for (const key of ['title', 'description', 'status', 'priority', 'assignee', 'client_id', 'service', 'due_date', 'parent_id', 'labels']) {
+  for (const key of ['title', 'description', 'status', 'priority', 'assignee', 'client_id', 'team', 'service', 'due_date', 'parent_id', 'labels']) {
     if (key in body) updates[key] = body[key];
   }
 
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const client = data.clients as { name: string; color: string; team: string } | null;
-  let resolvedTeamPut = client?.team || null;
+  let resolvedTeamPut = data.team || client?.team || null;
   if (!resolvedTeamPut && data.assignee) {
     const aName = (data.assignee as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const { data: uRow } = await supabaseAdmin

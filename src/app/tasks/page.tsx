@@ -657,6 +657,7 @@ function BoardContent() {
         allTasks={tasks}
         onTaskClick={handleTaskClick}
         allLabels={allLabels}
+        teams={availableTeams}
       />
     </div>
   );

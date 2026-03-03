@@ -44,13 +44,14 @@ export async function GET(request: NextRequest) {
   // Flatten the joined client data
   const tasks = (data || []).map((t: Record<string, unknown>) => {
     const client = t.clients as { name: string; color: string; team: string } | null;
+    const storedTeam = t.team as string | null;
     const clientTeam = client?.team || null;
     const assigneeTeam = t.assignee ? (userTeamMap[t.assignee as string] || null) : null;
     return {
       ...t,
       client_name: client?.name || null,
       client_color: client?.color || null,
-      client_team: clientTeam || assigneeTeam,
+      client_team: storedTeam || clientTeam || assigneeTeam,
       clients: undefined,
     };
   });
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { title, description, status, priority, assignee, client_id, service, due_date, parent_id, labels } = body;
+  const { title, description, status, priority, assignee, client_id, team, service, due_date, parent_id, labels } = body;
 
   if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 });
   if (title.length > 500) return NextResponse.json({ error: 'Title too long' }, { status: 400 });
@@ -92,6 +93,7 @@ export async function POST(request: NextRequest) {
     priority: priority || null,
     assignee: assignee || null,
     client_id: client_id || null,
+    team: team || null,
     service: service || null,
     due_date: due_date || null,
     parent_id: parent_id || null,
@@ -109,7 +111,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const client = data.clients as { name: string; color: string; team: string } | null;
-  let resolvedTeam = client?.team || null;
+  let resolvedTeam = data.team || client?.team || null;
   if (!resolvedTeam && data.assignee) {
     const assigneeName = (data.assignee as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const { data: userRow } = await supabaseAdmin
