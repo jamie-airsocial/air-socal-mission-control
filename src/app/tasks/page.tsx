@@ -49,7 +49,7 @@ function BoardContent() {
   const [kanbanGroupByOpen, setKanbanGroupByOpen] = useState(false);
   const [filterService, setFilterService] = usePersistedState<string[]>('tasks-filterService', []);
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('tasks-filterTeam', []);
-  const [availableTeams, setAvailableTeams] = useState<{ slug: string; name: string }[]>([]);
+  const [availableTeams, setAvailableTeams] = useState<{ slug: string; name: string; color?: string }[]>([]);
   const [availableServices, setAvailableServices] = useState<string[]>([]);
   const { users } = useUsers();
 
@@ -61,9 +61,10 @@ function BoardContent() {
 
   useEffect(() => {
     fetch('/api/teams').then(r => r.json()).then(data => {
-      const mapped = (data || []).map((t: { name: string }) => ({
+      const mapped = (data || []).map((t: { name: string; color?: string }) => ({
         slug: t.name.toLowerCase(),
         name: t.name,
+        color: t.color,
       }));
       setAvailableTeams(mapped);
       // Clean up stale team filters
@@ -358,7 +359,7 @@ function BoardContent() {
           <FilterStatusPopover value={filterStatus} onChange={setFilterStatus} />
         )}
 
-        <FilterTeamPopover value={filterTeam} onChange={setFilterTeam} />
+        <FilterTeamPopover value={filterTeam} onChange={setFilterTeam} teams={availableTeams} />
 
         {!(view === 'kanban' && kanbanGroupBy === 'assignee') && !(view === 'table' && groupBy === 'assignee') && (
           <FilterAssigneePopover value={filterAssignee} onChange={setFilterAssignee} />
