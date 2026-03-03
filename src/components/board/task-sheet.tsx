@@ -14,7 +14,7 @@ import {
   Trash2, X, Send, Paperclip, Clock,
   Activity, Flag, User, Users, Folder, Briefcase, Calendar as CalendarIcon, Tag,
   Zap, Link2, Copy, Pencil, Check,
-  ChevronLeft, ArrowRight, Plus, MessageSquare,
+  ChevronDown, ChevronLeft, ArrowRight, Plus, MessageSquare,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { PropertyRow } from './property-row';
@@ -1152,9 +1152,21 @@ export function TaskSheet({
                     <EnhancedDatePicker
                       date={form.start_date}
                       time=""
-                      onDateChange={(date) => setForm(prev => ({ ...prev, start_date: date }))}
+                      onDateChange={(date) => {
+                        // When setting start date, auto-calculate due_date if duration exists
+                        const currentDuration = form.start_date && form.due_date
+                          ? Math.round((form.due_date.getTime() - form.start_date.getTime()) / (1000 * 60 * 60 * 24))
+                          : 0;
+                        if (date && currentDuration > 0) {
+                          const newEnd = new Date(date);
+                          newEnd.setDate(newEnd.getDate() + currentDuration);
+                          setForm(prev => ({ ...prev, start_date: date, due_date: newEnd }));
+                        } else {
+                          setForm(prev => ({ ...prev, start_date: date }));
+                        }
+                      }}
                       onTimeChange={() => {}}
-                      onClear={() => setForm(prev => ({ ...prev, start_date: null }))}
+                      onClear={() => setForm(prev => ({ ...prev, start_date: null, due_date: null, due_time: '' }))}
                       onOpenChange={setStartDateOpen}
                     />
                   </PopoverContent>
@@ -1163,68 +1175,86 @@ export function TaskSheet({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => setForm(prev => ({ ...prev, start_date: null }))}
+                        onClick={() => setForm(prev => ({ ...prev, start_date: null, due_date: null, due_time: '' }))}
                         className="p-1 flex items-center justify-center rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 opacity-0 group-hover:opacity-100"
                       >
                         <X size={11} />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="text-[11px]">Clear</TooltipContent>
+                    <TooltipContent side="top" className="text-[11px]">Clear dates</TooltipContent>
                   </Tooltip>
                 )}
               </div>
             </PropertyRow>
 
-            <PropertyRow icon={<CalendarIcon size={13} />} label="Due date">
-              <div className="flex items-center gap-1.5 group">
-                <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
+            {form.start_date && (
+              <PropertyRow icon={<Clock size={13} />} label="Duration">
+                <Popover>
                   <PopoverTrigger asChild>
-                    <button className={`text-[13px] whitespace-nowrap hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 ${!form.due_date ? 'text-muted-foreground/30' : ''}`}>
-                      {formatRelativeDate(form.due_date)}
-                      {form.due_time && <span> at {form.due_time}</span>}
+                    <button className="text-[13px] hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 flex items-center gap-1.5">
+                      {form.due_date ? (() => {
+                        const days = Math.round((form.due_date.getTime() - form.start_date!.getTime()) / (1000 * 60 * 60 * 24));
+                        if (days === 0) return 'Same day';
+                        if (days === 1) return '1 day';
+                        if (days < 7) return `${days} days`;
+                        const weeks = Math.floor(days / 7);
+                        const rem = days % 7;
+                        if (rem === 0) return weeks === 1 ? '1 week' : `${weeks} weeks`;
+                        return `${weeks}w ${rem}d`;
+                      })() : <span className="text-muted-foreground/30">Set duration</span>}
+                      <ChevronDown size={12} className="text-muted-foreground/30" />
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <EnhancedDatePicker
-                      date={form.due_date}
-                      time={form.due_time}
-                      onDateChange={(date) => setForm(prev => ({ ...prev, due_date: date }))}
-                      onTimeChange={(time) => setForm(prev => ({ ...prev, due_time: time }))}
-                      onClear={() => setForm(prev => ({ ...prev, due_date: null, due_time: '' }))}
-                      onOpenChange={setDueDateOpen}
-                    />
+                  <PopoverContent className="w-40 p-1" align="start">
+                    {[
+                      { label: '1 day', days: 1 },
+                      { label: '2 days', days: 2 },
+                      { label: '3 days', days: 3 },
+                      { label: '4 days', days: 4 },
+                      { label: '5 days', days: 5 },
+                      { label: '1 week', days: 7 },
+                      { label: '2 weeks', days: 14 },
+                      { label: '3 weeks', days: 21 },
+                      { label: '1 month', days: 30 },
+                    ].map(opt => {
+                      const currentDays = form.due_date && form.start_date
+                        ? Math.round((form.due_date.getTime() - form.start_date!.getTime()) / (1000 * 60 * 60 * 24))
+                        : 0;
+                      const isSelected = currentDays === opt.days;
+                      return (
+                        <button
+                          key={opt.days}
+                          onClick={() => {
+                            const newEnd = new Date(form.start_date!);
+                            newEnd.setDate(newEnd.getDate() + opt.days);
+                            setForm(prev => ({ ...prev, due_date: newEnd, due_time: '' }));
+                          }}
+                          className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors duration-150 ${isSelected ? 'bg-primary/10 text-primary' : ''}`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                    {form.due_date && (
+                      <>
+                        <div className="border-t border-border/20 my-1" />
+                        <button
+                          onClick={() => setForm(prev => ({ ...prev, due_date: null, due_time: '' }))}
+                          className="w-full text-left px-2 py-1.5 rounded text-[13px] text-destructive hover:bg-destructive/10 transition-colors duration-150"
+                        >
+                          Clear duration
+                        </button>
+                      </>
+                    )}
                   </PopoverContent>
                 </Popover>
-                {(form.due_date || form.due_time) && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setForm(prev => ({ ...prev, due_date: null, due_time: '' }))}
-                        className="p-1 flex items-center justify-center rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={11} />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">{form.due_time ? 'Clear date and time' : 'Clear date'}</TooltipContent>
-                  </Tooltip>
-                )}
-              </div>
-            </PropertyRow>
+              </PropertyRow>
+            )}
 
             {form.start_date && form.due_date && (
-              <PropertyRow icon={<Clock size={13} />} label="Duration">
+              <PropertyRow icon={<CalendarIcon size={13} />} label="End date">
                 <span className="text-[13px] text-muted-foreground/60">
-                  {(() => {
-                    const diffMs = form.due_date.getTime() - form.start_date.getTime();
-                    const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
-                    if (days === 0) return 'Same day';
-                    if (days === 1) return '1 day';
-                    if (days < 7) return `${days} days`;
-                    const weeks = Math.floor(days / 7);
-                    const remainDays = days % 7;
-                    if (remainDays === 0) return weeks === 1 ? '1 week' : `${weeks} weeks`;
-                    return `${weeks}w ${remainDays}d`;
-                  })()}
+                  {formatRelativeDate(form.due_date)}
                 </span>
               </PropertyRow>
             )}
