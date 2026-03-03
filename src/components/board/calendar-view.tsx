@@ -229,12 +229,14 @@ function SpanningBar({ task, position, onTaskClick }: { task: ExtTask; position:
       <TooltipTrigger asChild>
         <button
           onClick={(e) => { e.stopPropagation(); onTaskClick(task); }}
-          className={`text-left h-[20px] transition-opacity hover:opacity-80 overflow-visible relative z-[3] ${isStart ? 'rounded-l-sm ml-0.5' : ''} ${isEnd ? 'rounded-r-sm mr-0.5' : ''}`}
+          className={`text-left h-[20px] block transition-opacity hover:opacity-80 relative z-[3] ${isStart ? 'rounded-l-sm' : ''} ${isEnd ? 'rounded-r-sm' : ''}`}
           style={{
             backgroundColor: `color-mix(in oklab, ${color} 25%, var(--card))`,
             borderTop: `2px solid ${color}`,
-            width: !isEnd ? 'calc(100% + 1px)' : undefined,
-            marginLeft: !isStart ? '-1px' : undefined,
+            // Extend bar into cell padding/border so segments join seamlessly
+            marginLeft: isStart ? '0' : '-6px',
+            marginRight: isEnd ? '0' : '-7px',
+            width: isStart && isEnd ? '100%' : undefined,
           }}
         >
           {position === 'start' && (
@@ -295,7 +297,7 @@ function MonthDayCell({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onClick={(e) => { if (onCreateTask && !(e.target as HTMLElement).closest('.task-pill')) onCreateTask(date.toISOString()); }}
-      className={`day-cell bg-card p-1.5 min-h-[90px] overflow-visible min-w-0 transition-colors duration-150 cursor-pointer hover:bg-muted/20 group/daycell relative ${isToday ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : ''} ${!isCurrentMonth ? 'opacity-35' : ''}`}
+      className={`day-cell bg-card p-1.5 min-h-[90px] overflow-visible min-w-0 transition-colors duration-150 cursor-pointer hover:bg-muted/20 group/daycell relative border-r border-b border-border/10 ${isToday ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : ''} ${!isCurrentMonth ? 'opacity-35' : ''}`}
     >
       <div className={`text-[11px] mb-1 pl-0.5 ${isToday ? 'text-primary font-semibold' : 'text-muted-foreground/60'}`}>
         {date.getDate()}
@@ -707,7 +709,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
           </div>
         ) : calendarMode === 'month' ? (
           /* ---- MONTH VIEW ---- */
-          <div className={`grid gap-px bg-border/10 border border-border/20 rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
+          <div className={`grid bg-border/10 border border-border/20 rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
             {visibleDayNames.map(day => (
               <div key={day} className="bg-card px-2 py-1.5 text-center">
                 <span className="text-[11px] text-muted-foreground/60 font-medium">{day}</span>
