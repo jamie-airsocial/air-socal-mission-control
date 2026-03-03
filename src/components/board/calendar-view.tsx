@@ -233,10 +233,12 @@ function SpanningBar({ task, position, onTaskClick }: { task: ExtTask; position:
           style={{
             backgroundColor: `color-mix(in oklab, ${color} 25%, var(--card))`,
             borderTop: `2px solid ${color}`,
-            // Extend bar into cell padding/border so segments join seamlessly
-            marginLeft: isStart ? '0' : '-6px',
+            // Extend bar beyond cell edges so segments overlap and look continuous
+            // Cell has p-1.5 (6px) + 1px border between cells
+            marginLeft: isStart ? '0' : '-7px',
             marginRight: isEnd ? '0' : '-7px',
-            width: isStart && isEnd ? '100%' : undefined,
+            paddingRight: !isEnd ? '7px' : undefined,
+            paddingLeft: !isStart ? '7px' : undefined,
           }}
         >
           {position === 'start' && (
