@@ -14,11 +14,21 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const client = data.clients as { name: string; color: string; team: string } | null;
+  let resolvedTeam = client?.team || null;
+  if (!resolvedTeam && data.assignee) {
+    const assigneeName = (data.assignee as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const { data: userRow } = await supabaseAdmin
+      .from('app_users')
+      .select('team')
+      .eq('full_name', assigneeName)
+      .single();
+    if (userRow?.team) resolvedTeam = userRow.team;
+  }
   return NextResponse.json({
     ...data,
     client_name: client?.name || null,
     client_color: client?.color || null,
-    client_team: client?.team || null, clients: undefined,
+    client_team: resolvedTeam, clients: undefined,
   });
 }
 
@@ -93,11 +103,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const client = data.clients as { name: string; color: string; team: string } | null;
+  let resolvedTeamPut = client?.team || null;
+  if (!resolvedTeamPut && data.assignee) {
+    const aName = (data.assignee as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const { data: uRow } = await supabaseAdmin
+      .from('app_users')
+      .select('team')
+      .eq('full_name', aName)
+      .single();
+    if (uRow?.team) resolvedTeamPut = uRow.team;
+  }
   const response = {
     ...data,
     client_name: client?.name || null,
     client_color: client?.color || null,
-    client_team: client?.team || null, clients: undefined,
+    client_team: resolvedTeamPut, clients: undefined,
   };
 
   const agent = (body.agent as string) || response.assignee || existing?.assignee || 'casper';

@@ -27,14 +27,30 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Build assignee→team lookup so we can fall back to user team when client has none
+  const assigneeSlugs = [...new Set((data || []).map((t: Record<string, unknown>) => t.assignee).filter(Boolean))] as string[];
+  let userTeamMap: Record<string, string> = {};
+  if (assigneeSlugs.length > 0) {
+    const { data: users } = await supabaseAdmin
+      .from('app_users')
+      .select('full_name, team')
+      .in('full_name', assigneeSlugs.map(s => s.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')));
+    for (const u of users || []) {
+      const slug = u.full_name.toLowerCase().replace(/\s+/g, '-');
+      if (u.team) userTeamMap[slug] = u.team;
+    }
+  }
+
   // Flatten the joined client data
   const tasks = (data || []).map((t: Record<string, unknown>) => {
     const client = t.clients as { name: string; color: string; team: string } | null;
+    const clientTeam = client?.team || null;
+    const assigneeTeam = t.assignee ? (userTeamMap[t.assignee as string] || null) : null;
     return {
       ...t,
       client_name: client?.name || null,
       client_color: client?.color || null,
-      client_team: client?.team || null,
+      client_team: clientTeam || assigneeTeam,
       clients: undefined,
     };
   });
@@ -93,11 +109,21 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const client = data.clients as { name: string; color: string; team: string } | null;
+  let resolvedTeam = client?.team || null;
+  if (!resolvedTeam && data.assignee) {
+    const assigneeName = (data.assignee as string).split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const { data: userRow } = await supabaseAdmin
+      .from('app_users')
+      .select('team')
+      .eq('full_name', assigneeName)
+      .single();
+    if (userRow?.team) resolvedTeam = userRow.team;
+  }
   const task = {
     ...data,
     client_name: client?.name || null,
     client_color: client?.color || null,
-    client_team: client?.team || null,
+    client_team: resolvedTeam,
     clients: undefined,
   };
 
