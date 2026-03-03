@@ -279,9 +279,10 @@ function MonthDayCell({
   onPillDragStart: (id: string) => void; onPillDragEnd: () => void;
   onCreateTask?: (defaultDate: string) => void;
 }) {
-  const spanning = tasks.filter(t => isSpanningTask(t));
+  // Spanning tasks are rendered as overlays outside the cell — only show single-day tasks here
   const singleDay = tasks.filter(t => !isSpanningTask(t));
-  const visible = singleDay.slice(0, Math.max(0, 2 - spanning.length));
+  const spanCount = tasks.filter(t => isSpanningTask(t)).length;
+  const visible = singleDay.slice(0, Math.max(0, 2 - spanCount));
   const overflow = singleDay.length - visible.length;
   const cellKey = getDateKey(date);
 
@@ -319,12 +320,7 @@ function MonthDayCell({
           </div>
         </div>
       )}
-      <div className="space-y-0.5">
-        {spanning.map(task => (
-          <div key={`span-${task.id}`} className="task-pill relative z-[2]">
-            <SpanningBar task={task} position={getSpanPosition(task, date)} onTaskClick={onTaskClick} />
-          </div>
-        ))}
+      <div className="space-y-0.5" style={{ marginTop: spanCount > 0 ? `${spanCount * 22}px` : undefined }}>
         {visible.map(task => (
           <div key={task.id} className="task-pill relative z-[1]">
             {draggedTaskId === task.id && (
@@ -411,6 +407,8 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [taskDurations, setTaskDurations] = useState<Record<string, TaskDuration>>(loadDurations);
   const [resizingTaskId, setResizingTaskId] = useState<string | null>(null);
+  const monthGridRef = useRef<HTMLDivElement>(null);
+  const [gridMeasure, setGridMeasure] = useState<{ headerH: number; rowH: number; totalH: number; weekCount: number } | null>(null);
   const resizeStartY = useRef(0);
   const resizeStartDuration = useRef(60);
   const justInteracted = useRef(false);
@@ -459,6 +457,26 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
 
   const visibleDayNames = showWeekends ? DAY_NAMES : DAY_NAMES.slice(0, 5);
   const colCount = visibleDayNames.length;
+
+  // Measure grid dimensions for spanning overlay positioning
+  useEffect(() => {
+    const el = monthGridRef.current;
+    if (!el || calendarMode !== 'month') return;
+    const measure = () => {
+      const children = el.children;
+      if (children.length <= colCount) return;
+      const headerEl = children[0] as HTMLElement;
+      const headerH = headerEl.offsetHeight;
+      const firstDayEl = children[colCount] as HTMLElement;
+      const rowH = firstDayEl.offsetHeight;
+      const weekCount = Math.ceil((children.length - colCount) / colCount);
+      setGridMeasure({ headerH, rowH, totalH: el.offsetHeight, weekCount });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [calendarMode, colCount, tasks]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -649,6 +667,47 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
 
   const tasksWithDueDates = tasks.filter(t => t.due_date || t.start_date);
 
+  // Month view: pre-compute spanning overlay positions
+  const monthFilteredDays = useMemo(() => {
+    return monthDays.filter(day => showWeekends || (day.date.getDay() !== 0 && day.date.getDay() !== 6));
+  }, [monthDays, showWeekends]);
+
+  const monthWeeks = useMemo(() => {
+    const result: { date: Date; isCurrentMonth: boolean; isToday: boolean }[][] = [];
+    for (let i = 0; i < monthFilteredDays.length; i += colCount) {
+      result.push(monthFilteredDays.slice(i, i + colCount));
+    }
+    return result;
+  }, [monthFilteredDays, colCount]);
+
+  const spanOverlays = useMemo(() => {
+    const overlays: { task: ExtTask; row: number; startCol: number; endCol: number; isStart: boolean; isEnd: boolean }[] = [];
+    for (const task of spanningTasks) {
+      const tStart = new Date(task.start_date!); tStart.setHours(0,0,0,0);
+      const tEnd = new Date(task.due_date!); tEnd.setHours(0,0,0,0);
+      for (let weekIdx = 0; weekIdx < monthWeeks.length; weekIdx++) {
+        const week = monthWeeks[weekIdx];
+        if (!week.length) continue;
+        const weekStart = week[0].date;
+        const weekEnd = week[week.length - 1].date;
+        if (tEnd < weekStart || tStart > weekEnd) continue;
+        const startCol = tStart <= weekStart ? 0 : week.findIndex(d => getDateKey(d.date) === getDateKey(tStart));
+        const endCol = tEnd >= weekEnd ? colCount - 1 : week.findIndex(d => getDateKey(d.date) === getDateKey(tEnd));
+        if (startCol >= 0 && endCol >= 0) {
+          overlays.push({
+            task,
+            row: weekIdx,
+            startCol,
+            endCol,
+            isStart: tStart >= weekStart,
+            isEnd: tEnd <= weekEnd,
+          });
+        }
+      }
+    }
+    return overlays;
+  }, [spanningTasks, monthWeeks, colCount]);
+
   return (
     <TooltipProvider>
       <div className="bg-card rounded-lg border border-border/20 p-4">
@@ -711,19 +770,57 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
           </div>
         ) : calendarMode === 'month' ? (
           /* ---- MONTH VIEW ---- */
-          <div className={`grid bg-border/10 border border-border/20 rounded-lg overflow-hidden`} style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
-            {visibleDayNames.map(day => (
-              <div key={day} className="bg-card px-2 py-1.5 text-center">
-                <span className="text-[11px] text-muted-foreground/60 font-medium">{day}</span>
-              </div>
-            ))}
-            {monthDays
-              .filter(day => showWeekends || (day.date.getDay() !== 0 && day.date.getDay() !== 6))
-              .map((day) => {
-              const dayTasks = tasksByDate.get(getDateKey(day.date)) || [];
+          <div className="relative">
+            <div ref={monthGridRef} className="grid bg-border/10 border border-border/20 rounded-lg overflow-hidden" style={{ gridTemplateColumns: `repeat(${colCount}, 1fr)` }}>
+              {visibleDayNames.map(day => (
+                <div key={day} className="bg-card px-2 py-1.5 text-center border-b border-border/10">
+                  <span className="text-[11px] text-muted-foreground/60 font-medium">{day}</span>
+                </div>
+              ))}
+              {monthFilteredDays.map((day) => {
+                const dayTasks = tasksByDate.get(getDateKey(day.date)) || [];
+                return (
+                  <MonthDayCell key={getDateKey(day.date)} date={day.date} isCurrentMonth={day.isCurrentMonth} isToday={day.isToday} tasks={dayTasks} onTaskClick={onTaskClick} onDrop={handleMonthDrop} draggedTaskId={draggedTaskId} isSource={sourceCellKey === getDateKey(day.date)} isDragOver={dragOverCell === getDateKey(day.date)} onDragOverCell={setDragOverCell} onPillDragStart={handlePillDragStart} onPillDragEnd={handlePillDragEnd} onCreateTask={onCreateTask} />
+                );
+              })}
+            </div>
+            {/* Spanning task overlays — single continuous bars positioned over the grid */}
+            {spanOverlays.map((overlay) => {
+              const color = overlay.task.project_color || 'var(--primary)';
+              const cellWidthPct = 100 / colCount;
+              const left = overlay.startCol * cellWidthPct;
+              const width = (overlay.endCol - overlay.startCol + 1) * cellWidthPct;
               return (
-                // Use date-based key (not array index) so cells don't remount when weekends toggle changes
-                <MonthDayCell key={getDateKey(day.date)} date={day.date} isCurrentMonth={day.isCurrentMonth} isToday={day.isToday} tasks={dayTasks} onTaskClick={onTaskClick} onDrop={handleMonthDrop} draggedTaskId={draggedTaskId} isSource={sourceCellKey === getDateKey(day.date)} isDragOver={dragOverCell === getDateKey(day.date)} onDragOverCell={setDragOverCell} onPillDragStart={handlePillDragStart} onPillDragEnd={handlePillDragEnd} onCreateTask={onCreateTask} />
+                <Tooltip key={`${overlay.task.id}-${overlay.row}`}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onTaskClick(overlay.task); }}
+                      className={`absolute h-[18px] z-10 transition-opacity hover:opacity-80 cursor-pointer ${overlay.isStart ? 'rounded-l-sm' : ''} ${overlay.isEnd ? 'rounded-r-sm' : ''}`}
+                      style={{
+                        backgroundColor: `color-mix(in oklab, ${color} 30%, var(--card))`,
+                        borderTop: `2px solid ${color}`,
+                        left: `${left + (overlay.isStart ? 0.3 : 0)}%`,
+                        width: `${width - (overlay.isStart ? 0.3 : 0) - (overlay.isEnd ? 0.3 : 0)}%`,
+                        top: gridMeasure
+                          ? `${gridMeasure.headerH + overlay.row * gridMeasure.rowH + 18}px`
+                          : `${30 + overlay.row * 90 + 18}px`,
+                      }}
+                    >
+                      {(overlay.isStart || overlay.startCol === 0) && (
+                        <span className="text-[10px] text-foreground truncate px-1.5 leading-[16px] block">{overlay.task.title}</span>
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={4} className="max-w-[220px] p-2">
+                    <div className="text-[11px] space-y-0.5">
+                      <p className="text-[13px] font-medium text-foreground">{overlay.task.title}</p>
+                      <p className="text-muted-foreground">
+                        {new Date(overlay.task.start_date!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – {new Date(overlay.task.due_date!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </p>
+                      {overlay.task.assignee && <p className="text-muted-foreground">{toDisplayName(overlay.task.assignee)}</p>}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
               );
             })}
           </div>
