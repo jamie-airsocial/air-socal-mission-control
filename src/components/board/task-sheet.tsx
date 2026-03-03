@@ -11,7 +11,7 @@ import { ConfirmDeleteDialog } from '@/components/ui/confirm-delete-dialog';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Trash2, X, Send, Paperclip,
+  Trash2, X, Send, Paperclip, Clock,
   Activity, Flag, User, Users, Folder, Briefcase, Calendar as CalendarIcon, Tag,
   Zap, Link2, Copy, Pencil, Check,
   ChevronLeft, ArrowRight, Plus, MessageSquare,
@@ -120,6 +120,7 @@ export function TaskSheet({
     project_id: '' as string,
     client_team: '' as string,
     service: '' as string,
+    start_date: null as Date | null,
     due_date: null as Date | null,
     due_time: '' as string,
     labels: [] as string[],
@@ -151,6 +152,7 @@ export function TaskSheet({
   const [priorityOpen, setPriorityOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [teamOpen, setTeamOpen] = useState(false);
+  const [startDateOpen, setStartDateOpen] = useState(false);
   const { users } = useUsers();
   const [dueDateOpen, setDueDateOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
@@ -263,6 +265,7 @@ export function TaskSheet({
       const rawDueTime = dueDate ? format(dueDate, 'HH:mm') : '';
       const dueTime = rawDueTime === '00:00' ? '' : rawDueTime;
       
+      const startDate = task.start_date ? new Date(task.start_date) : null;
       const nextForm = {
         title: task.title || '',
         description: ensureHtml(task.description) || '',
@@ -272,6 +275,7 @@ export function TaskSheet({
         project_id: task.client_id || task.project_id || '',
         client_team: task.client_team || '',
         service: task.service || '',
+        start_date: startDate,
         due_date: dueDate,
         due_time: dueTime,
         labels: task.labels || []
@@ -304,6 +308,7 @@ export function TaskSheet({
       const newDueDate = task?.due_date ? new Date(task.due_date) : null;
       const newRawTime = newDueDate ? format(newDueDate, 'HH:mm') : '';
       const newDueTime = newRawTime === '00:00' ? '' : newRawTime;
+      const newStartDate = task?.start_date ? new Date(task.start_date) : null;
       setForm({
         title: '',
         description: '',
@@ -313,6 +318,7 @@ export function TaskSheet({
         project_id: task?.client_id || task?.project_id || '',
         client_team: task?.client_team || '',
         service: task?.service || '',
+        start_date: newStartDate,
         due_date: newDueDate,
         due_time: newDueTime,
         labels: [],
@@ -531,6 +537,7 @@ export function TaskSheet({
       client_id: f.project_id || null,
       team: f.client_team || null,
       service: f.service || null,
+      start_date: f.start_date ? new Date(f.start_date).toISOString() : null,
       due_date: finalDueDate,
       labels: f.labels || [],
     };
@@ -563,7 +570,7 @@ export function TaskSheet({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveNow(task.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.status, form.priority, form.assignee, form.project_id, form.client_team, form.service, form.due_date, form.due_time, form.labels]);
+  }, [form.status, form.priority, form.assignee, form.project_id, form.client_team, form.service, form.start_date, form.due_date, form.due_time, form.labels]);
 
   // Debounced save for text fields (title, description)
   useEffect(() => {
@@ -596,8 +603,9 @@ export function TaskSheet({
       priority: form.priority,
       assignee: form.assignee ? toSlug(form.assignee) : null,
       client_id: form.project_id,
+      start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
-      parent_id: task.parent_id, // Preserve parent if it's a subtask
+      parent_id: task.parent_id,
       labels: form.labels,
     };
     
@@ -1132,6 +1140,41 @@ export function TaskSheet({
               </Popover>
             </PropertyRow>
             
+            <PropertyRow icon={<CalendarIcon size={13} />} label="Start date">
+              <div className="flex items-center gap-1.5 group">
+                <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
+                  <PopoverTrigger asChild>
+                    <button className={`text-[13px] whitespace-nowrap hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 ${!form.start_date ? 'text-muted-foreground/30' : ''}`}>
+                      {formatRelativeDate(form.start_date)}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <EnhancedDatePicker
+                      date={form.start_date}
+                      time=""
+                      onDateChange={(date) => setForm(prev => ({ ...prev, start_date: date }))}
+                      onTimeChange={() => {}}
+                      onClear={() => setForm(prev => ({ ...prev, start_date: null }))}
+                      onOpenChange={setStartDateOpen}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {form.start_date && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setForm(prev => ({ ...prev, start_date: null }))}
+                        className="p-1 flex items-center justify-center rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 opacity-0 group-hover:opacity-100"
+                      >
+                        <X size={11} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[11px]">Clear</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </PropertyRow>
+
             <PropertyRow icon={<CalendarIcon size={13} />} label="Due date">
               <div className="flex items-center gap-1.5 group">
                 <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
@@ -1167,6 +1210,24 @@ export function TaskSheet({
                 )}
               </div>
             </PropertyRow>
+
+            {form.start_date && form.due_date && (
+              <PropertyRow icon={<Clock size={13} />} label="Duration">
+                <span className="text-[13px] text-muted-foreground/60">
+                  {(() => {
+                    const diffMs = form.due_date.getTime() - form.start_date.getTime();
+                    const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                    if (days === 0) return 'Same day';
+                    if (days === 1) return '1 day';
+                    if (days < 7) return `${days} days`;
+                    const weeks = Math.floor(days / 7);
+                    const remainDays = days % 7;
+                    if (remainDays === 0) return weeks === 1 ? '1 week' : `${weeks} weeks`;
+                    return `${weeks}w ${remainDays}d`;
+                  })()}
+                </span>
+              </PropertyRow>
+            )}
             
             <PropertyRow icon={<Tag size={13} />} label="Labels">
               <LabelCombobox

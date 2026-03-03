@@ -29,6 +29,7 @@ export interface Task {
   project_id: string | null;
   client_id?: string | null;
   service?: string | null;
+  start_date?: string | null;
   due_date?: string | null;
   labels?: string[];
   created_at: string;
