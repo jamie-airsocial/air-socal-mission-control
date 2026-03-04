@@ -425,7 +425,7 @@ export function KanbanBoard({
             return (
               <div key={column.id} className="flex-1 min-w-[280px] flex flex-col" role="group" aria-label={`${column.label} column`}>
                 {/* Column header */}
-                <div className="mb-3 flex items-center gap-2 px-1">
+                <div className="mb-3 flex items-center gap-2 px-1 sticky top-[188px] z-10 bg-background py-2 -mt-2">
                   {column.dotColor ? (
                     <span
                       className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
