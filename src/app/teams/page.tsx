@@ -456,15 +456,19 @@ export default function TeamsPage() {
   const [drillDownOpen, setDrillDownOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; team: string; roleName?: string } | null>(null);
 
+  const [allUsers, setAllUsers] = useState<TeamMember[]>([]);
+
   useEffect(() => {
     Promise.all([
       fetch('/api/teams').then(r => r.json()).catch(() => []),
       fetch('/api/clients').then(r => r.json()).catch(() => []),
       fetch('/api/admin/capacity').then(r => r.json()).catch(() => ({ targets: {} })),
-    ]).then(async ([teamsData, clientsData, capacityData]) => {
+      fetch('/api/users').then(r => r.json()).catch(() => []),
+    ]).then(async ([teamsData, clientsData, capacityData, usersData]) => {
       setTeams(teamsData || []);
       setClients(clientsData || []);
       setCapacityTargets(capacityData.targets || {});
+      setAllUsers((usersData || []).filter((u: TeamMember) => u.is_active));
 
       // Fetch contract line items for active clients
       const activeClients = (clientsData || []).filter((c: Client) => c.status === 'active');
@@ -516,15 +520,33 @@ export default function TeamsPage() {
     });
   };
 
-  // Build team display data
+  // Build user lookup for contributing member resolution
+  const userById = useMemo(() => {
+    const map = new Map<string, TeamMember>();
+    for (const u of allUsers) map.set(u.id, u);
+    return map;
+  }, [allUsers]);
+
+  // Build team display data — includes contributing members (assigned work but different team)
   const teamRows = teams.map(team => {
     const slug = team.name.toLowerCase();
     const style = getTeamStyle(slug);
     const teamClients = activeClients.filter(c => c.team === slug);
-    const members = team.members || [];
+    const directMembers = team.members || [];
+    const directMemberIds = new Set(directMembers.map(m => m.id));
     const forecastData = calcForecastData(teamClients);
 
-    // Revenue: from active recurring contract line items only
+    // Find contributors: users assigned to this team's client contracts who aren't direct members
+    const teamClientIds = new Set(teamClients.map(c => c.id));
+    const contributorIds = new Set<string>();
+    for (const item of contractItems) {
+      if (item.assignee_id && item.is_active && teamClientIds.has(item.client_id) && !directMemberIds.has(item.assignee_id)) {
+        contributorIds.add(item.assignee_id);
+      }
+    }
+    const contributors = [...contributorIds].map(id => userById.get(id)).filter(Boolean) as TeamMember[];
+    const members = [...directMembers, ...contributors];
+
     return { team, slug, style, clients: teamClients, members, forecastData };
   });
 
