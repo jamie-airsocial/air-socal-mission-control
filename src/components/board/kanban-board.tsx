@@ -29,6 +29,7 @@ interface KanbanBoardProps {
   onViewCompleted?: () => void;
   groupBy?: KanbanGroupBy;
   projects?: Project[];
+  stickyHeaderOffset?: number;
 }
 
 type TaskWithProject = Task & { project_name?: string; project_color?: string };
@@ -125,6 +126,7 @@ export function KanbanBoard({
   onViewCompleted,
   groupBy = 'status',
   projects = [],
+  stickyHeaderOffset,
 }: KanbanBoardProps) {
   const [columnOrder, setColumnOrder] = useState<Record<string, string[]>>({});
   const [isDragging, setIsDragging] = useState(false);
@@ -425,7 +427,7 @@ export function KanbanBoard({
             return (
               <div key={column.id} className="flex-1 min-w-[280px] flex flex-col" role="group" aria-label={`${column.label} column`}>
                 {/* Column header */}
-                <div className="mb-3 flex items-center gap-2 px-1 sticky top-[188px] z-10 bg-background py-2 -mt-2">
+                <div className="mb-3 flex items-center gap-2 px-1 sticky z-10 bg-background py-2" style={{ top: stickyHeaderOffset != null ? `${stickyHeaderOffset}px` : undefined }}>
                   {column.dotColor ? (
                     <span
                       className="inline-block h-1.5 w-1.5 rounded-full shrink-0"

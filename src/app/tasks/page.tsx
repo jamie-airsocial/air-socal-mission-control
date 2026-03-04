@@ -4,7 +4,7 @@ import { KanbanBoard, type KanbanGroupBy } from '@/components/board/kanban-board
 import { TableView } from '@/components/board/table-view';
 import { CalendarView } from '@/components/board/calendar-view';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
+import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react';
 import type { Task } from '@/lib/types';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,19 @@ type TaskWithProject = Task & { project_name?: string; project_color?: string; c
 function BoardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // ── Sticky header measurement ──────────────────────────────────────────────
+  const stickyHeaderRef = useRef<HTMLDivElement>(null);
+  const [stickyBottom, setStickyBottom] = useState(154);
+  useEffect(() => {
+    const el = stickyHeaderRef.current;
+    if (!el) return;
+    const measure = () => setStickyBottom(el.offsetTop + el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // ── View state ────────────────────────────────────────────────────────────
   const [view, setView] = useState<'kanban' | 'table' | 'calendar'>(() => {
@@ -317,7 +330,7 @@ function BoardContent() {
   return (
     <div className="animate-in fade-in duration-200">
       {/* Sticky header + filters */}
-      <div className="sticky top-[60px] z-30 bg-background pb-4 -mx-6 px-6 pt-6 -mt-6 shadow-[0_4px_6px_-1px_hsl(var(--background))]">
+      <div ref={stickyHeaderRef} className="sticky top-[60px] z-30 bg-background pb-4 -mx-6 px-6 pt-6 -mt-6 shadow-[0_4px_6px_-1px_hsl(var(--background))]">
       {/* Header */}
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -550,6 +563,7 @@ function BoardContent() {
               onFieldChange={handleFieldChange}
               groupBy={kanbanGroupBy}
               projects={projects}
+              stickyHeaderOffset={stickyBottom}
               onViewCompleted={() => {
                 setFilterStatus(['done']);
                 setHideDone(false);
