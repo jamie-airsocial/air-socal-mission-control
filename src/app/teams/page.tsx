@@ -45,7 +45,7 @@ interface ContractLineItem {
 }
 
 /** Services excluded from revenue breakdowns */
-const REVENUE_EXCLUDED_SERVICES = new Set(['account-management']);
+const REVENUE_EXCLUDED_SERVICES = new Set<string>();
 
 interface CapacityTargets {
   [service: string]: number;

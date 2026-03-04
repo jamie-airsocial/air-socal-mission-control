@@ -21,6 +21,7 @@ const SERVICE_KEYS = [
   'paid-advertising',
   'seo',
   'social-media',
+  'account-management',
   'creative'
 ] as const;
 
