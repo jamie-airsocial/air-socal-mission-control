@@ -910,14 +910,6 @@ export default function ClientDetailPage() {
               </p>
             </div>
             {saving && <p className="text-[11px] text-muted-foreground/40">Saving…</p>}
-            <button
-              onClick={() => setShowDeleteDialog(true)}
-              className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-destructive transition-colors"
-              title="Delete client"
-            >
-              <Trash2 size={12} />
-              Delete
-            </button>
           </div>
         </div>
 
@@ -1421,6 +1413,23 @@ export default function ClientDetailPage() {
         initialData={editingLineItem}
         onSave={handleLineItemSave}
       />
+
+      {/* Danger zone */}
+      <div className="rounded-lg border border-destructive/20 bg-card p-4 mt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] font-medium text-destructive">Delete this client</p>
+            <p className="text-[12px] text-muted-foreground/60 mt-0.5">Permanently remove this client and all associated data. This cannot be undone.</p>
+          </div>
+          <button
+            onClick={() => setShowDeleteDialog(true)}
+            className="flex items-center gap-1.5 text-[12px] font-medium px-3 h-7 rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+          >
+            <Trash2 size={12} />
+            Delete client
+          </button>
+        </div>
+      </div>
 
       {/* Delete client dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
