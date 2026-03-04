@@ -42,11 +42,22 @@ function BoardContent() {
   useEffect(() => {
     const el = stickyHeaderRef.current;
     if (!el) return;
-    const measure = () => setStickyBottom(el.offsetTop + el.offsetHeight);
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      setStickyBottom(rect.bottom);
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
-    return () => observer.disconnect();
+    // Also remeasure on scroll since getBoundingClientRect is viewport-relative
+    // but we want a stable value when sticky is engaged
+    const handleScroll = () => {
+      const rect = el.getBoundingClientRect();
+      // When sticky, rect.top will be ~60px (top bar height)
+      setStickyBottom(rect.bottom);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => { observer.disconnect(); window.removeEventListener('scroll', handleScroll); };
   }, []);
 
   // ── View state ────────────────────────────────────────────────────────────
@@ -597,7 +608,7 @@ function BoardContent() {
           </ErrorBoundary>
         </div>
       ) : view === 'table' ? (
-        <div className="animate-in fade-in duration-200">
+        <div className="animate-in fade-in duration-200 overflow-y-auto" style={{ height: `calc(100vh - ${stickyBottom + 8}px)` }}>
           <ErrorBoundary fallbackTitle="Table failed to load" fallbackSubtitle="The table view encountered an error. Try again.">
             <TableView
               tasks={serviceFilteredTasks}
@@ -618,7 +629,7 @@ function BoardContent() {
           </ErrorBoundary>
         </div>
       ) : (
-        <div className="animate-in fade-in duration-200">
+        <div className="animate-in fade-in duration-200 overflow-y-auto" style={{ height: `calc(100vh - ${stickyBottom + 8}px)` }}>
           <ErrorBoundary fallbackTitle="Calendar failed to load" fallbackSubtitle="The calendar view encountered an error. Try again.">
             <CalendarView
               tasks={serviceFilteredTasks}
