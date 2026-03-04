@@ -1165,8 +1165,19 @@ function ClientsPageContent() {
                     const teamStyle = getTeamStyle(client.team);
                     const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
                     return (
-                      <tr key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="border-b border-border/10 hover:bg-muted/40 cursor-pointer transition-colors">
-                        <td className="px-4 py-2.5 font-medium text-foreground">{client.name}</td>
+                      <tr key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="group border-b border-border/10 hover:bg-muted/40 cursor-pointer transition-colors">
+                        <td className="px-4 py-2.5 font-medium text-foreground">
+                          <span className="inline-flex items-center gap-2">
+                            {client.name}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openEditClient(client); }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground"
+                              title="Edit client"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                          </span>
+                        </td>
                         <td className="px-4 py-2.5">
                           {teamStyle ? (
                             <span className="inline-flex items-center gap-1.5">
@@ -1210,10 +1221,19 @@ function ClientsPageContent() {
               const teamStyle = getTeamStyle(client.team);
               const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
               return (
-                <div key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer">
+                <div key={client.id} onClick={() => router.push(`/clients/${client.id}`)} className="group block rounded-lg border border-border/20 bg-card p-3 hover:bg-muted/40 hover:border-primary/30 transition-all duration-150 cursor-pointer">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-[13px] font-semibold text-foreground truncate mr-2">{client.name}</h3>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{(client.status.charAt(0).toUpperCase() + client.status.slice(1))}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditClient(client); }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground"
+                        title="Edit client"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{(client.status.charAt(0).toUpperCase() + client.status.slice(1))}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 mb-2">
                     {teamStyle && (<><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} /><span className="text-[11px] text-muted-foreground">{teamStyle.label}</span><span className="text-[11px] text-muted-foreground/40">·</span></>)}

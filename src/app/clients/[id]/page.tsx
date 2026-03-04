@@ -805,7 +805,21 @@ export default function ClientDetailPage() {
       <div className="rounded-lg border border-border/20 bg-card p-6 mb-4">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight mb-2">{client.name}</h1>
+            <div className="flex items-center gap-2 group mb-2">
+              <h1 className="text-2xl font-bold tracking-tight">{client.name}</h1>
+              <button
+                onClick={() => {
+                  const newName = prompt('Client name:', client.name);
+                  if (newName && newName.trim() && newName !== client.name) {
+                    patchClient({ name: newName.trim() });
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground"
+                title="Edit client name"
+              >
+                <Edit2 size={12} />
+              </button>
+            </div>
             <div className="flex items-center gap-3 flex-wrap">
               {teamStyle && (
                 <div className="flex items-center gap-1.5">
