@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { SERVICE_STYLES, STATUS_STYLES, PRIORITY_STYLES, getTeamStyle, toDisplayName, CLIENT_STATUS_STYLES, BILLING_TYPE_STYLES, getServiceStyle, getAssigneeColor, getInitials } from '@/lib/constants';
 import { formatDueDate, getDueDateColor } from '@/lib/date';
@@ -9,6 +9,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { NAME_TO_SLUG } from '@/lib/constants';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { TableView } from '@/components/board/table-view';
 import { FilterStatusPopover } from '@/components/board/filter-status-popover';
@@ -513,6 +523,11 @@ export default function ClientDetailPage() {
   const clientId = params.id as string;
 
   const [client, setClient] = useState<Client | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [tasks, setTasks] = useState<ClientTask[]>([]);
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -645,6 +660,36 @@ export default function ClientDetailPage() {
     } catch { toast.error('Failed to save'); }
     finally { setSaving(false); }
   }, [client, clientId]);
+
+  const startEditingName = useCallback(() => {
+    if (!client) return;
+    setNameValue(client.name);
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.select(), 0);
+  }, [client]);
+
+  const saveName = useCallback(() => {
+    const trimmed = nameValue.trim();
+    if (trimmed && trimmed !== client?.name) {
+      patchClient({ name: trimmed });
+    }
+    setEditingName(false);
+  }, [nameValue, client, patchClient]);
+
+  const handleDeleteClient = useCallback(async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      toast.success('Client deleted');
+      router.push('/clients');
+    } catch {
+      toast.error('Failed to delete client');
+    } finally {
+      setDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  }, [clientId, router]);
 
   // ── Task sheet handlers ───────────────────────────────────────────────────
   const openNewTask = () => {
@@ -806,19 +851,38 @@ export default function ClientDetailPage() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <div className="flex items-center gap-2 group mb-2">
-              <h1 className="text-2xl font-bold tracking-tight">{client.name}</h1>
-              <button
-                onClick={() => {
-                  const newName = prompt('Client name:', client.name);
-                  if (newName && newName.trim() && newName !== client.name) {
-                    patchClient({ name: newName.trim() });
-                  }
-                }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground"
-                title="Edit client name"
-              >
-                <Edit2 size={12} />
-              </button>
+              {editingName ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    ref={nameInputRef}
+                    value={nameValue}
+                    onChange={e => setNameValue(e.target.value)}
+                    onBlur={saveName}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') saveName();
+                      if (e.key === 'Escape') setEditingName(false);
+                    }}
+                    className="text-2xl font-bold tracking-tight bg-transparent border-b border-primary/40 outline-none px-0 py-0 w-auto min-w-[120px]"
+                    autoFocus
+                  />
+                </div>
+              ) : (
+                <>
+                  <h1
+                    className="text-2xl font-bold tracking-tight cursor-text"
+                    onClick={startEditingName}
+                  >
+                    {client.name}
+                  </h1>
+                  <button
+                    onClick={startEditingName}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-muted-foreground"
+                    title="Edit client name"
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {teamStyle && (
@@ -846,6 +910,14 @@ export default function ClientDetailPage() {
               </p>
             </div>
             {saving && <p className="text-[11px] text-muted-foreground/40">Saving…</p>}
+            <button
+              onClick={() => setShowDeleteDialog(true)}
+              className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-destructive transition-colors"
+              title="Delete client"
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
           </div>
         </div>
 
@@ -1349,6 +1421,28 @@ export default function ClientDetailPage() {
         initialData={editingLineItem}
         onSave={handleLineItemSave}
       />
+
+      {/* Delete client dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className="bg-card border-border/20 sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">Delete client?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-muted-foreground">
+              This will permanently delete <span className="font-medium text-foreground">{client.name}</span> and all associated data including contracts and tasks. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px] h-8 border-border/20">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteClient}
+              disabled={deleting}
+              className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
