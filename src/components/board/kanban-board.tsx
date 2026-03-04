@@ -409,6 +409,7 @@ export function KanbanBoard({
           className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin"
           role="region"
           aria-label="Kanban board"
+          style={{ height: stickyHeaderOffset != null ? `calc(100vh - ${stickyHeaderOffset + 16}px)` : 'calc(100vh - 200px)' }}
         >
           {columns.map((column) => {
             const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
@@ -425,9 +426,9 @@ export function KanbanBoard({
             const showDestIndicator = isDestCol && !destMatchesSource;
 
             return (
-              <div key={column.id} className="flex-1 min-w-[280px] flex flex-col" role="group" aria-label={`${column.label} column`}>
-                {/* Column header */}
-                <div className="mb-3 flex items-center gap-2 px-1 sticky z-10 bg-background py-2" style={{ top: stickyHeaderOffset != null ? `${stickyHeaderOffset}px` : undefined }}>
+              <div key={column.id} className="flex-1 min-w-[280px] flex flex-col h-full" role="group" aria-label={`${column.label} column`}>
+                {/* Column header — fixed at top of column */}
+                <div className="mb-2 flex items-center gap-2 px-1 py-1 shrink-0 bg-background">
                   {column.dotColor ? (
                     <span
                       className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
@@ -449,7 +450,7 @@ export function KanbanBoard({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className="min-h-[60px] flex-1 rounded-lg p-1.5"
+                      className="min-h-0 flex-1 rounded-lg p-1.5 overflow-y-auto scrollbar-thin"
                     >
                       {/* Drop indicator at top */}
                       {isDragging && showDestIndicator && destIdx === 0 && (
