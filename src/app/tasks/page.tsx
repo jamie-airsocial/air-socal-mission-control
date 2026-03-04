@@ -316,8 +316,10 @@ function BoardContent() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="animate-in fade-in duration-200">
+      {/* Sticky header + filters */}
+      <div className="sticky top-[60px] z-30 bg-background pb-4 -mx-6 px-6 pt-0">
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
           <p className="text-[13px] text-muted-foreground/60 mt-1">
@@ -533,6 +535,7 @@ function BoardContent() {
           </Tooltip>
         </TooltipProvider>
       </div>
+      </div>{/* end sticky header */}
 
       {/* Board views */}
       {loading ? (
