@@ -30,12 +30,14 @@ export default function CapacitySettingsPage() {
     'paid-advertising': 15000,
     'seo': 10000,
     'social-media': 12000,
+    'account-management': 0,
     'creative': 5000
   });
   const [included, setIncluded] = useState<Record<string, boolean>>({
     'paid-advertising': true,
     'seo': true,
     'social-media': true,
+    'account-management': true,
     'creative': true
   });
   const [teamTotal, setTeamTotal] = useState<number>(0);

@@ -20,9 +20,14 @@ export async function GET() {
     if (row.service === '__team_total__') {
       teamTotal = Number(row.monthly_target);
     } else if (row.service === '__included__') {
-      try { included = JSON.parse(String(row.monthly_target)); } catch { /* ignore */ }
+      // Legacy row — ignore
+    } else if (row.service.startsWith('__excl_')) {
+      // Excluded service marker
+      const svc = row.service.replace('__excl_', '');
+      included[svc] = false;
     } else {
       targets[row.service] = Number(row.monthly_target);
+      if (!(row.service in included)) included[row.service] = true;
     }
   }
 
@@ -60,13 +65,20 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString()
     });
 
-    // Store included toggles as JSON in a special row
+    // Store included/excluded state — excluded services get a marker row
     if (included) {
-      upserts.push({
-        service: '__included__',
-        monthly_target: JSON.stringify(included) as unknown as number,
-        updated_at: new Date().toISOString()
-      });
+      // First, delete any existing __excl_ rows
+      await supabaseAdmin.from('capacity_targets').delete().like('service', '__excl_%');
+      // Add marker rows for excluded services
+      for (const [service, isIncluded] of Object.entries(included)) {
+        if (!isIncluded) {
+          upserts.push({
+            service: `__excl_${service}`,
+            monthly_target: 0,
+            updated_at: new Date().toISOString()
+          });
+        }
+      }
     }
 
     const { error } = await supabaseAdmin
