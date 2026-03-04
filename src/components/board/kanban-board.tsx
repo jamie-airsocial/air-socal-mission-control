@@ -402,14 +402,32 @@ export function KanbanBoard({
   }, [isDragging]);
 
   return (
-    <div className="relative">
+    <div className="relative flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+      {/* Column headers — fixed above scroll area */}
+      <div className="flex gap-4 shrink-0 pb-2">
+        {columns.map((column) => {
+          const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
+          const totalCount = columnTasks.length;
+          return (
+            <div key={column.id} className="flex-1 min-w-[280px] flex items-center gap-2 px-1">
+              {column.dotColor ? (
+                <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: column.dotColor }} />
+              ) : (
+                <span className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${column.dotClass || 'bg-muted-foreground'}`} />
+              )}
+              <h3 className="text-[13px] font-medium text-foreground truncate">{column.label}</h3>
+              <span className="ml-auto text-[11px] font-medium text-muted-foreground/60 tabular-nums shrink-0">{totalCount}</span>
+            </div>
+          );
+        })}
+      </div>
+
       <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
         <div
           ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin"
+          className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin min-h-0 flex-1"
           role="region"
           aria-label="Kanban board"
-          style={{ height: 'calc(100vh - 200px)' }}
         >
           {columns.map((column) => {
             const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
@@ -427,24 +445,6 @@ export function KanbanBoard({
 
             return (
               <div key={column.id} className="flex-1 min-w-[280px] flex flex-col h-full" role="group" aria-label={`${column.label} column`}>
-                {/* Column header — fixed at top of column */}
-                <div className="mb-2 flex items-center gap-2 px-1 py-1 shrink-0 bg-background">
-                  {column.dotColor ? (
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full shrink-0"
-                      style={{ backgroundColor: column.dotColor }}
-                    />
-                  ) : (
-                    <span
-                      className={`inline-block h-1.5 w-1.5 rounded-full shrink-0 ${column.dotClass || 'bg-muted-foreground'}`}
-                    />
-                  )}
-                  <h3 className="text-[13px] font-medium text-foreground truncate">{column.label}</h3>
-                  <span className="ml-auto text-[11px] font-medium text-muted-foreground/60 tabular-nums shrink-0">
-                    {totalCount}
-                  </span>
-                </div>
-
                 <Droppable droppableId={column.id}>
                   {(provided, snapshot) => (
                     <div
