@@ -409,7 +409,7 @@ export function KanbanBoard({
           className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin"
           role="region"
           aria-label="Kanban board"
-          style={{ height: stickyHeaderOffset != null ? `calc(100vh - ${stickyHeaderOffset + 16}px)` : 'calc(100vh - 200px)' }}
+          style={{ height: 'calc(100vh - 200px)' }}
         >
           {columns.map((column) => {
             const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);

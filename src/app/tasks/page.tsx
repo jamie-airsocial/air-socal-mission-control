@@ -4,7 +4,7 @@ import { KanbanBoard, type KanbanGroupBy } from '@/components/board/kanban-board
 import { TableView } from '@/components/board/table-view';
 import { CalendarView } from '@/components/board/calendar-view';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
-import { useState, useEffect, useCallback, Suspense, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, Suspense, useMemo } from 'react';
 import type { Task } from '@/lib/types';
 import { TaskSheet } from '@/components/board/task-sheet';
 import { Button } from '@/components/ui/button';
@@ -35,30 +35,6 @@ type TaskWithProject = Task & { project_name?: string; project_color?: string; c
 function BoardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-
-  // ── Sticky header measurement ──────────────────────────────────────────────
-  const stickyHeaderRef = useRef<HTMLDivElement>(null);
-  const [stickyBottom, setStickyBottom] = useState(154);
-  useEffect(() => {
-    const el = stickyHeaderRef.current;
-    if (!el) return;
-    const measure = () => {
-      const rect = el.getBoundingClientRect();
-      setStickyBottom(rect.bottom);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    // Also remeasure on scroll since getBoundingClientRect is viewport-relative
-    // but we want a stable value when sticky is engaged
-    const handleScroll = () => {
-      const rect = el.getBoundingClientRect();
-      // When sticky, rect.top will be ~60px (top bar height)
-      setStickyBottom(rect.bottom);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => { observer.disconnect(); window.removeEventListener('scroll', handleScroll); };
-  }, []);
 
   // ── View state ────────────────────────────────────────────────────────────
   const [view, setView] = useState<'kanban' | 'table' | 'calendar'>(() => {
@@ -340,10 +316,8 @@ function BoardContent() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="animate-in fade-in duration-200">
-      {/* Sticky header + filters */}
-      <div ref={stickyHeaderRef} className="sticky top-[60px] z-30 bg-background pb-4 -mx-6 px-6 pt-6 -mt-6 shadow-[0_4px_6px_-1px_hsl(var(--background))]">
       {/* Header */}
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
           <p className="text-[13px] text-muted-foreground/60 mt-1">
@@ -559,7 +533,6 @@ function BoardContent() {
           </Tooltip>
         </TooltipProvider>
       </div>
-      </div>{/* end sticky header */}
 
       {/* Board views */}
       {loading ? (
@@ -574,7 +547,7 @@ function BoardContent() {
               onFieldChange={handleFieldChange}
               groupBy={kanbanGroupBy}
               projects={projects}
-              stickyHeaderOffset={stickyBottom}
+              
               onViewCompleted={() => {
                 setFilterStatus(['done']);
                 setHideDone(false);
@@ -608,7 +581,7 @@ function BoardContent() {
           </ErrorBoundary>
         </div>
       ) : view === 'table' ? (
-        <div className="animate-in fade-in duration-200 overflow-y-auto" style={{ height: `calc(100vh - ${stickyBottom + 8}px)` }}>
+        <div className="animate-in fade-in duration-200">
           <ErrorBoundary fallbackTitle="Table failed to load" fallbackSubtitle="The table view encountered an error. Try again.">
             <TableView
               tasks={serviceFilteredTasks}
@@ -629,7 +602,7 @@ function BoardContent() {
           </ErrorBoundary>
         </div>
       ) : (
-        <div className="animate-in fade-in duration-200 overflow-y-auto" style={{ height: `calc(100vh - ${stickyBottom + 8}px)` }}>
+        <div className="animate-in fade-in duration-200">
           <ErrorBoundary fallbackTitle="Calendar failed to load" fallbackSubtitle="The calendar view encountered an error. Try again.">
             <CalendarView
               tasks={serviceFilteredTasks}
