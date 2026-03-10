@@ -59,7 +59,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 interface Client {
   id: string;
   name: string;
-  team: string;
+  team: string | null;
   status: string;
   services: string[];
   monthly_retainer: number;
@@ -95,6 +95,11 @@ interface ClientTask {
   service: string | null;
   is_recurring: boolean;
   client_id: string | null;
+}
+
+interface TeamOption {
+  id: string;
+  name: string;
 }
 
 interface ContractLineItem {
@@ -531,6 +536,8 @@ export default function ClientDetailPage() {
   const [tasks, setTasks] = useState<ClientTask[]>([]);
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [teamOptions, setTeamOptions] = useState<TeamOption[]>([]);
+  const [teamOpen, setTeamOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [view, setView] = useState<'service' | 'month'>('service');
@@ -609,11 +616,12 @@ export default function ClientDetailPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [clientRes, tasksRes, projectsRes, usersRes] = await Promise.all([
+      const [clientRes, tasksRes, projectsRes, usersRes, teamsRes] = await Promise.all([
         fetch(`/api/clients/${clientId}`),
         fetch(`/api/tasks`),
         fetch('/api/clients'),
         fetch('/api/users'),
+        fetch('/api/teams'),
       ]);
       if (usersRes.ok) {
         const usersData = await usersRes.json();
@@ -636,6 +644,10 @@ export default function ClientDetailPage() {
       if (projectsRes.ok) {
         const allClients = await projectsRes.json();
         setProjects(allClients.map((c: Client) => ({ id: c.id, name: c.name, color: c.color || '', created_at: c.created_at })));
+      }
+      if (teamsRes.ok) {
+        const teamsData = await teamsRes.json();
+        setTeamOptions(teamsData || []);
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -817,6 +829,7 @@ export default function ClientDetailPage() {
   }
 
   const teamStyle = getTeamStyle(client.team);
+  const selectedTeam = teamOptions.find(t => t.name.toLowerCase() === (client.team || '').toLowerCase());
   const tenure = monthsActive(client.signup_date || client.created_at, client.churned_at);
 
   const groupedTasks = view === 'service'
@@ -893,7 +906,7 @@ export default function ClientDetailPage() {
               )}
               <span className="text-muted-foreground/30">·</span>
               <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.bg || 'bg-muted/20'} ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>
-                {client.status}
+                {CLIENT_STATUS_STYLES[client.status]?.label || toDisplayName(client.status)}
               </span>
               <span className="text-muted-foreground/30">·</span>
               <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
@@ -976,11 +989,53 @@ export default function ClientDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <p className="text-[11px] text-muted-foreground/60 mb-1">Team</p>
-                <p className="text-[13px]">{teamStyle ? teamStyle.label : '—'}</p>
+                <Popover open={teamOpen} onOpenChange={setTeamOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="h-8 px-2.5 text-[13px] rounded-md border border-border/20 bg-secondary/80 flex items-center justify-between gap-2 hover:border-border/40 transition-colors min-w-[180px]">
+                      {selectedTeam ? (
+                        <span className={teamStyle?.text || ''}>{selectedTeam.name}</span>
+                      ) : client.team ? (
+                        <span className={teamStyle?.text || ''}>{teamStyle.label}</span>
+                      ) : (
+                        <span className="text-muted-foreground/40">Select team…</span>
+                      )}
+                      <ChevronDown size={14} className="text-muted-foreground/60" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-1" align="start">
+                    <button
+                      onClick={() => {
+                        patchClient({ team: null });
+                        setTeamOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${!client.team ? 'bg-muted/40' : ''}`}
+                    >
+                      <span className="text-muted-foreground">No team</span>
+                      {!client.team && <Check size={14} className="text-primary" />}
+                    </button>
+                    {teamOptions.map(t => {
+                      const ts = getTeamStyle(t.name.toLowerCase());
+                      const value = t.name.toLowerCase();
+                      return (
+                        <button
+                          key={t.id}
+                          onClick={() => {
+                            patchClient({ team: value });
+                            setTeamOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${client.team === value ? 'bg-muted/40' : ''}`}
+                        >
+                          <span className={ts?.text || ''}>{t.name}</span>
+                          {client.team === value && <Check size={14} className="text-primary" />}
+                        </button>
+                      );
+                    })}
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground/60 mb-1">Status</p>
-                <p className={`text-[13px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{client.status}</p>
+                <p className={`text-[13px] font-medium ${CLIENT_STATUS_STYLES[client.status]?.text || 'text-muted-foreground'}`}>{CLIENT_STATUS_STYLES[client.status]?.label || toDisplayName(client.status)}</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground/60 mb-1">Monthly Retainer</p>
@@ -997,7 +1052,19 @@ export default function ClientDetailPage() {
               {(client.assigned_members || []).length > 0 && (
                 <div>
                   <p className="text-[11px] text-muted-foreground/60 mb-1">Assigned Members</p>
-                  <p className="text-[13px]">{client.assigned_members.map(m => userMap[m] || m).join(', ')}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {client.assigned_members.map((memberId) => {
+                      const displayName = userMap[memberId] || memberId;
+                      return (
+                        <div key={memberId} className="inline-flex items-center gap-1.5 rounded-md border border-border/20 bg-secondary/60 px-2 py-1">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 ${getAssigneeColor(displayName)}`}>
+                            {getInitials(displayName)}
+                          </span>
+                          <span className="text-[12px]">{displayName}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
