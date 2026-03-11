@@ -559,15 +559,36 @@ export default function TeamsPage() {
   const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'paid-advertising', 'Social Media Manager': 'social-media', 'SEO': 'seo', 'Creative': 'creative' };
   const allMembers = useMemo(() => {
     const members: Array<TeamMember & { teamName: string; billing: number; target: number; pct: number; clientCount: number }> = [];
+    const currentMonth = startOfMonth(new Date());
+
     for (const team of teams) {
-      const slug = team.name.toLowerCase();
       for (const m of (team.members || [])) {
-        const items = contractItems.filter(i => i.assignee_id === m.id && i.is_active);
-        const billing = items.reduce((s, i) => s + (i.monthly_value || 0), 0);
+        const items = contractItems.filter(i => i.assignee_id === m.id);
+
+        let billing = 0;
+        const billedClientIds = new Set<string>();
+
+        for (const item of items) {
+          if (item.billing_type === 'one-off') {
+            if (!item.start_date || !item.end_date) continue;
+            const alloc = projectAllocationForMonth(item, currentMonth);
+            if (alloc > 0) {
+              billing += alloc;
+              billedClientIds.add(item.client_id);
+            }
+          } else {
+            if (recurringActiveInMonth(item, currentMonth)) {
+              billing += item.monthly_value || 0;
+              billedClientIds.add(item.client_id);
+            }
+          }
+        }
+
         const svc = m.role?.name ? ROLE_TO_SERVICE[m.role.name] : undefined;
         const target = svc ? (capacityTargets[svc] || 0) : 0;
         const pct = target > 0 ? (billing / target) * 100 : 0;
-        const clientCount = new Set(items.map(i => i.client_id)).size;
+        const clientCount = billedClientIds.size;
+
         members.push({ ...m, teamName: team.name, billing, target, pct, clientCount });
       }
     }
