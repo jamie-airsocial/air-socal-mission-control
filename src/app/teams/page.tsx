@@ -563,7 +563,7 @@ export default function TeamsPage() {
 
     for (const team of teams) {
       for (const m of (team.members || [])) {
-        const items = contractItems.filter(i => i.assignee_id === m.id);
+        const items = contractItems.filter(i => i.assignee_id === m.id && i.is_active);
 
         let billing = 0;
         const billedClientIds = new Set<string>();

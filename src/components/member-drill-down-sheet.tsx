@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { getServiceStyle, getAssigneeColor } from '@/lib/constants';
 import { ForecastChart } from '@/components/forecast-chart';
 import Link from 'next/link';
-import { format, startOfMonth, addMonths, endOfMonth, differenceInDays } from 'date-fns';
+import { format, startOfMonth, addMonths, endOfMonth } from 'date-fns';
 
 interface ContractLineItem {
   id: string;
@@ -48,24 +48,36 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-// Calculate item's contribution for a specific month
-function itemAmountForMonth(item: ContractLineItem, month: Date): number {
+// Keep month calculations identical to Teams page so totals stay consistent everywhere
+function projectAllocationForMonth(item: ContractLineItem, month: Date): number {
+  if (!item.start_date || !item.end_date) return 0;
+
+  const projectStart = new Date(item.start_date);
+  const projectEnd = new Date(item.end_date);
+  const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
-  if (item.billing_type === 'recurring') {
-    if (item.end_date && new Date(item.end_date) < month) return 0;
-    if (item.start_date && new Date(item.start_date) > monthEnd) return 0;
-    return item.monthly_value || 0;
-  } else {
-    if (!item.start_date || !item.end_date) return 0;
-    const pStart = new Date(item.start_date);
-    const pEnd = new Date(item.end_date);
-    if (pEnd < month || pStart > monthEnd) return 0;
-    const overlapStart = pStart > month ? pStart : month;
-    const overlapEnd = pEnd < monthEnd ? pEnd : monthEnd;
-    const overlapDays = differenceInDays(overlapEnd, overlapStart) + 1;
-    const totalDays = differenceInDays(pEnd, pStart) + 1;
-    return totalDays > 0 ? ((item.monthly_value || 0) / totalDays) * overlapDays : 0;
-  }
+
+  if (projectStart > monthEnd || projectEnd < monthStart) return 0;
+
+  const totalDays = Math.max(1, Math.round((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const overlapStart = projectStart > monthStart ? projectStart : monthStart;
+  const overlapEnd = projectEnd < monthEnd ? projectEnd : monthEnd;
+  const daysInMonth = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  return (item.monthly_value || 0) * (daysInMonth / totalDays);
+}
+
+function recurringActiveInMonth(item: ContractLineItem, month: Date): boolean {
+  const monthStart = startOfMonth(month);
+  const monthEnd = endOfMonth(month);
+  if (item.start_date && new Date(item.start_date) > monthEnd) return false;
+  if (item.end_date && new Date(item.end_date) < monthStart) return false;
+  return true;
+}
+
+function itemAmountForMonth(item: ContractLineItem, month: Date): number {
+  if (item.billing_type === 'one-off') return projectAllocationForMonth(item, month);
+  return recurringActiveInMonth(item, month) ? (item.monthly_value || 0) : 0;
 }
 
 export function MemberDrillDownSheet({
