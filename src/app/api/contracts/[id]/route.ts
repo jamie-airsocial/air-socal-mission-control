@@ -8,7 +8,7 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  const allowedFields = ['service', 'description', 'monthly_value', 'start_date', 'end_date', 'is_active', 'assignee_id'];
+  const allowedFields = ['service', 'description', 'monthly_value', 'billing_type', 'start_date', 'end_date', 'is_active', 'assignee_id'];
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   for (const key of allowedFields) {
