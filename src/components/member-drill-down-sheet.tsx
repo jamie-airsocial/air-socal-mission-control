@@ -137,10 +137,12 @@ export function MemberDrillDownSheet({
 
   // Calculate effective capacity target
   const ROLE_TO_SERVICE: Record<string, string> = {
-    'Paid Ads Manager': 'Paid Advertising',
-    'Social Media Manager': 'Social Media',
-    'SEO': 'SEO',
-    'Creative': 'Creative',
+    'Paid Ads Manager': 'paid-advertising',
+    'Social Media Manager': 'social-media',
+    'SEO': 'seo',
+    'Creative': 'creative',
+    'Account Manager': 'account-management',
+    'Account Management': 'account-management',
   };
 
   const effectiveTarget = useMemo(() => {

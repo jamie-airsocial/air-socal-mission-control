@@ -496,6 +496,8 @@ const ROLE_TO_SERVICE_TARGET: Record<string, string> = {
   'Social Media Manager': 'social-media',
   'SEO': 'seo',
   'Creative': 'creative',
+  'Account Manager': 'account-management',
+  'Account Management': 'account-management',
 };
 
 export default function TeamsPage() {
