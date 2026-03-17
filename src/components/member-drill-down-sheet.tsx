@@ -68,17 +68,29 @@ function projectAllocationForMonth(item: ContractLineItem, month: Date): number 
   return (item.monthly_value || 0) * (daysInMonth / totalDays);
 }
 
-function recurringActiveInMonth(item: ContractLineItem, month: Date): boolean {
+function recurringAmountForMonth(item: ContractLineItem, month: Date): number {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
-  if (item.start_date && new Date(item.start_date) > monthEnd) return false;
-  if (item.end_date && new Date(item.end_date) < monthStart) return false;
-  return true;
+
+  const start = item.start_date ? new Date(item.start_date) : monthStart;
+  const end = item.end_date ? new Date(item.end_date) : monthEnd;
+
+  if (start > monthEnd || end < monthStart) return 0;
+
+  const overlapStart = start > monthStart ? start : monthStart;
+  const overlapEnd = end < monthEnd ? end : monthEnd;
+  const overlapDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  if (overlapDays <= 0 || daysInMonth <= 0) return 0;
+  if (!item.start_date && !item.end_date) return item.monthly_value || 0;
+
+  return (item.monthly_value || 0) * (overlapDays / daysInMonth);
 }
 
 function itemAmountForMonth(item: ContractLineItem, month: Date): number {
   if (item.billing_type === 'one-off') return projectAllocationForMonth(item, month);
-  return recurringActiveInMonth(item, month) ? (item.monthly_value || 0) : 0;
+  return recurringAmountForMonth(item, month);
 }
 
 export function MemberDrillDownSheet({

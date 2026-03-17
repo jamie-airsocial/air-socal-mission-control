@@ -110,13 +110,29 @@ function projectAllocationForMonth(item: ContractLineItem, month: Date): number 
   return (item.monthly_value || 0) * (daysInMonth / totalDays);
 }
 
-/** Check if a recurring item is active during a given month */
-function recurringActiveInMonth(item: ContractLineItem, month: Date): boolean {
+/** Recurring amount allocated to a month (pro-rated when start/end dates cut through the month) */
+function recurringAmountForMonth(item: ContractLineItem, month: Date): number {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
-  if (item.start_date && new Date(item.start_date) > monthEnd) return false;
-  if (item.end_date && new Date(item.end_date) < monthStart) return false;
-  return item.is_active || (item.end_date != null); // include ended items if they have an end_date (historical)
+
+  const start = item.start_date ? new Date(item.start_date) : monthStart;
+  const end = item.end_date ? new Date(item.end_date) : monthEnd;
+
+  // No overlap with this month
+  if (start > monthEnd || end < monthStart) return 0;
+
+  // Overlap window within this month (inclusive)
+  const overlapStart = start > monthStart ? start : monthStart;
+  const overlapEnd = end < monthEnd ? end : monthEnd;
+  const overlapDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  if (overlapDays <= 0 || daysInMonth <= 0) return 0;
+
+  // If both bounds are open in this month, keep full monthly value
+  if (!item.start_date && !item.end_date) return item.monthly_value || 0;
+
+  return (item.monthly_value || 0) * (overlapDays / daysInMonth);
 }
 
 interface ServiceClientDetail {
@@ -181,9 +197,10 @@ function calcMonthlyBreakdown(clients: Client[], contractItems: ContractLineItem
         projectByService[item.service].push({ clientId: client.id, clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date, billingType: 'one-off' });
       }
     } else {
-      if (recurringActiveInMonth(item, month)) {
+      const recurringAlloc = recurringAmountForMonth(item, month);
+      if (recurringAlloc > 0) {
         if (!recurringByService[item.service]) recurringByService[item.service] = [];
-        recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: item.monthly_value || 0, billingType: 'recurring' });
+        recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: recurringAlloc, billingType: 'recurring' });
       }
     }
   }
@@ -666,8 +683,9 @@ export default function TeamsPage() {
               billedClientIds.add(item.client_id);
             }
           } else {
-            if (recurringActiveInMonth(item, currentMonth)) {
-              billing += item.monthly_value || 0;
+            const recurringAlloc = recurringAmountForMonth(item, currentMonth);
+            if (recurringAlloc > 0) {
+              billing += recurringAlloc;
               billedClientIds.add(item.client_id);
             }
           }
@@ -771,8 +789,9 @@ export default function TeamsPage() {
                   total += projectAllocationForMonth(item, selectedMonth);
                 }
               } else {
-                if (recurringActiveInMonth(item, selectedMonth)) {
-                  total += item.monthly_value || 0;
+                const recurringAlloc = recurringAmountForMonth(item, selectedMonth);
+                if (recurringAlloc > 0) {
+                  total += recurringAlloc;
                 }
               }
             }
@@ -980,7 +999,7 @@ export default function TeamsPage() {
                             if (item.billing_type === 'one-off') {
                               if (item.start_date && item.end_date) projectRev += projectAllocationForMonth(item, selectedMonth);
                             } else {
-                              if (recurringActiveInMonth(item, selectedMonth)) recurringRev += item.monthly_value || 0;
+                              recurringRev += recurringAmountForMonth(item, selectedMonth);
                             }
                           }
                           return { client, recurringRev, projectRev, rev: recurringRev + projectRev };
