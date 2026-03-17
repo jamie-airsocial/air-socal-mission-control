@@ -145,16 +145,27 @@ export function MemberDrillDownSheet({
     'Account Management': 'account-management',
   };
 
+  const roleService = (() => {
+    if (!memberRole) return undefined;
+    if (ROLE_TO_SERVICE[memberRole]) return ROLE_TO_SERVICE[memberRole];
+    const normalized = memberRole.trim().toLowerCase();
+    if (normalized.includes('account')) return 'account-management';
+    if (normalized.includes('paid')) return 'paid-advertising';
+    if (normalized.includes('social')) return 'social-media';
+    if (normalized.includes('creative')) return 'creative';
+    if (normalized.includes('seo')) return 'seo';
+    return undefined;
+  })();
+
   const effectiveTarget = useMemo(() => {
     if (memberTargetOverrides[memberId]) return memberTargetOverrides[memberId];
     if (Object.keys(capacityTargets).length === 0) return capacityTarget;
-    const roleService = memberRole ? ROLE_TO_SERVICE[memberRole] : undefined;
     if (roleService && capacityTargets[roleService]) return capacityTargets[roleService];
     // Fallback: find from assignments
     const services = [...new Set(rawItems.filter(i => i.billing_type === 'recurring').map(i => i.service))];
     if (services.length === 1) return capacityTargets[services[0]] || 0;
     return services[0] ? (capacityTargets[services[0]] || 0) : 0;
-  }, [capacityTarget, capacityTargets, memberRole, rawItems, memberId, memberTargetOverrides]);
+  }, [capacityTarget, capacityTargets, roleService, rawItems, memberId, memberTargetOverrides]);
 
   // Compute assignments for selected month
   const monthAssignments = useMemo(() => {

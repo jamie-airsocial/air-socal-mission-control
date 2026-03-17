@@ -500,6 +500,19 @@ const ROLE_TO_SERVICE_TARGET: Record<string, string> = {
   'Account Management': 'account-management',
 };
 
+function getServiceTargetForRole(roleName?: string | null): string | undefined {
+  if (!roleName) return undefined;
+  if (ROLE_TO_SERVICE_TARGET[roleName]) return ROLE_TO_SERVICE_TARGET[roleName];
+
+  const normalized = roleName.trim().toLowerCase();
+  if (normalized.includes('account')) return 'account-management';
+  if (normalized.includes('paid')) return 'paid-advertising';
+  if (normalized.includes('social')) return 'social-media';
+  if (normalized.includes('creative')) return 'creative';
+  if (normalized.includes('seo')) return 'seo';
+  return undefined;
+}
+
 export default function TeamsPage() {
   const { isAdmin } = useAuth();
   const showCurrency = isAdmin; // Non-admins see % only, admins see £
@@ -660,7 +673,7 @@ export default function TeamsPage() {
           }
         }
 
-        const svc = m.role?.name ? ROLE_TO_SERVICE_TARGET[m.role.name] : undefined;
+        const svc = getServiceTargetForRole(m.role?.name);
         const target = memberTargetOverrides[m.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
         const pct = target > 0 ? (billing / target) * 100 : 0;
         const clientCount = billedClientIds.size;
@@ -734,12 +747,12 @@ export default function TeamsPage() {
           const teamMembers = selected.members || [];
 
           function memberTargetFor(member: TeamMember) {
-            const svc = member.role?.name ? ROLE_TO_SERVICE_TARGET[member.role.name] : undefined;
+            const svc = getServiceTargetForRole(member.role?.name);
             return memberTargetOverrides[member.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
           }
 
           const teamServiceTargets = teamMembers.reduce<Record<string, number>>((acc, member) => {
-            const svc = member.role?.name ? ROLE_TO_SERVICE_TARGET[member.role.name] : undefined;
+            const svc = getServiceTargetForRole(member.role?.name);
             if (!svc) return acc;
             acc[svc] = (acc[svc] || 0) + memberTargetFor(member);
             return acc;
@@ -781,7 +794,7 @@ export default function TeamsPage() {
                     const rowProject = bd.projectTotal;
                     const rowTotal = rowRecurring + rowProject;
                     const rowTeamTarget = (team.members || []).reduce((sum, m) => {
-                      const svc = m.role?.name ? ROLE_TO_SERVICE_TARGET[m.role.name] : undefined;
+                      const svc = getServiceTargetForRole(m.role?.name);
                       const target = memberTargetOverrides[m.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
                       return sum + target;
                     }, 0);
