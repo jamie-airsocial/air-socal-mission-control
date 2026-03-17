@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
 import { AlertTriangle, ArrowUpDown, ChevronRight, Users } from 'lucide-react';
@@ -508,10 +508,23 @@ export default function TeamsPage() {
   const activeClients = clients.filter(c => c.status === 'active');
   const totalMembers = teams.reduce((sum, t) => sum + (t.members?.length ?? 0), 0);
 
+  const creativeClientIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of contractItems) {
+      if (item.service === 'creative' && item.is_active) ids.add(item.client_id);
+    }
+    return ids;
+  }, [contractItems]);
+
+  const getTeamClients = useCallback((slug: string) => {
+    if (slug !== 'create') return activeClients.filter(c => c.team === slug);
+    return activeClients.filter(c => c.team === 'create' || creativeClientIds.has(c.id));
+  }, [activeClients, creativeClientIds]);
+
   const maxMembers = Math.max(...teams.map(t => t.members?.length ?? 0), 0);
   const maxClients = Math.max(...teams.map(t => {
     const slug = t.name.toLowerCase();
-    return activeClients.filter(c => c.team === slug).length;
+    return getTeamClients(slug).length;
   }), 0);
 
   // Calculate 6-month forecast for a team
@@ -542,7 +555,7 @@ export default function TeamsPage() {
   const teamRows = teams.map(team => {
     const slug = team.name.toLowerCase();
     const style = getTeamStyle(slug);
-    const teamClients = activeClients.filter(c => c.team === slug);
+    const teamClients = getTeamClients(slug);
     const directMembers = team.members || [];
     const directMemberIds = new Set(directMembers.map(m => m.id));
     const forecastData = calcForecastData(slug);
