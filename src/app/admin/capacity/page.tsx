@@ -6,7 +6,7 @@ import { Save, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+
 import { getServiceStyle } from '@/lib/constants';
 
 interface CapacityTargets {
@@ -34,18 +34,11 @@ export default function CapacitySettingsPage() {
     'account-management': 0,
     'creative': 5000
   });
-  const [included, setIncluded] = useState<Record<string, boolean>>({
-    'paid-advertising': true,
-    'seo': true,
-    'social-media': true,
-    'account-management': true,
-    'creative': true
-  });
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Auto total only sums included services
-  const autoTotal = SERVICE_KEYS.reduce((sum: number, key) => sum + (included[key] ? (Number(targets[key]) || 0) : 0), 0);
+  const autoTotal = SERVICE_KEYS.reduce((sum: number, key) => sum + (Number(targets[key]) || 0), 0);
 
   useEffect(() => {
     fetchCapacityTargets();
@@ -60,9 +53,7 @@ export default function CapacitySettingsPage() {
       if (data.targets) {
         setTargets(data.targets);
       }
-      if (data.included) {
-        setIncluded(prev => ({ ...prev, ...data.included }));
-      }
+
 
     } catch (err) {
       console.error('Error fetching capacity targets:', err);
@@ -80,7 +71,7 @@ export default function CapacitySettingsPage() {
       const res = await fetch('/api/admin/capacity', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets, teamTotal: finalTotal, included })
+        body: JSON.stringify({ targets, teamTotal: finalTotal })
       });
 
       if (!res.ok) throw new Error('Failed to save capacity targets');
@@ -120,14 +111,7 @@ export default function CapacitySettingsPage() {
           {SERVICE_KEYS.map(serviceKey => {
             const style = getServiceStyle(serviceKey);
             return (
-              <div key={serviceKey} className={`flex items-center gap-4 ${!included[serviceKey] ? 'opacity-40' : ''}`}>
-                <div className="shrink-0 pt-5">
-                  <Switch
-                    checked={included[serviceKey] !== false}
-                    onCheckedChange={v => setIncluded({ ...included, [serviceKey]: v })}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
+              <div key={serviceKey} className="flex items-center gap-4">
                 <div className="flex-1">
                   <Label htmlFor={serviceKey} className="text-[11px] text-muted-foreground flex items-center gap-2 mb-1.5">
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: style.dot }} />
@@ -149,9 +133,7 @@ export default function CapacitySettingsPage() {
                   </div>
                 </div>
                 <div className="text-[11px] text-muted-foreground/40 w-24 text-right">
-                  {included[serviceKey] && autoTotal > 0
-                    ? `${((targets[serviceKey] / autoTotal) * 100).toFixed(0)}% of total`
-                    : 'excluded'}
+                  {autoTotal > 0 ? `${((targets[serviceKey] / autoTotal) * 100).toFixed(0)}% of total` : '—'}
                 </div>
               </div>
             );
