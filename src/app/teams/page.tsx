@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowUpDown, ChevronRight, Users } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, addMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
 import { ForecastChart } from '@/components/forecast-chart';
 import { MemberDrillDownSheet } from '@/components/member-drill-down-sheet';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/auth-context';
 
 interface TeamMember {
@@ -905,7 +906,14 @@ export default function TeamsPage() {
                                 <Link key={client.id} href={`/clients/${client.id}`}
                                   className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-muted/20 transition-colors"
                                 >
-                                  <span className="text-[12px] truncate min-w-0" title={client.name}>{client.name}</span>
+                                  <TooltipProvider delayDuration={250}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <span className="text-[12px] truncate min-w-0">{client.name}</span>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="text-[12px]">{client.name}</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                   {showCurrency && (
                                     <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
                                       £{Math.round(recurringRev).toLocaleString()}/mo · £{Math.round(projectRev).toLocaleString()} proj
