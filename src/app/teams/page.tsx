@@ -114,30 +114,41 @@ interface MonthlyBreakdown {
   undated: UndatedProject[];
 }
 
-function calcMonthlyBreakdown(teamClients: Client[], contractItems: ContractLineItem[], month: Date): MonthlyBreakdown {
+function calcMonthlyBreakdown(clients: Client[], contractItems: ContractLineItem[], month: Date, teamSlug?: string): MonthlyBreakdown {
   const recurringByService: Record<string, ServiceClientDetail[]> = {};
   const projectByService: Record<string, ServiceClientDetail[]> = {};
   const undated: UndatedProject[] = [];
 
-  for (const client of teamClients) {
-    const clientItems = contractItems.filter(i => i.client_id === client.id);
-    for (const item of clientItems) {
-      if (REVENUE_EXCLUDED_SERVICES.has(item.service)) continue;
-      if (item.billing_type === 'one-off') {
-        if (!item.start_date || !item.end_date) {
-          undated.push({ clientId: client.id, clientName: client.name, service: item.service, amount: item.monthly_value || 0 });
-          continue;
-        }
-        const alloc = projectAllocationForMonth(item, month);
-        if (alloc > 0) {
-          if (!projectByService[item.service]) projectByService[item.service] = [];
-          projectByService[item.service].push({ clientId: client.id, clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date, billingType: 'one-off' });
-        }
-      } else {
-        if (recurringActiveInMonth(item, month)) {
-          if (!recurringByService[item.service]) recurringByService[item.service] = [];
-          recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: item.monthly_value || 0, billingType: 'recurring' });
-        }
+  const clientById = new Map(clients.map(c => [c.id, c]));
+
+  for (const item of contractItems) {
+    const client = clientById.get(item.client_id);
+    if (!client) continue;
+    if (REVENUE_EXCLUDED_SERVICES.has(item.service)) continue;
+
+    // Business rule: ALL creative billing belongs to Team Create only.
+    // Non-creative billing stays with the client's assigned team.
+    if (teamSlug) {
+      const belongsToTeam = item.service === 'creative'
+        ? teamSlug === 'create'
+        : client.team === teamSlug;
+      if (!belongsToTeam) continue;
+    }
+
+    if (item.billing_type === 'one-off') {
+      if (!item.start_date || !item.end_date) {
+        undated.push({ clientId: client.id, clientName: client.name, service: item.service, amount: item.monthly_value || 0 });
+        continue;
+      }
+      const alloc = projectAllocationForMonth(item, month);
+      if (alloc > 0) {
+        if (!projectByService[item.service]) projectByService[item.service] = [];
+        projectByService[item.service].push({ clientId: client.id, clientName: client.name, amount: alloc, start_date: item.start_date, end_date: item.end_date, billingType: 'one-off' });
+      }
+    } else {
+      if (recurringActiveInMonth(item, month)) {
+        if (!recurringByService[item.service]) recurringByService[item.service] = [];
+        recurringByService[item.service].push({ clientId: client.id, clientName: client.name, amount: item.monthly_value || 0, billingType: 'recurring' });
       }
     }
   }
@@ -504,10 +515,10 @@ export default function TeamsPage() {
   }), 0);
 
   // Calculate 6-month forecast for a team
-  const calcForecastData = (teamClients: Client[]) => {
+  const calcForecastData = (teamSlug: string) => {
     const months = Array.from({ length: 6 }, (_, i) => addMonths(startOfMonth(new Date()), i));
     return months.map(month => {
-      const breakdown = calcMonthlyBreakdown(teamClients, contractItems, month);
+      const breakdown = calcMonthlyBreakdown(activeClients, contractItems, month, teamSlug);
       const total = breakdown.recurringTotal + breakdown.projectTotal;
       
       // Service breakdown for tooltip
@@ -534,7 +545,7 @@ export default function TeamsPage() {
     const teamClients = activeClients.filter(c => c.team === slug);
     const directMembers = team.members || [];
     const directMemberIds = new Set(directMembers.map(m => m.id));
-    const forecastData = calcForecastData(teamClients);
+    const forecastData = calcForecastData(slug);
 
     // Find contributors: users assigned to this team's client contracts who aren't direct members
     const teamClientIds = new Set(teamClients.map(c => c.id));
@@ -650,7 +661,7 @@ export default function TeamsPage() {
           const selected = teamRows.find(t => t.slug === selectedTeamSlug) || teamRows[0];
           if (!selected) return <p className="text-[13px] text-muted-foreground">No teams</p>;
           const selectedMonth = selected.forecastData[selectedMonthIndex]?.month || startOfMonth(new Date());
-          const bd = calcMonthlyBreakdown(selected.clients, contractItems, selectedMonth);
+          const bd = calcMonthlyBreakdown(activeClients, contractItems, selectedMonth, selected.slug);
           const teamBilling = bd.recurringTotal + bd.projectTotal;
           const teamTarget = Object.values(capacityTargets).filter((_, i) => Object.keys(capacityTargets)[i] !== '__team_total__').reduce((s, v) => s + v, 0);
           const teamPct = teamTarget > 0 ? (teamBilling / teamTarget) * 100 : 0;
@@ -685,7 +696,7 @@ export default function TeamsPage() {
                 <div className="flex-1 overflow-y-auto">
                   {teamRows.map(({ team, slug, style, clients: tc }) => {
                     const isSelected = slug === (selectedTeamSlug || teamRows[0]?.slug);
-                    const bd = calcMonthlyBreakdown(tc, contractItems, startOfMonth(new Date()));
+                    const bd = calcMonthlyBreakdown(activeClients, contractItems, startOfMonth(new Date()), slug);
                     const rowTotal = bd.recurringTotal + bd.projectTotal;
                     return (
                       <button
