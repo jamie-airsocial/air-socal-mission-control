@@ -17,12 +17,6 @@ interface CapacityTargets {
   [key: string]: number;
 }
 
-interface UserLite {
-  id: string;
-  full_name: string;
-  role?: { name: string } | null;
-  is_active?: boolean;
-}
 
 const SERVICE_KEYS = [
   'paid-advertising',
@@ -47,8 +41,6 @@ export default function CapacitySettingsPage() {
     'account-management': true,
     'creative': true
   });
-  const [memberTargets, setMemberTargets] = useState<Record<string, number>>({});
-  const [users, setUsers] = useState<UserLite[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -61,12 +53,9 @@ export default function CapacitySettingsPage() {
 
   async function fetchCapacityTargets() {
     try {
-      const [capacityRes, usersRes] = await Promise.all([
-        fetch('/api/admin/capacity'),
-        fetch('/api/users')
-      ]);
-      if (!capacityRes.ok) throw new Error('Failed to fetch capacity targets');
-      const data = await capacityRes.json();
+      const res = await fetch('/api/admin/capacity');
+      if (!res.ok) throw new Error('Failed to fetch capacity targets');
+      const data = await res.json();
       
       if (data.targets) {
         setTargets(data.targets);
@@ -74,15 +63,7 @@ export default function CapacitySettingsPage() {
       if (data.included) {
         setIncluded(prev => ({ ...prev, ...data.included }));
       }
-      if (data.memberTargets) {
-        setMemberTargets(data.memberTargets);
-      }
 
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        const active = (usersData || []).filter((u: UserLite) => u.is_active !== false);
-        setUsers(active);
-      }
     } catch (err) {
       console.error('Error fetching capacity targets:', err);
       toast.error('Failed to load capacity targets');
@@ -99,7 +80,7 @@ export default function CapacitySettingsPage() {
       const res = await fetch('/api/admin/capacity', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets, teamTotal: finalTotal, included, memberTargets })
+        body: JSON.stringify({ targets, teamTotal: finalTotal, included })
       });
 
       if (!res.ok) throw new Error('Failed to save capacity targets');
@@ -130,7 +111,7 @@ export default function CapacitySettingsPage() {
             Monthly Capacity Targets
           </h2>
           <p className="text-[11px] text-muted-foreground mt-1">
-            Set billing targets for each service. These determine capacity percentages on the Delivery page.
+            Set default billing targets per service. Individual overrides are edited from Admin → Users (Edit user).
           </p>
         </div>
 
@@ -175,43 +156,6 @@ export default function CapacitySettingsPage() {
               </div>
             );
           })}
-        </div>
-
-        {/* Individual overrides */}
-        <div className="pt-4 border-t border-border/10 space-y-3">
-          <div>
-            <Label className="text-[11px] text-muted-foreground mb-1 block">Individual target overrides</Label>
-            <p className="text-[10px] text-muted-foreground/60">Optional. Overrides role/service target for specific people on Teams pages.</p>
-          </div>
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {users.map(user => (
-              <div key={user.id} className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-medium truncate">{user.full_name}</p>
-                  <p className="text-[10px] text-muted-foreground/60 truncate">{user.role?.name || 'No role'}</p>
-                </div>
-                <div className="relative w-36">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground/60">£</span>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="default"
-                    value={memberTargets[user.id] || ''}
-                    onChange={e => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setMemberTargets(prev => {
-                        const next = { ...prev };
-                        if (!val) delete next[user.id];
-                        else next[user.id] = Number(val);
-                        return next;
-                      });
-                    }}
-                    className="pl-7 h-8 text-[12px]"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
 
         {/* Save button */}

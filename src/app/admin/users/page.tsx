@@ -141,9 +141,10 @@ interface UserFormData {
   role_id: string;
   team: string;
   password: string;
+  capacity_target: string;
 }
 
-const emptyForm: UserFormData = { email: '', full_name: '', role_id: '', team: '', password: '' };
+const emptyForm: UserFormData = { email: '', full_name: '', role_id: '', team: '', password: '', capacity_target: '' };
 
 // ── Main page ────────────────────────────────────────────────────────────────
 // Owner accounts — permissions cannot be changed by anyone
@@ -153,6 +154,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [teamOptions, setTeamOptions] = useState<TeamOption[]>([]);
+  const [memberTargets, setMemberTargets] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   // Search, filter, sort
@@ -210,13 +212,14 @@ export default function AdminUsersPage() {
   const [sendingPassword, setSendingPassword] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [usersRes, rolesRes, teamsRes] = await Promise.all([
+    const [usersRes, rolesRes, teamsRes, capacityRes] = await Promise.all([
       fetch('/api/users', { cache: 'no-store' }),
       fetch('/api/roles'),
       fetch('/api/teams'),
+      fetch('/api/admin/capacity', { cache: 'no-store' }),
     ]);
-    const [usersData, rolesData, teamsData] = await Promise.all([
-      usersRes.json(), rolesRes.json(), teamsRes.json(),
+    const [usersData, rolesData, teamsData, capacityData] = await Promise.all([
+      usersRes.json(), rolesRes.json(), teamsRes.json(), capacityRes.json(),
     ]);
     setUsers(usersData || []);
     setRoles(rolesData || []);
@@ -224,6 +227,7 @@ export default function AdminUsersPage() {
       value: t.name.toLowerCase(),
       label: t.name,
     })));
+    setMemberTargets(capacityData?.memberTargets || {});
     setLoading(false);
   }, []);
 
@@ -233,7 +237,14 @@ export default function AdminUsersPage() {
   const openAdd = () => { setEditingUser(null); setForm(emptyForm); setDialogOpen(true); };
   const openEdit = (user: AppUser) => {
     setEditingUser(user);
-    setForm({ email: user.email, full_name: user.full_name, role_id: user.role_id || '', team: user.team || '', password: '' });
+    setForm({
+      email: user.email,
+      full_name: user.full_name,
+      role_id: user.role_id || '',
+      team: user.team || '',
+      password: '',
+      capacity_target: memberTargets[user.id] ? String(memberTargets[user.id]) : '',
+    });
     setDialogOpen(true);
   };
 
@@ -247,6 +258,15 @@ export default function AdminUsersPage() {
           body: JSON.stringify({ full_name: form.full_name, email: form.email, role_id: form.role_id || null, team: form.team || null }),
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+
+        const capTarget = Number(form.capacity_target || 0);
+        const capRes = await fetch(`/api/admin/capacity/member-targets/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target: Number.isFinite(capTarget) ? capTarget : 0 }),
+        });
+        if (!capRes.ok) { const e = await capRes.json(); throw new Error(e.error || 'Failed to save capacity target'); }
+
         toast.success('User updated', { description: `${form.full_name} has been updated.` });
       } else {
         if (!form.email) { toast.error('Email is required for new users'); return; }
@@ -820,6 +840,20 @@ export default function AdminUsersPage() {
                 <Label className="text-[13px] text-muted-foreground">Role</Label>
                 <RoleSelect value={form.role_id} onChange={v => setForm(f => ({ ...f, role_id: v }))} roles={roles} />
               </div>
+              {editingUser && (
+                <div className="space-y-1.5">
+                  <Label className="text-[13px] text-muted-foreground">Capacity target override (£/mo)</Label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    value={form.capacity_target}
+                    onChange={e => setForm(f => ({ ...f, capacity_target: e.target.value.replace(/[^0-9]/g, '') }))}
+                    placeholder="Leave blank to use role default"
+                    className="h-9 text-[13px] bg-secondary border-border/20"
+                  />
+                  <p className="text-[11px] text-muted-foreground/50">This overrides the role target for this person only.</p>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
