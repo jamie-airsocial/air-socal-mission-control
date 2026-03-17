@@ -561,15 +561,20 @@ export default function TeamsPage() {
     const forecastData = calcForecastData(slug);
 
     // Find contributors: users assigned to this team's client contracts who aren't direct members
-    const teamClientIds = new Set(teamClients.map(c => c.id));
-    const contributorIds = new Set<string>();
-    for (const item of contractItems) {
-      if (item.assignee_id && item.is_active && teamClientIds.has(item.client_id) && !directMemberIds.has(item.assignee_id)) {
-        contributorIds.add(item.assignee_id);
-      }
-    }
-    const contributors = [...contributorIds].map(id => userById.get(id)).filter(Boolean) as TeamMember[];
-    const members = [...directMembers, ...contributors];
+    // Exception: Team Create should only show its own direct members
+    const members = slug === 'create'
+      ? directMembers
+      : (() => {
+          const teamClientIds = new Set(teamClients.map(c => c.id));
+          const contributorIds = new Set<string>();
+          for (const item of contractItems) {
+            if (item.assignee_id && item.is_active && teamClientIds.has(item.client_id) && !directMemberIds.has(item.assignee_id)) {
+              contributorIds.add(item.assignee_id);
+            }
+          }
+          const contributors = [...contributorIds].map(id => userById.get(id)).filter(Boolean) as TeamMember[];
+          return [...directMembers, ...contributors];
+        })();
 
     return { team, slug, style, clients: teamClients, members, forecastData };
   });
