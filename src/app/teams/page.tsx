@@ -491,6 +491,13 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
+const ROLE_TO_SERVICE_TARGET: Record<string, string> = {
+  'Paid Ads Manager': 'paid-advertising',
+  'Social Media Manager': 'social-media',
+  'SEO': 'seo',
+  'Creative': 'creative',
+};
+
 export default function TeamsPage() {
   const { isAdmin } = useAuth();
   const showCurrency = isAdmin; // Non-admins see % only, admins see £
@@ -624,7 +631,6 @@ export default function TeamsPage() {
   const [selectedMonthIndex, setSelectedMonthIndex] = useState<number>(0);
 
   // Build all-members data for the members tab
-  const ROLE_TO_SERVICE: Record<string, string> = { 'Paid Ads Manager': 'paid-advertising', 'Social Media Manager': 'social-media', 'SEO': 'seo', 'Creative': 'creative' };
   const allMembers = useMemo(() => {
     const members: Array<TeamMember & { teamName: string; billing: number; target: number; pct: number; clientCount: number }> = [];
     const currentMonth = startOfMonth(new Date());
@@ -652,7 +658,7 @@ export default function TeamsPage() {
           }
         }
 
-        const svc = m.role?.name ? ROLE_TO_SERVICE[m.role.name] : undefined;
+        const svc = m.role?.name ? ROLE_TO_SERVICE_TARGET[m.role.name] : undefined;
         const target = memberTargetOverrides[m.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
         const pct = target > 0 ? (billing / target) * 100 : 0;
         const clientCount = billedClientIds.size;
@@ -720,10 +726,15 @@ export default function TeamsPage() {
           const selectedMonth = selected.forecastData[selectedMonthIndex]?.month || startOfMonth(new Date());
           const bd = calcMonthlyBreakdown(activeClients, contractItems, selectedMonth, selected.slug);
           const teamBilling = bd.recurringTotal + bd.projectTotal;
-          const teamTarget = Object.values(capacityTargets).filter((_, i) => Object.keys(capacityTargets)[i] !== '__team_total__').reduce((s, v) => s + v, 0);
+          const directTeamMembers = selected.team.members || [];
+          const teamTarget = directTeamMembers.reduce((sum, m) => sum + memberTargetFor(m), 0);
           const teamPct = teamTarget > 0 ? (teamBilling / teamTarget) * 100 : 0;
           const teamMembers = selected.members || [];
-          const ROLE_TO_SVC: Record<string, string> = { 'Paid Ads Manager': 'paid-advertising', 'Social Media Manager': 'social-media', 'SEO': 'seo', 'Creative': 'creative' };
+
+          const memberTargetFor = (member: TeamMember) => {
+            const svc = member.role?.name ? ROLE_TO_SERVICE_TARGET[member.role.name] : undefined;
+            return memberTargetOverrides[member.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
+          };
 
           // Calculate per-member billing for the selected month
           const memberBillingForMonth = (memberId: string) => {
@@ -760,6 +771,12 @@ export default function TeamsPage() {
                     const rowRecurring = bd.recurringTotal;
                     const rowProject = bd.projectTotal;
                     const rowTotal = rowRecurring + rowProject;
+                    const rowTeamTarget = (team.members || []).reduce((sum, m) => {
+                      const svc = m.role?.name ? ROLE_TO_SERVICE_TARGET[m.role.name] : undefined;
+                      const target = memberTargetOverrides[m.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
+                      return sum + target;
+                    }, 0);
+                    const rowTeamPct = rowTeamTarget > 0 ? (rowTotal / rowTeamTarget) * 100 : 0;
                     return (
                       <button
                         key={team.id}
@@ -775,7 +792,7 @@ export default function TeamsPage() {
                           <p className="text-[11px] text-muted-foreground/60 leading-tight mt-0.5">{(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-[12px] font-medium">{showCurrency ? `£${Math.round(rowTotal).toLocaleString()}` : `${teamTarget > 0 ? Math.round((rowTotal / teamTarget) * 100) : 0}%`}</p>
+                          <p className="text-[12px] font-medium">{showCurrency ? `£${Math.round(rowTotal).toLocaleString()}` : `${Math.round(rowTeamPct)}%`}</p>
                           {showCurrency && (
                             <p className="text-[10px] text-muted-foreground/60 whitespace-nowrap">
                               £{Math.round(rowRecurring).toLocaleString()}/mo · £{Math.round(rowProject).toLocaleString()} proj
@@ -826,7 +843,7 @@ export default function TeamsPage() {
                       data={selected.forecastData}
                       color={selected.style?.color || 'var(--primary)'}
                       mode={showCurrency ? "currency" : "percentage"}
-                      capacityTarget={Object.values(capacityTargets).reduce((sum, t) => sum + t, 0)}
+                      capacityTarget={teamTarget}
                       defaultExpanded
                       selectedIndex={selectedMonthIndex}
                       onMonthClick={(i) => setSelectedMonthIndex(i)}
@@ -900,8 +917,7 @@ export default function TeamsPage() {
                       {teamMembers.map(member => {
                         const colorClass = getAssigneeColor(member.full_name, selected.slug);
                         const memberBilling = memberBillingForMonth(member.id);
-                        const svc = member.role?.name ? ROLE_TO_SVC[member.role.name] : undefined;
-                        const memberTarget = memberTargetOverrides[member.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
+                        const memberTarget = memberTargetFor(member);
                         const memberPct = memberTarget > 0 ? (memberBilling / memberTarget) * 100 : 0;
                         return (
                           <button

@@ -47,8 +47,6 @@ export default function CapacitySettingsPage() {
     'account-management': true,
     'creative': true
   });
-  const [teamTotal, setTeamTotal] = useState<number>(0);
-  const [useManualTotal, setUseManualTotal] = useState(false);
   const [memberTargets, setMemberTargets] = useState<Record<string, number>>({});
   const [users, setUsers] = useState<UserLite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,13 +73,6 @@ export default function CapacitySettingsPage() {
       }
       if (data.included) {
         setIncluded(prev => ({ ...prev, ...data.included }));
-      }
-      if (data.teamTotal) {
-        setTeamTotal(data.teamTotal);
-        // If team total differs from auto-calculated, user has set it manually
-        const includedMap = data.included || {};
-        const calculatedTotal = Object.entries(data.targets).reduce((s: number, [k, v]) => s + ((includedMap[k] !== false) ? Number(v) : 0), 0);
-        setUseManualTotal(Math.abs(data.teamTotal - calculatedTotal) > 1);
       }
       if (data.memberTargets) {
         setMemberTargets(data.memberTargets);
@@ -186,20 +177,16 @@ export default function CapacitySettingsPage() {
           })}
         </div>
 
-        {/* Team total */}
+        {/* Service pool total (reference only) */}
         <div className="pt-4 border-t border-border/10">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-[11px] text-muted-foreground mb-1 block">
-                Team total target
-              </Label>
-              <p className="text-[18px] font-bold text-foreground">
-                £{autoTotal.toLocaleString()}
-              </p>
-            </div>
-          </div>
+          <Label className="text-[11px] text-muted-foreground mb-1 block">
+            Service pool total (reference)
+          </Label>
+          <p className="text-[18px] font-bold text-foreground">
+            £{autoTotal.toLocaleString()}
+          </p>
           <p className="text-[10px] text-muted-foreground/60 mt-1">
-            Auto-calculated from included services. Toggle services on/off above.
+            Capacity on Teams is now based on each team member's target (role default + individual override), not a manual team total.
           </p>
         </div>
 
