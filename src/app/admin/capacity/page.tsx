@@ -177,19 +177,6 @@ export default function CapacitySettingsPage() {
           })}
         </div>
 
-        {/* Service pool total (reference only) */}
-        <div className="pt-4 border-t border-border/10">
-          <Label className="text-[11px] text-muted-foreground mb-1 block">
-            Service pool total (reference)
-          </Label>
-          <p className="text-[18px] font-bold text-foreground">
-            £{autoTotal.toLocaleString()}
-          </p>
-          <p className="text-[10px] text-muted-foreground/60 mt-1">
-            Capacity on Teams is now based on each team member's target (role default + individual override), not a manual team total.
-          </p>
-        </div>
-
         {/* Individual overrides */}
         <div className="pt-4 border-t border-border/10 space-y-3">
           <div>
