@@ -905,7 +905,7 @@ export default function TeamsPage() {
                                 <Link key={client.id} href={`/clients/${client.id}`}
                                   className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-muted/20 transition-colors"
                                 >
-                                  <span className="text-[12px] truncate min-w-0">{client.name}</span>
+                                  <span className="text-[12px] truncate min-w-0" title={client.name}>{client.name}</span>
                                   {showCurrency && (
                                     <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
                                       £{Math.round(recurringRev).toLocaleString()}/mo · £{Math.round(projectRev).toLocaleString()} proj
