@@ -721,7 +721,9 @@ export default function TeamsPage() {
                   {teamRows.map(({ team, slug, style, clients: tc }) => {
                     const isSelected = slug === (selectedTeamSlug || teamRows[0]?.slug);
                     const bd = calcMonthlyBreakdown(activeClients, contractItems, startOfMonth(new Date()), slug);
-                    const rowTotal = bd.recurringTotal + bd.projectTotal;
+                    const rowRecurring = bd.recurringTotal;
+                    const rowProject = bd.projectTotal;
+                    const rowTotal = rowRecurring + rowProject;
                     return (
                       <button
                         key={team.id}
@@ -735,7 +737,14 @@ export default function TeamsPage() {
                           <p className="text-[13px] font-semibold truncate">{team.name}</p>
                           <p className="text-[11px] text-muted-foreground/60">{tc.length} client{tc.length !== 1 ? 's' : ''} · {(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</p>
                         </div>
-                        <p className="text-[12px] font-medium text-right shrink-0">{showCurrency ? `£${Math.round(rowTotal).toLocaleString()}` : `${teamTarget > 0 ? Math.round((rowTotal / teamTarget) * 100) : 0}%`}</p>
+                        <div className="text-right shrink-0">
+                          <p className="text-[12px] font-medium">{showCurrency ? `£${Math.round(rowTotal).toLocaleString()}` : `${teamTarget > 0 ? Math.round((rowTotal / teamTarget) * 100) : 0}%`}</p>
+                          {showCurrency && (
+                            <p className="text-[10px] text-muted-foreground/60 whitespace-nowrap">
+                              £{Math.round(rowRecurring).toLocaleString()}/mo · £{Math.round(rowProject).toLocaleString()} proj
+                            </p>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
@@ -756,9 +765,14 @@ export default function TeamsPage() {
                     </div>
                     <div className="ml-auto text-right">
                       <p className="text-[18px] font-bold">
-                        {showCurrency ? `£${Math.round(teamBilling).toLocaleString()}/mo` : `${Math.round(teamPct)}% capacity`}
+                        {showCurrency ? `£${Math.round(teamBilling).toLocaleString()}` : `${Math.round(teamPct)}% capacity`}
                         {selectedMonthIndex > 0 && <span className="text-[11px] font-normal text-muted-foreground/60 ml-1">{format(selectedMonth, 'MMM')}</span>}
                       </p>
+                      {showCurrency && (
+                        <p className="text-[11px] text-muted-foreground/70 whitespace-nowrap">
+                          £{Math.round(bd.recurringTotal).toLocaleString()}/mo · £{Math.round(bd.projectTotal).toLocaleString()} proj
+                        </p>
+                      )}
                       {teamTarget > 0 && (
                         <p className={`text-[11px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                           {Math.round(teamPct)}% capacity
@@ -793,6 +807,11 @@ export default function TeamsPage() {
                           <p className="text-[18px] font-bold leading-tight">
                             {showCurrency ? `£${Math.round(teamBilling).toLocaleString()}` : `${Math.round(teamPct)}%`}
                           </p>
+                          {showCurrency && (
+                            <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                              £{Math.round(bd.recurringTotal).toLocaleString()}/mo recurring · £{Math.round(bd.projectTotal).toLocaleString()} project
+                            </p>
+                          )}
                           {teamTarget > 0 && (
                             <div className="flex items-center gap-2 mt-1">
                               <div className="flex-1 h-1 rounded-full bg-muted/30 overflow-hidden">
