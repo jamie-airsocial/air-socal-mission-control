@@ -42,6 +42,7 @@ interface MemberDrillDownSheetProps {
   mode: 'currency' | 'percentage';
   capacityTarget?: number;
   capacityTargets?: Record<string, number>;
+  memberTargetOverrides?: Record<string, number>;
 }
 
 function getInitials(name: string) {
@@ -90,6 +91,7 @@ export function MemberDrillDownSheet({
   mode,
   capacityTarget = 0,
   capacityTargets = {},
+  memberTargetOverrides = {},
 }: MemberDrillDownSheetProps) {
   const [rawItems, setRawItems] = useState<ContractLineItem[]>([]);
   const [clientMap, setClientMap] = useState<Map<string, string>>(new Map());
@@ -142,6 +144,7 @@ export function MemberDrillDownSheet({
   };
 
   const effectiveTarget = useMemo(() => {
+    if (memberTargetOverrides[memberId]) return memberTargetOverrides[memberId];
     if (Object.keys(capacityTargets).length === 0) return capacityTarget;
     const roleService = memberRole ? ROLE_TO_SERVICE[memberRole] : undefined;
     if (roleService && capacityTargets[roleService]) return capacityTargets[roleService];
@@ -149,7 +152,7 @@ export function MemberDrillDownSheet({
     const services = [...new Set(rawItems.filter(i => i.billing_type === 'recurring').map(i => i.service))];
     if (services.length === 1) return capacityTargets[services[0]] || 0;
     return services[0] ? (capacityTargets[services[0]] || 0) : 0;
-  }, [capacityTarget, capacityTargets, memberRole, rawItems]);
+  }, [capacityTarget, capacityTargets, memberRole, rawItems, memberId, memberTargetOverrides]);
 
   // Compute assignments for selected month
   const monthAssignments = useMemo(() => {

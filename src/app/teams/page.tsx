@@ -498,6 +498,7 @@ export default function TeamsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [contractItems, setContractItems] = useState<ContractLineItem[]>([]);
   const [capacityTargets, setCapacityTargets] = useState<CapacityTargets>({});
+  const [memberTargetOverrides, setMemberTargetOverrides] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [drillDownOpen, setDrillDownOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; team: string; roleName?: string } | null>(null);
@@ -514,6 +515,7 @@ export default function TeamsPage() {
       setTeams(teamsData || []);
       setClients(clientsData || []);
       setCapacityTargets(capacityData.targets || {});
+      setMemberTargetOverrides(capacityData.memberTargets || {});
       setAllUsers((usersData || []).filter((u: TeamMember) => u.is_active));
 
       // Fetch contract line items for active clients
@@ -651,7 +653,7 @@ export default function TeamsPage() {
         }
 
         const svc = m.role?.name ? ROLE_TO_SERVICE[m.role.name] : undefined;
-        const target = svc ? (capacityTargets[svc] || 0) : 0;
+        const target = memberTargetOverrides[m.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
         const pct = target > 0 ? (billing / target) * 100 : 0;
         const clientCount = billedClientIds.size;
 
@@ -659,7 +661,7 @@ export default function TeamsPage() {
       }
     }
     return members;
-  }, [teams, contractItems, capacityTargets]);
+  }, [teams, contractItems, capacityTargets, memberTargetOverrides]);
 
   const sortedMembers = useMemo(() => {
     const sorted = [...allMembers];
@@ -899,7 +901,7 @@ export default function TeamsPage() {
                         const colorClass = getAssigneeColor(member.full_name, selected.slug);
                         const memberBilling = memberBillingForMonth(member.id);
                         const svc = member.role?.name ? ROLE_TO_SVC[member.role.name] : undefined;
-                        const memberTarget = svc ? (capacityTargets[svc] || 0) : 0;
+                        const memberTarget = memberTargetOverrides[member.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
                         const memberPct = memberTarget > 0 ? (memberBilling / memberTarget) * 100 : 0;
                         return (
                           <button
@@ -1095,6 +1097,7 @@ export default function TeamsPage() {
           memberRole={selectedMember.roleName}
           mode={showCurrency ? "currency" : "percentage"}
           capacityTargets={capacityTargets}
+          memberTargetOverrides={memberTargetOverrides}
         />
       )}
     </div>

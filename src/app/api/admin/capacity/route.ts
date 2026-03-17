@@ -15,6 +15,7 @@ export async function GET() {
   const targets: Record<string, number> = {};
   let teamTotal = 0;
   let included: Record<string, boolean> = {};
+  const memberTargets: Record<string, number> = {};
 
   for (const row of data || []) {
     if (row.service === '__team_total__') {
@@ -25,6 +26,9 @@ export async function GET() {
       // Excluded service marker
       const svc = row.service.replace('__excl_', '');
       included[svc] = false;
+    } else if (row.service.startsWith('__member_')) {
+      const memberId = row.service.replace('__member_', '');
+      memberTargets[memberId] = Number(row.monthly_target);
     } else {
       targets[row.service] = Number(row.monthly_target);
       if (!(row.service in included)) included[row.service] = true;
@@ -36,12 +40,12 @@ export async function GET() {
     teamTotal = Object.values(targets).reduce((sum, val) => sum + val, 0);
   }
 
-  return NextResponse.json({ targets, teamTotal, included });
+  return NextResponse.json({ targets, teamTotal, included, memberTargets });
 }
 
 export async function PUT(request: NextRequest) {
   const body = await request.json();
-  const { targets, teamTotal, included } = body;
+  const { targets, teamTotal, included, memberTargets } = body;
 
   if (!targets || typeof teamTotal !== 'number') {
     return NextResponse.json(
@@ -78,6 +82,20 @@ export async function PUT(request: NextRequest) {
             updated_at: new Date().toISOString()
           });
         }
+      }
+    }
+
+    // Individual member target overrides
+    await supabaseAdmin.from('capacity_targets').delete().like('service', '__member_%');
+    if (memberTargets && typeof memberTargets === 'object') {
+      for (const [memberId, target] of Object.entries(memberTargets)) {
+        const n = Number(target);
+        if (!memberId || !Number.isFinite(n) || n <= 0) continue;
+        upserts.push({
+          service: `__member_${memberId}`,
+          monthly_target: n,
+          updated_at: new Date().toISOString(),
+        });
       }
     }
 
