@@ -20,13 +20,14 @@ export async function GET() {
       return true;
     });
     const recurring_total = activeItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+    const project_total = activeItems.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
     const { contract_line_items: _, ...rest } = client;
     // Derive services from active line items
     const derived_services = [...new Set(activeItems.map((i) => (i as unknown as { service?: string }).service).filter(Boolean))];
     // Auto-derive status from billing: if client has line items but none are active, mark as churned
     const allItems = items;
     const derived_status = allItems.length > 0 && activeItems.length === 0 ? 'churned' : rest.status;
-    return { ...rest, status: derived_status, calculated_retainer: recurring_total, derived_services };
+    return { ...rest, status: derived_status, calculated_retainer: recurring_total, calculated_project_value: project_total, derived_services };
   });
 
   return NextResponse.json(enriched);

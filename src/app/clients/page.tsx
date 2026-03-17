@@ -46,6 +46,7 @@ interface ClientRow {
   derived_services?: string[];
   monthly_retainer: number;
   calculated_retainer?: number;
+  calculated_project_value?: number;
   assigned_members: string[];
   color: string | null;
   created_at: string;
@@ -1191,7 +1192,11 @@ function ClientsPageContent() {
                             {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-muted-foreground tabular-nums">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</td>
+                        <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
+                          £{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo
+                          <span className="mx-1 text-muted-foreground/30">·</span>
+                          £{(client.calculated_project_value ?? 0).toLocaleString()} project
+                        </td>
                         <td className="px-4 py-2.5 text-muted-foreground/60">{tenure === 1 ? '1 month' : `${tenure} months`}</td>
                         <td className="px-4 py-2.5">
                           <div className="flex flex-wrap gap-1">
@@ -1238,6 +1243,8 @@ function ClientsPageContent() {
                   <div className="flex items-center gap-2 mb-2">
                     {teamStyle && (<><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} /><span className="text-[11px] text-muted-foreground">{teamStyle.label}</span><span className="text-[11px] text-muted-foreground/40">·</span></>)}
                     <span className="text-[11px] text-muted-foreground">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</span>
+                    <span className="text-[11px] text-muted-foreground/40">·</span>
+                    <span className="text-[11px] text-muted-foreground">£{(client.calculated_project_value ?? 0).toLocaleString()} project</span>
                   </div>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {(client.derived_services || client.services || []).filter((s: string) => s !== 'account-management').map((service: string) => {
