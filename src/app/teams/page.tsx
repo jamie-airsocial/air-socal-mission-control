@@ -86,13 +86,31 @@ interface CapacityTargets {
   [service: string]: number;
 }
 
+function parseLineItemDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  // dd/MM/yyyy fallback (UI-formatted legacy values)
+  const dm = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dm) {
+    const day = Number(dm[1]);
+    const month = Number(dm[2]) - 1;
+    const year = Number(dm[3]);
+    return new Date(year, month, day);
+  }
+
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 /** Calculate how much of a project (one-off) line item falls in a given month, pro-rata by day */
 function projectAllocationForMonth(item: ContractLineItem, month: Date): number {
-  if (!item.start_date || !item.end_date) {
+  const projectStart = parseLineItemDate(item.start_date);
+  const projectEnd = parseLineItemDate(item.end_date);
+  if (!projectStart || !projectEnd) {
     return 0; // Undated projects excluded from monthly totals
   }
-  const projectStart = new Date(item.start_date);
-  const projectEnd = new Date(item.end_date);
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
 
@@ -115,8 +133,8 @@ function recurringAmountForMonth(item: ContractLineItem, month: Date): number {
   const monthStart = startOfMonth(month);
   const monthEnd = endOfMonth(month);
 
-  const start = item.start_date ? new Date(item.start_date) : monthStart;
-  const end = item.end_date ? new Date(item.end_date) : monthEnd;
+  const start = parseLineItemDate(item.start_date) || monthStart;
+  const end = parseLineItemDate(item.end_date) || monthEnd;
 
   // No overlap with this month
   if (start > monthEnd || end < monthStart) return 0;

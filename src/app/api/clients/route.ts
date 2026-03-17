@@ -1,6 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+function parseLineItemDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const dm = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dm) {
+    const day = Number(dm[1]);
+    const month = Number(dm[2]) - 1;
+    const year = Number(dm[3]);
+    return new Date(year, month, day);
+  }
+  const d = new Date(raw);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function recurringAmountForMonth(item: { monthly_value?: number; start_date?: string | null; end_date?: string | null }, month: Date): number {
+  const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+  const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+  const start = parseLineItemDate(item.start_date) || monthStart;
+  const end = parseLineItemDate(item.end_date) || monthEnd;
+  if (start > monthEnd || end < monthStart) return 0;
+  const overlapStart = start > monthStart ? start : monthStart;
+  const overlapEnd = end < monthEnd ? end : monthEnd;
+  const overlapDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const daysInMonth = monthEnd.getDate();
+  if (overlapDays <= 0) return 0;
+  if (!item.start_date && !item.end_date) return item.monthly_value || 0;
+  return (item.monthly_value || 0) * (overlapDays / daysInMonth);
+}
+
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('clients')
@@ -19,7 +49,10 @@ export async function GET() {
       if (i.end_date && new Date(i.end_date) < now) return false;
       return true;
     });
-    const recurring_total = activeItems.filter(i => i.billing_type !== 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
+    const month = new Date();
+    const recurring_total = activeItems
+      .filter(i => i.billing_type !== 'one-off')
+      .reduce((s, i) => s + recurringAmountForMonth(i, month), 0);
     const project_total = activeItems.filter(i => i.billing_type === 'one-off').reduce((s, i) => s + (i.monthly_value || 0), 0);
     const { contract_line_items: _, ...rest } = client;
     // Derive services from active line items
