@@ -827,6 +827,9 @@ export default function TeamsPage() {
                           £{Math.round(bd.recurringTotal).toLocaleString()}/mo · £{Math.round(bd.projectTotal).toLocaleString()} proj
                         </p>
                       )}
+                      {showCurrency && (
+                        <p className="text-[11px] text-muted-foreground/70">Target £{Math.round(teamTarget).toLocaleString()}/mo</p>
+                      )}
                       {teamTarget > 0 && (
                         <p className={`text-[11px] font-medium ${teamPct < 80 ? 'text-emerald-500' : teamPct <= 95 ? 'text-amber-500' : 'text-red-500'}`}>
                           {Math.round(teamPct)}% capacity
@@ -865,6 +868,9 @@ export default function TeamsPage() {
                             <p className="text-[11px] text-muted-foreground/70 mt-0.5">
                               £{Math.round(bd.recurringTotal).toLocaleString()}/mo recurring · £{Math.round(bd.projectTotal).toLocaleString()} project
                             </p>
+                          )}
+                          {showCurrency && (
+                            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Target £{Math.round(teamTarget).toLocaleString()}/mo</p>
                           )}
                           {teamTarget > 0 && (
                             <div className="flex items-center gap-2 mt-1">
