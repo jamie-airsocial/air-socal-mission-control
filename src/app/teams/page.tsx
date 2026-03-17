@@ -881,35 +881,40 @@ export default function TeamsPage() {
                       {(() => {
                         const clientRows = selected.clients.map(client => {
                           const clientItems = contractItems.filter(i => i.client_id === client.id);
-                          let rev = 0;
+                          let recurringRev = 0;
+                          let projectRev = 0;
                           for (const item of clientItems) {
                             // Business rule: creative revenue belongs only to Team Create
                             if (selected.slug === 'create' && item.service !== 'creative') continue;
                             if (selected.slug !== 'create' && item.service === 'creative') continue;
 
                             if (item.billing_type === 'one-off') {
-                              if (item.start_date && item.end_date) rev += projectAllocationForMonth(item, selectedMonth);
+                              if (item.start_date && item.end_date) projectRev += projectAllocationForMonth(item, selectedMonth);
                             } else {
-                              if (recurringActiveInMonth(item, selectedMonth)) rev += item.monthly_value || 0;
+                              if (recurringActiveInMonth(item, selectedMonth)) recurringRev += item.monthly_value || 0;
                             }
                           }
-                          return { client, rev };
+                          return { client, recurringRev, projectRev, rev: recurringRev + projectRev };
                         }).filter(row => row.rev > 0);
 
                         return (
                           <>
                             <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({clientRows.length})</p>
                             <div className="space-y-0.5">
-                              {clientRows.map(({ client, rev }) => (
+                              {clientRows.map(({ client, rev, recurringRev, projectRev }) => (
                                 <Link key={client.id} href={`/clients/${client.id}`}
-                                  className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/20 transition-colors"
+                                  className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-muted/20 transition-colors"
                                 >
-                                  <span className="text-[12px]">{client.name}</span>
-                                  {showCurrency && <span className="text-[11px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
+                                  <span className="text-[12px] truncate min-w-0">{client.name}</span>
+                                  {showCurrency && (
+                                    <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
+                                      £{Math.round(recurringRev).toLocaleString()}/mo · £{Math.round(projectRev).toLocaleString()} proj
+                                    </span>
+                                  )}
                                   {!showCurrency && (() => {
                                     const svcTarget = Object.values(capacityTargets).reduce((s, v) => s + v, 0);
                                     const pct = svcTarget > 0 ? (rev / svcTarget) * 100 : 0;
-                                    return <span className="text-[11px] text-muted-foreground">{Math.round(pct)}%</span>;
+                                    return <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">{Math.round(pct)}%</span>;
                                   })()}
                                 </Link>
                               ))}
