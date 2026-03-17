@@ -16,6 +16,12 @@ function parseLineItemDate(value?: string | null): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+function daysBetweenInclusive(a: Date, b: Date): number {
+  const utcA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const utcB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.floor((utcB - utcA) / (1000 * 60 * 60 * 24)) + 1;
+}
+
 function recurringAmountForMonth(item: { monthly_value?: number; start_date?: string | null; end_date?: string | null }, month: Date): number {
   const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
   const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
@@ -24,7 +30,7 @@ function recurringAmountForMonth(item: { monthly_value?: number; start_date?: st
   if (start > monthEnd || end < monthStart) return 0;
   const overlapStart = start > monthStart ? start : monthStart;
   const overlapEnd = end < monthEnd ? end : monthEnd;
-  const overlapDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const overlapDays = Math.max(0, daysBetweenInclusive(overlapStart, overlapEnd));
   const daysInMonth = monthEnd.getDate();
   if (overlapDays <= 0) return 0;
   if (!item.start_date && !item.end_date) return item.monthly_value || 0;

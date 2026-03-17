@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
 import { AlertTriangle, ArrowUpDown, ChevronRight, Users } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, addMonths, differenceInCalendarMonths, isSameMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, differenceInCalendarMonths, differenceInCalendarDays, getDaysInMonth, isSameMonth } from 'date-fns';
 import { ForecastChart } from '@/components/forecast-chart';
 import { MemberDrillDownSheet } from '@/components/member-drill-down-sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -118,14 +118,14 @@ function projectAllocationForMonth(item: ContractLineItem, month: Date): number 
   if (projectStart > monthEnd || projectEnd < monthStart) return 0;
 
   // Total project days (inclusive)
-  const totalDays = Math.max(1, Math.round((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const totalDays = Math.max(1, differenceInCalendarDays(projectEnd, projectStart) + 1);
 
   // Days in this month that overlap with the project
   const overlapStart = projectStart > monthStart ? projectStart : monthStart;
   const overlapEnd = projectEnd < monthEnd ? projectEnd : monthEnd;
-  const daysInMonth = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
 
-  return (item.monthly_value || 0) * (daysInMonth / totalDays);
+  return (item.monthly_value || 0) * (overlapDays / totalDays);
 }
 
 /** Recurring amount allocated to a month (pro-rated when start/end dates cut through the month) */
@@ -142,8 +142,8 @@ function recurringAmountForMonth(item: ContractLineItem, month: Date): number {
   // Overlap window within this month (inclusive)
   const overlapStart = start > monthStart ? start : monthStart;
   const overlapEnd = end < monthEnd ? end : monthEnd;
-  const overlapDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
+  const daysInMonth = getDaysInMonth(month);
 
   if (overlapDays <= 0 || daysInMonth <= 0) return 0;
 

@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 import { getServiceStyle, getAssigneeColor } from '@/lib/constants';
 import { ForecastChart } from '@/components/forecast-chart';
 import Link from 'next/link';
-import { format, startOfMonth, addMonths, endOfMonth } from 'date-fns';
+import { format, startOfMonth, addMonths, endOfMonth, differenceInCalendarDays, getDaysInMonth } from 'date-fns';
 
 interface ContractLineItem {
   id: string;
@@ -76,12 +76,12 @@ function projectAllocationForMonth(item: ContractLineItem, month: Date): number 
 
   if (projectStart > monthEnd || projectEnd < monthStart) return 0;
 
-  const totalDays = Math.max(1, Math.round((projectEnd.getTime() - projectStart.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const totalDays = Math.max(1, differenceInCalendarDays(projectEnd, projectStart) + 1);
   const overlapStart = projectStart > monthStart ? projectStart : monthStart;
   const overlapEnd = projectEnd < monthEnd ? projectEnd : monthEnd;
-  const daysInMonth = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
 
-  return (item.monthly_value || 0) * (daysInMonth / totalDays);
+  return (item.monthly_value || 0) * (overlapDays / totalDays);
 }
 
 function recurringAmountForMonth(item: ContractLineItem, month: Date): number {
@@ -95,8 +95,8 @@ function recurringAmountForMonth(item: ContractLineItem, month: Date): number {
 
   const overlapStart = start > monthStart ? start : monthStart;
   const overlapEnd = end < monthEnd ? end : monthEnd;
-  const overlapDays = Math.round((overlapEnd.getTime() - overlapStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  const daysInMonth = Math.round((monthEnd.getTime() - monthStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const overlapDays = Math.max(0, differenceInCalendarDays(overlapEnd, overlapStart) + 1);
+  const daysInMonth = getDaysInMonth(month);
 
   if (overlapDays <= 0 || daysInMonth <= 0) return 0;
   if (!item.start_date && !item.end_date) return item.monthly_value || 0;
