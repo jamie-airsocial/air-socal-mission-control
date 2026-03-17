@@ -769,7 +769,8 @@ export default function TeamsPage() {
                         {style && <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: style.color }} />}
                         <div className="flex-1 min-w-0 text-left">
                           <p className="text-[13px] font-semibold truncate">{team.name}</p>
-                          <p className="text-[11px] text-muted-foreground/60">{tc.length} client{tc.length !== 1 ? 's' : ''} · {(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</p>
+                          <p className="text-[11px] text-muted-foreground/60 leading-tight">{tc.length} client{tc.length !== 1 ? 's' : ''}</p>
+                          <p className="text-[11px] text-muted-foreground/60 leading-tight mt-0.5">{(team.members || []).length} member{(team.members || []).length !== 1 ? 's' : ''}</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-[12px] font-medium">{showCurrency ? `£${Math.round(rowTotal).toLocaleString()}` : `${teamTarget > 0 ? Math.round((rowTotal / teamTarget) * 100) : 0}%`}</p>
