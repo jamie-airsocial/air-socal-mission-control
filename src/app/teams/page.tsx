@@ -736,6 +736,13 @@ export default function TeamsPage() {
             return memberTargetOverrides[member.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
           }
 
+          const teamServiceTargets = teamMembers.reduce<Record<string, number>>((acc, member) => {
+            const svc = member.role?.name ? ROLE_TO_SERVICE_TARGET[member.role.name] : undefined;
+            if (!svc) return acc;
+            acc[svc] = (acc[svc] || 0) + memberTargetFor(member);
+            return acc;
+          }, {});
+
           // Calculate per-member billing for the selected month
           const memberBillingForMonth = (memberId: string) => {
             const items = contractItems.filter(i => i.assignee_id === memberId && i.is_active);
@@ -886,7 +893,7 @@ export default function TeamsPage() {
                           return (
                             <div className="space-y-2">
                               {combinedRows.map(row => (
-                                <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={selected.style?.color || 'var(--primary)'} capacityTargets={capacityTargets} showCurrency={showCurrency} />
+                                <ServiceBreakdownRow key={row.service} row={row} total={total} teamColor={selected.style?.color || 'var(--primary)'} capacityTargets={teamServiceTargets} showCurrency={showCurrency} />
                               ))}
                             </div>
                           );
