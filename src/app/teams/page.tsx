@@ -568,6 +568,8 @@ export default function TeamsPage() {
           const teamClientIds = new Set(teamClients.map(c => c.id));
           const contributorIds = new Set<string>();
           for (const item of contractItems) {
+            // For non-Create teams, creative work is excluded from team totals/member attribution
+            if (item.service === 'creative') continue;
             if (item.assignee_id && item.is_active && teamClientIds.has(item.client_id) && !directMemberIds.has(item.assignee_id)) {
               contributorIds.add(item.assignee_id);
             }
@@ -691,6 +693,9 @@ export default function TeamsPage() {
             const items = contractItems.filter(i => i.assignee_id === memberId && i.is_active);
             let total = 0;
             for (const item of items) {
+              // Keep creative work exclusive to Team Create
+              if (selected.slug !== 'create' && item.service === 'creative') continue;
+
               if (item.billing_type === 'one-off') {
                 if (item.start_date && item.end_date) {
                   total += projectAllocationForMonth(item, selectedMonth);
