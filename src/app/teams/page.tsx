@@ -731,10 +731,10 @@ export default function TeamsPage() {
           const teamPct = teamTarget > 0 ? (teamBilling / teamTarget) * 100 : 0;
           const teamMembers = selected.members || [];
 
-          const memberTargetFor = (member: TeamMember) => {
+          function memberTargetFor(member: TeamMember) {
             const svc = member.role?.name ? ROLE_TO_SERVICE_TARGET[member.role.name] : undefined;
             return memberTargetOverrides[member.id] ?? (svc ? (capacityTargets[svc] || 0) : 0);
-          };
+          }
 
           // Calculate per-member billing for the selected month
           const memberBillingForMonth = (memberId: string) => {

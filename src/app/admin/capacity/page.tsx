@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { Save, TrendingUp } from 'lucide-react';
+import { Plus, Save, TrendingUp, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,13 @@ interface CapacityTargets {
   'social-media': number;
   'creative': number;
   [key: string]: number;
+}
+
+interface UserLite {
+  id: string;
+  full_name: string;
+  role?: { name: string } | null;
+  is_active?: boolean;
 }
 
 
@@ -35,10 +42,19 @@ export default function CapacitySettingsPage() {
     'creative': 5000
   });
 
+  const [memberTargets, setMemberTargets] = useState<Record<string, number>>({});
+  const [users, setUsers] = useState<UserLite[]>([]);
+  const [newMemberId, setNewMemberId] = useState('');
+  const [newTarget, setNewTarget] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const autoTotal = SERVICE_KEYS.reduce((sum: number, key) => sum + (Number(targets[key]) || 0), 0);
+  const overrideEntries = Object.entries(memberTargets)
+    .filter(([, v]) => Number(v) > 0)
+    .map(([id, target]) => ({ id, target: Number(target), user: users.find(u => u.id === id) }))
+    .sort((a, b) => (a.user?.full_name || '').localeCompare(b.user?.full_name || ''));
+  const availableUsers = users.filter(u => !(u.id in memberTargets));
 
   useEffect(() => {
     fetchCapacityTargets();
@@ -46,14 +62,20 @@ export default function CapacitySettingsPage() {
 
   async function fetchCapacityTargets() {
     try {
-      const res = await fetch('/api/admin/capacity');
-      if (!res.ok) throw new Error('Failed to fetch capacity targets');
-      const data = await res.json();
-      
-      if (data.targets) {
-        setTargets(data.targets);
-      }
+      const [capacityRes, usersRes] = await Promise.all([
+        fetch('/api/admin/capacity'),
+        fetch('/api/users')
+      ]);
+      if (!capacityRes.ok) throw new Error('Failed to fetch capacity targets');
+      const data = await capacityRes.json();
 
+      if (data.targets) setTargets(data.targets);
+      if (data.memberTargets) setMemberTargets(data.memberTargets);
+
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers((usersData || []).filter((u: UserLite) => u.is_active !== false));
+      }
 
     } catch (err) {
       console.error('Error fetching capacity targets:', err);
@@ -71,7 +93,7 @@ export default function CapacitySettingsPage() {
       const res = await fetch('/api/admin/capacity', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targets, teamTotal: finalTotal })
+        body: JSON.stringify({ targets, teamTotal: finalTotal, memberTargets })
       });
 
       if (!res.ok) throw new Error('Failed to save capacity targets');
@@ -138,6 +160,90 @@ export default function CapacitySettingsPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Individual overrides */}
+        <div className="pt-4 border-t border-border/10 space-y-3">
+          <div>
+            <Label className="text-[11px] text-muted-foreground mb-1 block">Custom targets by team member</Label>
+            <p className="text-[10px] text-muted-foreground/60">Only members listed here are using overrides.</p>
+          </div>
+
+          <div className="space-y-2">
+            {overrideEntries.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground/60">No custom overrides yet.</p>
+            ) : (
+              overrideEntries.map(({ id, target, user }) => (
+                <div key={id} className="flex items-center gap-2 rounded-md border border-border/20 px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] font-medium truncate">{user?.full_name || 'Unknown user'}</p>
+                    <p className="text-[10px] text-muted-foreground/60 truncate">{user?.role?.name || 'No role'}</p>
+                  </div>
+                  <div className="relative w-28">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground/60">£</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={target}
+                      onChange={e => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setMemberTargets(prev => ({ ...prev, [id]: Number(val || 0) }));
+                      }}
+                      className="pl-6 h-8 text-[12px]"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setMemberTargets(prev => { const n = { ...prev }; delete n[id]; return n; })}
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  >
+                    <X size={14} />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <select
+              value={newMemberId}
+              onChange={e => setNewMemberId(e.target.value)}
+              className="h-8 flex-1 rounded-md border border-border/20 bg-background px-2 text-[12px]"
+            >
+              <option value="">Select team member…</option>
+              {availableUsers.map(u => (
+                <option key={u.id} value={u.id}>{u.full_name}{u.role?.name ? ` — ${u.role.name}` : ''}</option>
+              ))}
+            </select>
+            <div className="relative w-28">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-muted-foreground/60">£</span>
+              <Input
+                type="text"
+                inputMode="numeric"
+                value={newTarget}
+                onChange={e => setNewTarget(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="Target"
+                className="pl-6 h-8 text-[12px]"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 text-[12px]"
+              onClick={() => {
+                const val = Number(newTarget || 0);
+                if (!newMemberId || !val) return;
+                setMemberTargets(prev => ({ ...prev, [newMemberId]: val }));
+                setNewMemberId('');
+                setNewTarget('');
+              }}
+              disabled={!newMemberId || !newTarget}
+            >
+              <Plus size={12} className="mr-1" /> Add override
+            </Button>
+          </div>
         </div>
 
         {/* Save button */}
