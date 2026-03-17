@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getTeamStyle, getAssigneeColor, getServiceStyle } from '@/lib/constants';
 import Link from 'next/link';
 import { AlertTriangle, ArrowUpDown, ChevronRight, Users } from 'lucide-react';
@@ -22,6 +22,40 @@ interface Team {
   id: string;
   name: string;
   members?: TeamMember[];
+}
+
+function TruncatedClientName({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const check = () => setIsTruncated(el.scrollWidth > el.clientWidth + 1);
+    check();
+
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    window.addEventListener('resize', check);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', check);
+    };
+  }, [text]);
+
+  const label = <span ref={ref} className="text-[12px] truncate min-w-0">{text}</span>;
+
+  if (!isTruncated) return label;
+
+  return (
+    <TooltipProvider delayDuration={250}>
+      <Tooltip>
+        <TooltipTrigger asChild>{label}</TooltipTrigger>
+        <TooltipContent side="top" className="text-[12px]">{text}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 }
 
 interface Client {
@@ -925,14 +959,7 @@ export default function TeamsPage() {
                                 <Link key={client.id} href={`/clients/${client.id}`}
                                   className="flex items-center justify-between gap-2 px-2 py-1 rounded hover:bg-muted/20 transition-colors"
                                 >
-                                  <TooltipProvider delayDuration={250}>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <span className="text-[12px] truncate min-w-0">{client.name}</span>
-                                      </TooltipTrigger>
-                                      <TooltipContent side="top" className="text-[12px]">{client.name}</TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
+                                  <TruncatedClientName text={client.name} />
                                   {showCurrency && (
                                     <span className="text-[11px] text-muted-foreground whitespace-nowrap shrink-0">
                                       £{Math.round(recurringRev).toLocaleString()}/mo · £{Math.round(projectRev).toLocaleString()} proj
