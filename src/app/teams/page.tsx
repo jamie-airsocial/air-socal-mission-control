@@ -873,34 +873,45 @@ export default function TeamsPage() {
 
                     {/* Right column: clients list (full height) */}
                     <div className="w-[280px] shrink-0 px-4 py-3 border-l border-border/10">
-                      <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({selected.clients.length})</p>
-                      <div className="space-y-0.5">
-                        {selected.clients.map(client => {
+                      {(() => {
+                        const clientRows = selected.clients.map(client => {
                           const clientItems = contractItems.filter(i => i.client_id === client.id);
                           let rev = 0;
                           for (const item of clientItems) {
+                            // Business rule: creative revenue belongs only to Team Create
+                            if (selected.slug === 'create' && item.service !== 'creative') continue;
+                            if (selected.slug !== 'create' && item.service === 'creative') continue;
+
                             if (item.billing_type === 'one-off') {
                               if (item.start_date && item.end_date) rev += projectAllocationForMonth(item, selectedMonth);
                             } else {
                               if (recurringActiveInMonth(item, selectedMonth)) rev += item.monthly_value || 0;
                             }
                           }
-                          if (rev === 0) return null;
-                          return (
-                            <Link key={client.id} href={`/clients/${client.id}`}
-                              className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/20 transition-colors"
-                            >
-                              <span className="text-[12px]">{client.name}</span>
-                              {showCurrency && <span className="text-[11px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
-                              {!showCurrency && rev > 0 && (() => {
-                                const svcTarget = Object.values(capacityTargets).reduce((s, v) => s + v, 0);
-                                const pct = svcTarget > 0 ? (rev / svcTarget) * 100 : 0;
-                                return <span className="text-[11px] text-muted-foreground">{Math.round(pct)}%</span>;
-                              })()}
-                            </Link>
-                          );
-                        }).filter(Boolean)}
-                      </div>
+                          return { client, rev };
+                        }).filter(row => row.rev > 0);
+
+                        return (
+                          <>
+                            <p className="text-[11px] font-medium text-muted-foreground/60 mb-2">Active clients ({clientRows.length})</p>
+                            <div className="space-y-0.5">
+                              {clientRows.map(({ client, rev }) => (
+                                <Link key={client.id} href={`/clients/${client.id}`}
+                                  className="flex items-center justify-between px-2 py-1 rounded hover:bg-muted/20 transition-colors"
+                                >
+                                  <span className="text-[12px]">{client.name}</span>
+                                  {showCurrency && <span className="text-[11px] text-muted-foreground">£{Math.round(rev).toLocaleString()}/mo</span>}
+                                  {!showCurrency && (() => {
+                                    const svcTarget = Object.values(capacityTargets).reduce((s, v) => s + v, 0);
+                                    const pct = svcTarget > 0 ? (rev / svcTarget) * 100 : 0;
+                                    return <span className="text-[11px] text-muted-foreground">{Math.round(pct)}%</span>;
+                                  })()}
+                                </Link>
+                              ))}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>{/* end two-column flex */}
                 </div>
