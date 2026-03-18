@@ -1007,15 +1007,17 @@ function ClientsPageContent() {
     }).catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const selectedStatus = filterStatus[0] || 'active';
+
   const filteredClients = clients.filter(client => {
     if (searchQuery && !client.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     if (filterTeam.length > 0 && !filterTeam.includes(client.team)) return false;
-    if (filterStatus.length > 0 && !filterStatus.includes(client.status)) return false;
+    if (selectedStatus && client.status !== selectedStatus) return false;
     if (filterService.length > 0 && !filterService.some(s => (client.derived_services || client.services || []).includes(s))) return false;
     return true;
   });
 
-  const hasFilters = filterTeam.length > 0 || filterStatus.length > 0 || filterService.length > 0 || searchQuery !== '';
+  const hasFilters = filterTeam.length > 0 || filterService.length > 0 || searchQuery !== '';
 
   const openNewClient = () => {
     setEditingClient(null);
@@ -1074,22 +1076,27 @@ function ClientsPageContent() {
           />
         </div>
 
+        <ToggleGroup
+          type="single"
+          value={selectedStatus}
+          onValueChange={(v) => { if (v) setFilterStatus([v]); }}
+        >
+          <ToggleGroupItem value="active" aria-label="Active clients" className="focus-visible:ring-2 focus-visible:ring-primary/50">
+            <span className="text-[13px]">Active</span>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="paused" aria-label="Paused clients" className="focus-visible:ring-2 focus-visible:ring-primary/50">
+            <span className="text-[13px]">Paused</span>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="churned" aria-label="Churned clients" className="focus-visible:ring-2 focus-visible:ring-primary/50">
+            <span className="text-[13px]">Churned</span>
+          </ToggleGroupItem>
+        </ToggleGroup>
+
         <FilterPopover
           label="Team"
           selected={filterTeam}
           options={teamFilterOptions}
           onSelectionChange={setFilterTeam}
-        />
-
-        <FilterPopover
-          label="Status"
-          selected={filterStatus}
-          options={[
-            { value: 'active', label: 'Active', dot: '#34d399' },
-            { value: 'paused', label: 'Paused', dot: '#fbbf24' },
-            { value: 'churned', label: 'Churned', dot: '#f87171' },
-          ]}
-          onSelectionChange={setFilterStatus}
         />
 
         <FilterPopover
@@ -1101,7 +1108,7 @@ function ClientsPageContent() {
 
         {hasFilters && (
           <button
-            onClick={() => { setFilterTeam([]); setFilterStatus([]); setFilterService([]); setSearchQuery(''); }}
+            onClick={() => { setFilterTeam([]); setFilterService([]); setSearchQuery(''); setFilterStatus(['active']); }}
             className="h-8 px-3 text-[13px] rounded-lg border border-destructive/20 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors duration-150 flex items-center gap-1.5"
           >
             <X className="h-3 w-3" />
