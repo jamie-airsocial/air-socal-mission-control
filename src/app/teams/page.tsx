@@ -202,9 +202,9 @@ function calcMonthlyBreakdown(clients: Client[], contractItems: ContractLineItem
     if (teamSlug) {
       const isSeoProject = item.service === 'seo' && item.billing_type === 'one-off';
       const belongsToTeam = item.service === 'creative'
-        ? teamSlug === 'create'
+        ? isCreateTeam(teamSlug)
         : isSeoProject
-          ? teamSlug === 'pulse'
+          ? isPulseTeam(teamSlug)
           : client.team === teamSlug;
       if (!belongsToTeam) continue;
     }
@@ -531,6 +531,14 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
+function isCreateTeam(value?: string | null) {
+  return (value || '').toLowerCase().includes('create');
+}
+
+function isPulseTeam(value?: string | null) {
+  return (value || '').toLowerCase().includes('pulse');
+}
+
 const ROLE_TO_SERVICE_TARGET: Record<string, string> = {
   'Paid Ads Manager': 'paid-advertising',
   'Social Media Manager': 'social-media',
@@ -624,8 +632,8 @@ export default function TeamsPage() {
   }, [contractItems]);
 
   const getTeamClients = useCallback((slug: string) => {
-    if (slug === 'create') return activeClients.filter(c => c.team === 'create' || creativeClientIds.has(c.id));
-    if (slug === 'pulse') return activeClients.filter(c => c.team === 'pulse' || seoProjectClientIds.has(c.id));
+    if (isCreateTeam(slug)) return activeClients.filter(c => isCreateTeam(c.team) || creativeClientIds.has(c.id));
+    if (isPulseTeam(slug)) return activeClients.filter(c => isPulseTeam(c.team) || seoProjectClientIds.has(c.id));
     return activeClients.filter(c => c.team === slug);
   }, [activeClients, creativeClientIds, seoProjectClientIds]);
 
@@ -670,7 +678,7 @@ export default function TeamsPage() {
 
     // Find contributors: users assigned to this team's client contracts who aren't direct members
     // Exceptions: Team Create and Team Pulse show only direct members
-    const members = (slug === 'create' || slug === 'pulse')
+    const members = (isCreateTeam(slug) || isPulseTeam(slug))
       ? directMembers
       : (() => {
           const teamClientIds = new Set(teamClients.map(c => c.id));
@@ -815,8 +823,8 @@ export default function TeamsPage() {
             let total = 0;
             for (const item of items) {
               // Keep routed work exclusive to destination teams
-              if (selected.slug !== 'create' && item.service === 'creative') continue;
-              if (selected.slug !== 'pulse' && item.service === 'seo' && item.billing_type === 'one-off') continue;
+              if (!isCreateTeam(selected.slug) && item.service === 'creative') continue;
+              if (!isPulseTeam(selected.slug) && item.service === 'seo' && item.billing_type === 'one-off') continue;
 
               if (item.billing_type === 'one-off') {
                 if (item.start_date && item.end_date) {
@@ -1028,10 +1036,10 @@ export default function TeamsPage() {
                           for (const item of clientItems) {
                             // Business routing rules for side-panel client values
                             const isSeoProject = item.service === 'seo' && item.billing_type === 'one-off';
-                            if (selected.slug === 'create' && item.service !== 'creative') continue;
-                            if (selected.slug === 'pulse' && !isSeoProject) continue;
-                            if (selected.slug !== 'create' && item.service === 'creative') continue;
-                            if (selected.slug !== 'pulse' && isSeoProject) continue;
+                            if (isCreateTeam(selected.slug) && item.service !== 'creative') continue;
+                            if (isPulseTeam(selected.slug) && !isSeoProject) continue;
+                            if (!isCreateTeam(selected.slug) && item.service === 'creative') continue;
+                            if (!isPulseTeam(selected.slug) && isSeoProject) continue;
 
                             if (item.billing_type === 'one-off') {
                               if (item.start_date && item.end_date) projectRev += projectAllocationForMonth(item, selectedMonth);
