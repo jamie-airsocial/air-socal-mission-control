@@ -183,7 +183,7 @@ interface MonthlyBreakdown {
   undated: UndatedProject[];
 }
 
-function calcMonthlyBreakdown(clients: Client[], contractItems: ContractLineItem[], month: Date, teamSlug?: string): MonthlyBreakdown {
+function calcMonthlyBreakdown(clients: Client[], contractItems: ContractLineItem[], month: Date, teamSlug?: string, userTeamById?: Record<string, string>): MonthlyBreakdown {
   const recurringByService: Record<string, ServiceClientDetail[]> = {};
   const projectByService: Record<string, ServiceClientDetail[]> = {};
   const undated: UndatedProject[] = [];
@@ -195,18 +195,12 @@ function calcMonthlyBreakdown(clients: Client[], contractItems: ContractLineItem
     if (!client) continue;
     if (REVENUE_EXCLUDED_SERVICES.has(item.service)) continue;
 
-    // Business routing rules
-    // - All creative billing belongs to Team Create
-    // - All SEO billing belongs to Team Pulse
-    // - Everything else stays with the client's assigned team
+    // Routing rule: work belongs to the responsible person's team.
+    // If no assignee, fall back to the client's assigned team.
     if (teamSlug) {
-      const isSeoWork = item.service === 'seo';
-      const belongsToTeam = item.service === 'creative'
-        ? isCreateTeam(teamSlug)
-        : isSeoWork
-          ? isPulseTeam(teamSlug)
-          : client.team === teamSlug;
-      if (!belongsToTeam) continue;
+      const assigneeTeam = item.assignee_id ? userTeamById?.[item.assignee_id] : undefined;
+      const ownerTeam = assigneeTeam || client.team;
+      if (ownerTeam !== teamSlug) continue;
     }
 
     if (item.billing_type === 'one-off') {
@@ -531,14 +525,6 @@ function getInitials(name: string) {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
-function isCreateTeam(value?: string | null) {
-  return (value || '').toLowerCase().includes('create');
-}
-
-function isPulseTeam(value?: string | null) {
-  return (value || '').toLowerCase().includes('pulse');
-}
-
 const ROLE_TO_SERVICE_TARGET: Record<string, string> = {
   'Paid Ads Manager': 'paid-advertising',
   'Social Media Manager': 'social-media',
@@ -615,27 +601,25 @@ export default function TeamsPage() {
   const activeClients = clients.filter(c => c.status === 'active');
   const totalMembers = teams.reduce((sum, t) => sum + (t.members?.length ?? 0), 0);
 
-  const creativeClientIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const item of contractItems) {
-      if (item.service === 'creative' && item.is_active) ids.add(item.client_id);
+  const userTeamById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of allUsers) {
+      if (u.id && u.team) map[u.id] = u.team;
     }
-    return ids;
-  }, [contractItems]);
-
-  const seoClientIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const item of contractItems) {
-      if (item.service === 'seo' && item.is_active) ids.add(item.client_id);
-    }
-    return ids;
-  }, [contractItems]);
+    return map;
+  }, [allUsers]);
 
   const getTeamClients = useCallback((slug: string) => {
-    if (isCreateTeam(slug)) return activeClients.filter(c => isCreateTeam(c.team) || creativeClientIds.has(c.id));
-    if (isPulseTeam(slug)) return activeClients.filter(c => isPulseTeam(c.team) || seoClientIds.has(c.id));
-    return activeClients.filter(c => c.team === slug);
-  }, [activeClients, creativeClientIds, seoClientIds]);
+    return activeClients.filter(c => {
+      const clientItems = contractItems.filter(i => i.client_id === c.id && i.is_active);
+      if (clientItems.length === 0) return c.team === slug;
+      return clientItems.some(item => {
+        const assigneeTeam = item.assignee_id ? userTeamById[item.assignee_id] : undefined;
+        const ownerTeam = assigneeTeam || c.team;
+        return ownerTeam === slug;
+      });
+    });
+  }, [activeClients, contractItems, userTeamById]);
 
   const maxMembers = Math.max(...teams.map(t => t.members?.length ?? 0), 0);
   const maxClients = Math.max(...teams.map(t => {
@@ -647,7 +631,7 @@ export default function TeamsPage() {
   const calcForecastData = (teamSlug: string) => {
     const months = Array.from({ length: 6 }, (_, i) => addMonths(startOfMonth(new Date()), i));
     return months.map(month => {
-      const breakdown = calcMonthlyBreakdown(activeClients, contractItems, month, teamSlug);
+      const breakdown = calcMonthlyBreakdown(activeClients, contractItems, month, teamSlug, userTeamById);
       const total = breakdown.recurringTotal + breakdown.projectTotal;
       
       // Service breakdown for tooltip
@@ -677,23 +661,19 @@ export default function TeamsPage() {
     const forecastData = calcForecastData(slug);
 
     // Find contributors: users assigned to this team's client contracts who aren't direct members
-    // Exceptions: Team Create and Team Pulse show only direct members
-    const members = (isCreateTeam(slug) || isPulseTeam(slug))
-      ? directMembers
-      : (() => {
-          const teamClientIds = new Set(teamClients.map(c => c.id));
-          const contributorIds = new Set<string>();
-          for (const item of contractItems) {
-            // For other teams, exclude routed work from member attribution
-            if (item.service === 'creative') continue;
-            if (item.service === 'seo') continue;
-            if (item.assignee_id && item.is_active && teamClientIds.has(item.client_id) && !directMemberIds.has(item.assignee_id)) {
-              contributorIds.add(item.assignee_id);
-            }
-          }
-          const contributors = [...contributorIds].map(id => userById.get(id)).filter(Boolean) as TeamMember[];
-          return [...directMembers, ...contributors];
-        })();
+    const members = (() => {
+      const teamClientIds = new Set(teamClients.map(c => c.id));
+      const contributorIds = new Set<string>();
+      for (const item of contractItems) {
+        if (!item.assignee_id || !item.is_active) continue;
+        if (!teamClientIds.has(item.client_id)) continue;
+        const assigneeTeam = userTeamById[item.assignee_id];
+        if (assigneeTeam !== slug) continue;
+        if (!directMemberIds.has(item.assignee_id)) contributorIds.add(item.assignee_id);
+      }
+      const contributors = [...contributorIds].map(id => userById.get(id)).filter(Boolean) as TeamMember[];
+      return [...directMembers, ...contributors];
+    })();
 
     return { team, slug, style, clients: teamClients, members, forecastData };
   });
@@ -798,7 +778,7 @@ export default function TeamsPage() {
           const selected = teamRows.find(t => t.slug === selectedTeamSlug) || teamRows[0];
           if (!selected) return <p className="text-[13px] text-muted-foreground">No teams</p>;
           const selectedMonth = selected.forecastData[selectedMonthIndex]?.month || startOfMonth(new Date());
-          const bd = calcMonthlyBreakdown(activeClients, contractItems, selectedMonth, selected.slug);
+          const bd = calcMonthlyBreakdown(activeClients, contractItems, selectedMonth, selected.slug, userTeamById);
           const teamBilling = bd.recurringTotal + bd.projectTotal;
           const directTeamMembers = selected.team.members || [];
           const teamTarget = directTeamMembers.reduce((sum, m) => sum + memberTargetFor(m), 0);
@@ -822,10 +802,6 @@ export default function TeamsPage() {
             const items = contractItems.filter(i => i.assignee_id === memberId && i.is_active);
             let total = 0;
             for (const item of items) {
-              // Keep routed work exclusive to destination teams
-              if (!isCreateTeam(selected.slug) && item.service === 'creative') continue;
-              if (!isPulseTeam(selected.slug) && item.service === 'seo') continue;
-
               if (item.billing_type === 'one-off') {
                 if (item.start_date && item.end_date) {
                   total += projectAllocationForMonth(item, selectedMonth);
@@ -850,7 +826,7 @@ export default function TeamsPage() {
                 <div className="flex-1 overflow-y-auto">
                   {teamRows.map(({ team, slug, style, clients: tc }) => {
                     const isSelected = slug === (selectedTeamSlug || teamRows[0]?.slug);
-                    const bd = calcMonthlyBreakdown(activeClients, contractItems, startOfMonth(new Date()), slug);
+                    const bd = calcMonthlyBreakdown(activeClients, contractItems, startOfMonth(new Date()), slug, userTeamById);
                     const rowRecurring = bd.recurringTotal;
                     const rowProject = bd.projectTotal;
                     const rowTotal = rowRecurring + rowProject;
@@ -1034,12 +1010,9 @@ export default function TeamsPage() {
                           let recurringRev = 0;
                           let projectRev = 0;
                           for (const item of clientItems) {
-                            // Business routing rules for side-panel client values
-                            const isSeoWork = item.service === 'seo';
-                            if (isCreateTeam(selected.slug) && item.service !== 'creative') continue;
-                            if (isPulseTeam(selected.slug) && !isSeoWork) continue;
-                            if (!isCreateTeam(selected.slug) && item.service === 'creative') continue;
-                            if (!isPulseTeam(selected.slug) && isSeoWork) continue;
+                            const assigneeTeam = item.assignee_id ? userTeamById[item.assignee_id] : undefined;
+                            const ownerTeam = assigneeTeam || client.team;
+                            if (ownerTeam !== selected.slug) continue;
 
                             if (item.billing_type === 'one-off') {
                               if (item.start_date && item.end_date) projectRev += projectAllocationForMonth(item, selectedMonth);
