@@ -953,13 +953,22 @@ function ClientsPageContent() {
   const [teams, setTeams] = useState<TeamOption[]>([]);
   const [searchQuery, setSearchQuery] = usePersistedState('clients-search', '');
   const [filterTeam, setFilterTeam] = usePersistedState<string[]>('clients-filterTeam', []);
-  const [filterStatus, setFilterStatus] = usePersistedState<string[]>('clients-filterStatus', []);
+  const [filterStatus, setFilterStatus] = usePersistedState<string[]>('clients-filterStatus', ['active']);
   const [filterService, setFilterService] = usePersistedState<string[]>('clients-filterService', []);
   const [viewMode, setViewMode] = usePersistedState<'grid' | 'table'>('clients-viewMode', 'grid');
   const [sortField, setSortField] = useState<'name' | 'team' | 'status' | 'retainer' | 'tenure'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [availableServices, setAvailableServices] = useState<{ value: string; label: string; dot: string }[]>([]);
+
+  useEffect(() => {
+    try {
+      const existing = localStorage.getItem('clients-filterStatus');
+      if (existing === null) setFilterStatus(['active']);
+    } catch {
+      // ignore
+    }
+  }, [setFilterStatus]);
 
   // Sheet state
   const [sheetOpen, setSheetOpen] = useState(false);
