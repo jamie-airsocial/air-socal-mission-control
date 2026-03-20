@@ -1063,15 +1063,12 @@ export function TaskSheet({
               <SearchableAssigneePopover
                 value={form.assignee}
                 onChange={(assignee) => {
-                  // Auto-set team from assignee's team if team is currently empty or matches previous assignee's team
+                  // Default team to selected assignee's team (can still be manually changed afterwards)
                   const assigneeUser = users.find(u => u.full_name === assignee);
-                  const prevUser = form.assignee ? users.find(u => u.full_name === form.assignee) : null;
-                  const prevTeam = prevUser?.team || '';
-                  const shouldAutoSet = !form.client_team || form.client_team === prevTeam;
                   setForm({
                     ...form,
                     assignee,
-                    client_team: shouldAutoSet && assigneeUser?.team ? assigneeUser.team : form.client_team,
+                    client_team: assigneeUser?.team || form.client_team,
                   });
                 }}
                 open={assigneeOpen}
