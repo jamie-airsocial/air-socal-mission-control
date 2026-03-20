@@ -560,7 +560,7 @@ function BoardContent() {
                   title: '',
                   description: null,
                   status: 'todo' as Task['status'],
-                  priority: 'P3' as Task['priority'],
+                  priority: null,
                   assignee: null,
                   project_id: null,
                   client_id: null,
@@ -571,6 +571,7 @@ function BoardContent() {
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString(),
                 };
+                base.priority = null;
                 if (kanbanGroupBy === 'status') base.status = columnId as Task['status'];
                 else if (kanbanGroupBy === 'priority') base.priority = columnId as Task['priority'];
                 else if (kanbanGroupBy === 'project') base.client_id = columnId === 'no-client' ? null : columnId;
@@ -630,7 +631,7 @@ function BoardContent() {
                   title: '',
                   description: null,
                   status: 'todo' as Task['status'],
-                  priority: 'P3' as Task['priority'],
+                  priority: null,
                   assignee: null,
                   project_id: null,
                   client_id: null,

@@ -56,7 +56,9 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
     ? formatCompletedAt(task.completed_at, task.updated_at)
     : task.due_date 
       ? { text: formatDueDate(task.due_date, task.status), className: getDueDateColor(task.due_date, task.status) }
-      : null;
+      : task.created_at
+        ? { text: `Created ${new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, className: 'text-muted-foreground/50' }
+        : null;
   const isDone = task.status === 'done';
   const assigneeColor = task.assignee ? (ASSIGNEE_COLORS[task.assignee] || 'bg-muted-foreground/20 text-muted-foreground') : '';
 
