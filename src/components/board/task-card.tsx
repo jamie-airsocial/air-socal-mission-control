@@ -155,7 +155,7 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
 
           <div className="flex items-center gap-2 shrink-0">
             {dateRangeLabel && (
-              <div className={`flex items-center gap-1 ${due?.className || 'text-muted-foreground/50'}`}>
+              <div className={`flex items-center gap-1 ${due?.className || 'text-muted-foreground'}`}>
                 {isDone ? <Check size={11} /> : <CalendarDays size={11} />}
                 <span className="text-[11px] whitespace-nowrap">{dateRangeLabel}</span>
               </div>
