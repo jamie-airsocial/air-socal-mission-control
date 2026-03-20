@@ -52,24 +52,41 @@ const PRIORITY_BORDER_COLORS: Record<string, string> = {
 };
 
 function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
+  const parseCardDate = (value?: string | null): Date | null => {
+    if (!value) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    const dm = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (dm) return new Date(Number(dm[3]), Number(dm[2]) - 1, Number(dm[1]));
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const startRaw = task.start_date || (task as unknown as { startDate?: string | null }).startDate || null;
+  const dueRaw = task.due_date || (task as unknown as { dueDate?: string | null }).dueDate || null;
+
   const due = task.status === 'done' 
     ? formatCompletedAt(task.completed_at, task.updated_at)
-    : task.due_date 
-      ? { text: formatDueDate(task.due_date, task.status), className: getDueDateColor(task.due_date, task.status) }
+    : dueRaw 
+      ? { text: formatDueDate(dueRaw, task.status), className: getDueDateColor(dueRaw, task.status) }
       : null;
 
-  const startLabel = task.start_date
-    ? new Date(task.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  const startDate = parseCardDate(startRaw);
+  const dueDate = parseCardDate(dueRaw);
+  const startLabel = startDate
+    ? startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : null;
-  const endLabel = task.due_date
-    ? formatDueDate(task.due_date, task.status)
+  const endLabel = dueRaw
+    ? formatDueDate(dueRaw, task.status)
     : null;
+  const sameDay = startDate && dueDate
+    ? startDate.toDateString() === dueDate.toDateString()
+    : false;
+
   const dateRangeLabel = startLabel && endLabel
-    ? (startLabel === new Date(task.due_date as string).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-        ? endLabel
-        : `${startLabel} → ${endLabel}`)
+    ? (sameDay ? endLabel : `${startLabel} → ${endLabel}`)
     : startLabel || endLabel || (task.created_at
-        ? new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        ? `Created ${new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
         : null);
   const isDone = task.status === 'done';
   const assigneeColor = task.assignee ? (ASSIGNEE_COLORS[task.assignee] || 'bg-muted-foreground/20 text-muted-foreground') : '';
