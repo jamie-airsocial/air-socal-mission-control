@@ -69,7 +69,7 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
         ? endLabel
         : `${startLabel} → ${endLabel}`)
     : startLabel || endLabel || (task.created_at
-        ? `Created ${new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+        ? new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
         : null);
   const isDone = task.status === 'done';
   const assigneeColor = task.assignee ? (ASSIGNEE_COLORS[task.assignee] || 'bg-muted-foreground/20 text-muted-foreground') : '';
