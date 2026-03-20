@@ -87,13 +87,10 @@ export function formatDueDate(value?: string | Date | null, status?: string): st
   const timeSuffix = hasTime ? ` at ${time}` : '';
 
   // Completed tasks never show as overdue
-  if (status !== 'done' && isPast(date)) {
-    const elapsedHours = Math.max(1, Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60)));
-    if (elapsedHours < 24) {
-      return `Overdue by ${elapsedHours} hour${elapsedHours === 1 ? '' : 's'}`;
-    }
-    const days = Math.floor(elapsedHours / 24);
-    return `Overdue by ${days} day${days === 1 ? '' : 's'}`;
+  // Treat due dates as overdue only from the next calendar day (not later today)
+  const daysPastDue = differenceInCalendarDays(now, date);
+  if (status !== 'done' && daysPastDue > 0) {
+    return `Overdue by ${daysPastDue} day${daysPastDue === 1 ? '' : 's'}`;
   }
 
   if (isToday(date)) return hasTime ? `Today ${time}` : 'Due today';
@@ -111,11 +108,9 @@ export function getDueDateColor(value?: string | Date | null, status?: string): 
   // Completed tasks never show as overdue
   if (status === 'done') return 'text-muted-foreground';
 
-  // Overdue = red. Includes today if specific time has passed.
-  if (isPast(date)) {
-    if (!isToday(date)) return 'text-destructive';
-    const time = format(date, 'HH:mm');
-    if (time !== '00:00') return 'text-destructive';
+  // Overdue = red only after due date calendar day has passed
+  if (differenceInCalendarDays(new Date(), date) > 0) {
+    return 'text-destructive';
   }
   return 'text-muted-foreground';
 }

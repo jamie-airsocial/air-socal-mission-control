@@ -56,9 +56,19 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
     ? formatCompletedAt(task.completed_at, task.updated_at)
     : task.due_date 
       ? { text: formatDueDate(task.due_date, task.status), className: getDueDateColor(task.due_date, task.status) }
-      : task.created_at
-        ? { text: `Created ${new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`, className: 'text-muted-foreground/50' }
-        : null;
+      : null;
+
+  const startLabel = task.start_date
+    ? new Date(task.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    : null;
+  const endLabel = task.due_date
+    ? formatDueDate(task.due_date, task.status)
+    : null;
+  const dateRangeLabel = startLabel && endLabel
+    ? `${startLabel} → ${endLabel}`
+    : endLabel || (task.created_at
+        ? `Created ${new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+        : null);
   const isDone = task.status === 'done';
   const assigneeColor = task.assignee ? (ASSIGNEE_COLORS[task.assignee] || 'bg-muted-foreground/20 text-muted-foreground') : '';
 
@@ -125,10 +135,10 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            {due && (
-              <div className={`flex items-center gap-1 ${due.className}`}>
+            {dateRangeLabel && (
+              <div className={`flex items-center gap-1 ${due?.className || 'text-muted-foreground/50'}`}>
                 {isDone ? <Check size={11} /> : <CalendarDays size={11} />}
-                <span className="text-[11px]">{due.text}</span>
+                <span className="text-[11px] whitespace-nowrap">{dateRangeLabel}</span>
               </div>
             )}
             {task.assignee && (
