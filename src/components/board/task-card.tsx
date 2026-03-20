@@ -77,13 +77,7 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
     ? startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : null;
   const endLabel = dueDate
-    ? (() => {
-        const absolute = dueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-        const now = new Date();
-        const overdueDays = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())) / (1000 * 60 * 60 * 24));
-        if (task.status !== 'done' && overdueDays > 0) return `${absolute} (${overdueDays}d overdue)`;
-        return formatDueDate(dueRaw as string, task.status);
-      })()
+    ? dueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : null;
   const sameDay = startDate && dueDate
     ? startDate.toDateString() === dueDate.toDateString()
