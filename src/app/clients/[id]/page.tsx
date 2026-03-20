@@ -733,6 +733,13 @@ export default function ClientDetailPage() {
 
   const handleTaskSave = useCallback(async (data: Partial<Task>, opts?: { optimistic?: boolean; taskId?: string }) => {
     if (opts?.optimistic && opts.taskId) return; // ignore optimistic updates for now
+
+    // TaskSheet uses onSave({}) as a refresh signal after its own successful create flow
+    if (isNew && !data.title) {
+      fetchData();
+      return;
+    }
+
     if (isNew) {
       const res = await fetch('/api/tasks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
