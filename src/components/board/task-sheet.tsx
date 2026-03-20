@@ -562,6 +562,17 @@ export function TaskSheet({
     }
   };
 
+  // Keep team in sync with selected assignee's team once user data is available
+  useEffect(() => {
+    if (!form.assignee) return;
+    const assigneeUser = users.find(u => u.full_name === form.assignee);
+    const assigneeTeam = assigneeUser?.team || '';
+    if (!assigneeTeam) return;
+    if (form.client_team === assigneeTeam) return;
+    setForm(prev => (prev.assignee === form.assignee ? { ...prev, client_team: assigneeTeam } : prev));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.assignee, users]);
+
   // Instant save for discrete property changes (status, priority, assignee, labels, project, due date)
   useEffect(() => {
     if (isNew || !task?.id) return;
@@ -1065,11 +1076,11 @@ export function TaskSheet({
                 onChange={(assignee) => {
                   // Default team to selected assignee's team (can still be manually changed afterwards)
                   const assigneeUser = users.find(u => u.full_name === assignee);
-                  setForm({
-                    ...form,
+                  setForm(prev => ({
+                    ...prev,
                     assignee,
-                    client_team: assigneeUser?.team || form.client_team,
-                  });
+                    client_team: assigneeUser?.team || prev.client_team,
+                  }));
                 }}
                 open={assigneeOpen}
                 onOpenChange={setAssigneeOpen}
