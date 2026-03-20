@@ -96,8 +96,9 @@ export function formatDueDate(value?: string | Date | null, status?: string): st
   if (isToday(date)) return hasTime ? `Today ${time}` : 'Due today';
   if (isTomorrow(date)) return hasTime ? `Tomorrow ${time}` : 'Due tomorrow';
   if (daysUntilDue > 0 && daysUntilDue <= 7) return `${format(date, 'EEE')}${timeSuffix}`;
-  
-  return `${format(date, 'd MMM yyyy')}${timeSuffix}`;
+
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return `${format(date, sameYear ? 'd MMM' : 'd MMM yyyy')}${timeSuffix}`;
 }
 
 export function getDueDateColor(value?: string | Date | null, status?: string): string {
