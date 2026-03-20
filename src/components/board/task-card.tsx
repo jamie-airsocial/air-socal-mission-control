@@ -160,7 +160,7 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
             {dateRangeLabel && (
               <div className={`flex items-start gap-1 ${due?.className || 'text-muted-foreground'}`}>
                 {isDone ? <Check size={11} className="mt-0.5" /> : <CalendarDays size={11} className="mt-0.5" />}
-                <div className="leading-tight">
+                <div className="leading-tight text-right">
                   <div className="text-[11px] whitespace-nowrap">{dateRangeLabel}</div>
                   {!isDone && overdueDays > 0 && (
                     <div className="text-[10px] text-destructive/80">{overdueDays}d overdue</div>

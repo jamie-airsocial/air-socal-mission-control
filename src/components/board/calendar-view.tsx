@@ -502,8 +502,9 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
           }
           cursor.setDate(cursor.getDate() + 1);
         }
-      } else if (task.due_date) {
-        const d = new Date(task.due_date);
+      } else if (task.start_date || task.due_date) {
+        // Single-date task: show on start_date when present, otherwise due_date
+        const d = new Date(task.start_date || task.due_date!);
         const key = getDateKey(d);
         if (!map.has(key)) map.set(key, []);
         map.get(key)!.push(task);
@@ -620,7 +621,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
   const handleMonthDrop = useCallback((taskId: string, targetDate: Date) => {
     if (!onDateChange) return;
     const task = tasks.find(t => t.id === taskId);
-    const originalDate = task?.due_date ? new Date(task.due_date) : null;
+    const originalDate = (task?.start_date || task?.due_date) ? new Date(task.start_date || task.due_date!) : null;
     const newDate = new Date(targetDate);
     if (originalDate && hasSpecificTime(task!)) {
       // Task had a specific time — preserve it and store as full ISO
@@ -662,7 +663,9 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
 
   // Get the source cell key for the dragged task
   const draggedTask = draggedTaskId ? tasks.find(t => t.id === draggedTaskId) : null;
-  const sourceCellKey = draggedTask?.due_date ? getDateKey(new Date(draggedTask.due_date)) : null;
+  const sourceCellKey = (draggedTask?.start_date || draggedTask?.due_date)
+    ? getDateKey(new Date(draggedTask.start_date || draggedTask.due_date!))
+    : null;
   const sourceHour = draggedTask?.due_date && hasSpecificTime(draggedTask) ? Math.floor(getTaskHour(draggedTask)) : null;
 
   const tasksWithDueDates = tasks.filter(t => t.due_date || t.start_date);
