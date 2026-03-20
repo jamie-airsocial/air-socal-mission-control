@@ -79,6 +79,9 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
   const endLabel = dueDate
     ? dueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
     : null;
+  const overdueDays = dueDate
+    ? Math.floor((Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()) - Date.UTC(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())) / (1000 * 60 * 60 * 24))
+    : 0;
   const sameDay = startDate && dueDate
     ? startDate.toDateString() === dueDate.toDateString()
     : false;
@@ -155,9 +158,14 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
 
           <div className="flex items-center gap-2 shrink-0">
             {dateRangeLabel && (
-              <div className={`flex items-center gap-1 ${due?.className || 'text-muted-foreground'}`}>
-                {isDone ? <Check size={11} /> : <CalendarDays size={11} />}
-                <span className="text-[11px] whitespace-nowrap">{dateRangeLabel}</span>
+              <div className={`flex items-start gap-1 ${due?.className || 'text-muted-foreground'}`}>
+                {isDone ? <Check size={11} className="mt-0.5" /> : <CalendarDays size={11} className="mt-0.5" />}
+                <div className="leading-tight">
+                  <div className="text-[11px] whitespace-nowrap">{dateRangeLabel}</div>
+                  {!isDone && overdueDays > 0 && (
+                    <div className="text-[10px] text-destructive/80">{overdueDays}d overdue</div>
+                  )}
+                </div>
               </div>
             )}
             {task.assignee && (
