@@ -65,7 +65,9 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
     ? formatDueDate(task.due_date, task.status)
     : null;
   const dateRangeLabel = startLabel && endLabel
-    ? `${startLabel} → ${endLabel}`
+    ? (startLabel === new Date(task.due_date as string).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+        ? endLabel
+        : `${startLabel} → ${endLabel}`)
     : endLabel || (task.created_at
         ? `Created ${new Date(task.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
         : null);
