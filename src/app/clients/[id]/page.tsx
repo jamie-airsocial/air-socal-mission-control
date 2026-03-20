@@ -736,9 +736,22 @@ export default function ClientDetailPage() {
     if (isNew) {
       const res = await fetch('/api/tasks', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, client_id: clientId }),
+        body: JSON.stringify({
+          ...data,
+          client_id: clientId,
+          // Ensure client task creates always carry a team fallback
+          team: (data as { team?: string | null }).team ?? data.client_team ?? client?.team ?? null,
+        }),
       });
-      if (!res.ok) { toast.error('Failed to create task'); return; }
+      if (!res.ok) {
+        let msg = 'Failed to create task';
+        try {
+          const err = await res.json();
+          if (err?.error) msg = err.error;
+        } catch {}
+        toast.error(msg);
+        return;
+      }
       toast.success('Task created');
     } else if (selectedTask) {
       const res = await fetch(`/api/tasks/${selectedTask.id}`, {
@@ -750,7 +763,7 @@ export default function ClientDetailPage() {
     setSheetOpen(false);
     setSelectedTask(null);
     fetchData();
-  }, [isNew, selectedTask, clientId, fetchData]);
+  }, [isNew, selectedTask, clientId, client?.team, fetchData]);
 
   const handleTaskDelete = useCallback(async () => {
     if (!selectedTask) return;
