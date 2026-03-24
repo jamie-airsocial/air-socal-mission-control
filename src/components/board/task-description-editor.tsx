@@ -395,8 +395,8 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File too large', { description: 'Maximum upload size is 10MB.' });
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File too large', { description: 'Maximum upload size is 25MB.' });
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -406,13 +406,13 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) {
-        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 10MB.' });
+        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 25MB.' });
       } else if (data.url) {
         editor.commands.insertContent({ type: 'image', attrs: { src: data.url, alt: file.name } });
       }
     } catch (err) {
       console.error('Image upload failed:', err);
-      toast.error('Upload failed', { description: 'Maximum upload size is 10MB.' });
+      toast.error('Upload failed', { description: 'Maximum upload size is 25MB.' });
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -420,8 +420,8 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   const handleDocUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('File too large', { description: 'Maximum upload size is 10MB.' });
+    if (file.size > 25 * 1024 * 1024) {
+      toast.error('File too large', { description: 'Maximum upload size is 25MB.' });
       if (docInputRef.current) docInputRef.current.value = '';
       return;
     }
@@ -431,7 +431,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
       if (!res.ok) {
-        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 10MB.' });
+        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 25MB.' });
       } else if (data.url) {
         editor.commands.insertContent({
           type: 'fileAttachment',
@@ -440,7 +440,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       }
     } catch (err) {
       console.error('Document upload failed:', err);
-      toast.error('Upload failed', { description: 'Maximum upload size is 10MB.' });
+      toast.error('Upload failed', { description: 'Maximum upload size is 25MB.' });
     }
     if (docInputRef.current) docInputRef.current.value = '';
   };
@@ -652,7 +652,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
         <span className="text-[11px] text-muted-foreground/30">
           Type <kbd className="px-1 py-0.5 rounded bg-muted/30 text-muted-foreground/30 text-[10px] font-mono">/</kbd> for commands
         </span>
-        <span className="text-[11px] text-muted-foreground/30">Uploads up to 10MB</span>
+        <span className="text-[11px] text-muted-foreground/30">Uploads up to 25MB</span>
       </div>
     </div>
     </TooltipProvider>
