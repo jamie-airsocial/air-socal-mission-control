@@ -394,33 +394,27 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   }
 
   const uploadFile = async (file: File): Promise<{ url?: string; fileName?: string; error?: string }> => {
-    const prepRes = await fetch('/api/upload/signed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: file.name, contentType: file.type, size: file.size }),
-    });
-    const prep = await prepRes.json();
-    if (!prepRes.ok) throw new Error(prep?.error || 'Failed to prepare upload');
-
     return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', file);
       const xhr = new XMLHttpRequest();
-      xhr.open('PUT', prep.signedUrl);
-      xhr.setRequestHeader('x-upsert', 'true');
-      if (file.type) xhr.setRequestHeader('content-type', file.type);
+      xhr.open('POST', '/api/upload');
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
           setUploading({ name: file.name, progress: Math.round((event.loaded / event.total) * 100) });
         }
       };
       xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve({ url: prep.publicUrl, fileName: file.name });
-        } else {
-          reject(new Error(`Upload failed (${xhr.status})`));
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+          else reject(new Error(data?.error || 'Upload failed'));
+        } catch {
+          reject(new Error('Upload failed'));
         }
       };
       xhr.onerror = () => reject(new Error('Upload failed'));
-      xhr.send(file);
+      xhr.send(formData);
     });
   };
 
