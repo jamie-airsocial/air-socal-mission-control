@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
+import { supabase } from '@/lib/supabase';
 
 const CompactEmojiPicker = dynamic(() => import('@/components/editor/emoji-picker').then(mod => ({ default: mod.CompactEmojiPicker })), {
   ssr: false,
@@ -394,6 +395,25 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   }
 
   const uploadFile = async (file: File): Promise<{ url?: string; fileName?: string; error?: string }> => {
+    // Larger files bypass the app server and upload directly to Supabase Storage.
+    if (file.size > 8 * 1024 * 1024) {
+      const prepRes = await fetch('/api/upload/signed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, size: file.size }),
+      });
+      const prep = await prepRes.json();
+      if (!prepRes.ok) throw new Error(prep?.error || 'Failed to prepare upload');
+
+      setUploading({ name: file.name, progress: 10 });
+      const { error } = await supabase.storage.from('uploads').uploadToSignedUrl(prep.path, prep.token, file, {
+        upsert: true,
+      });
+      if (error) throw new Error(error.message || 'Upload failed');
+      setUploading({ name: file.name, progress: 100 });
+      return { url: prep.publicUrl, fileName: file.name };
+    }
+
     return new Promise((resolve, reject) => {
       const formData = new FormData();
       formData.append('file', file);
