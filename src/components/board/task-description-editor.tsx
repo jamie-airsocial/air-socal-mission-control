@@ -16,7 +16,6 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { createClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 const CompactEmojiPicker = dynamic(() => import('@/components/editor/emoji-picker').then(mod => ({ default: mod.CompactEmojiPicker })), {
@@ -73,10 +72,6 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   const docInputRef = useRef<HTMLInputElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [uploading, setUploading] = useState<{ name: string; progress: number } | null>(null);
-  const supabaseBrowser = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   // Track mentions we've already notified to avoid spam on every keystroke
   const notifiedMentions = useRef<Set<string>>(new Set());
@@ -399,19 +394,28 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   }
 
   const uploadFile = async (file: File): Promise<{ url?: string; fileName?: string; error?: string }> => {
-    const prepRes = await fetch('/api/upload/signed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: file.name, size: file.size }),
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload');
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setUploading({ name: file.name, progress: Math.round((event.loaded / event.total) * 100) });
+        }
+      };
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+          else reject(new Error(data?.error || 'Upload failed'));
+        } catch {
+          reject(new Error('Upload failed'));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(formData);
     });
-    const prep = await prepRes.json();
-    if (!prepRes.ok) throw new Error(prep?.error || 'Failed to prepare upload');
-
-    setUploading({ name: file.name, progress: 15 });
-    const { error } = await supabaseBrowser.storage.from('uploads').uploadToSignedUrl(prep.path, prep.token, file);
-    if (error) throw new Error(error.message || 'Upload failed');
-    setUploading({ name: file.name, progress: 100 });
-    return { url: prep.publicUrl, fileName: file.name };
   };
 
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
