@@ -424,14 +424,14 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
             xhr.send(file);
           });
         } else {
-          const { error } = await supabase.storage.from('uploads').uploadToSignedUrl(prep.path, prep.token, file, {
+          const { error } = await supabase.storage.from('documents').uploadToSignedUrl(prep.path, prep.token, file, {
             upsert: true,
           });
           if (error) throw error;
         }
       } catch (signedError) {
         // Fallback: try direct browser upload with current client/session
-        const { error: directError } = await supabase.storage.from('uploads').upload(prep.path, file, {
+        const { error: directError } = await supabase.storage.from('documents').upload(prep.path, file, {
           upsert: true,
           contentType: file.type || undefined,
         });

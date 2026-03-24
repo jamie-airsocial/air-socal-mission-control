@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
     const base = fileName.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '-').slice(0, 80);
     const path = `${Date.now()}-${base}.${ext}`;
 
-    const { data, error } = await supabaseAdmin.storage.from('uploads').createSignedUploadUrl(path);
+    const { data, error } = await supabaseAdmin.storage.from('documents').createSignedUploadUrl(path);
     if (error || !data?.token) {
       return NextResponse.json({ error: error?.message || 'Failed to prepare upload' }, { status: 500 });
     }
 
-    const { data: publicData } = supabaseAdmin.storage.from('uploads').getPublicUrl(path);
+    const { data: publicData } = supabaseAdmin.storage.from('documents').getPublicUrl(path);
     return NextResponse.json({ path, token: data.token, signedUrl: (data as { signedUrl?: string }).signedUrl, publicUrl: publicData.publicUrl });
   } catch (error) {
     console.error('Signed upload prepare error:', error);
