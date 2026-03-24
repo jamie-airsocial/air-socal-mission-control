@@ -71,6 +71,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [uploading, setUploading] = useState<{ name: string; progress: number } | null>(null);
   const emojiButtonRef = useRef<HTMLButtonElement>(null);
   // Track mentions we've already notified to avoid spam on every keystroke
   const notifiedMentions = useRef<Set<string>>(new Set());
@@ -392,6 +393,31 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
     return null;
   }
 
+  const uploadFile = async (file: File): Promise<{ url?: string; fileName?: string; error?: string }> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/upload');
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          setUploading({ name: file.name, progress: Math.round((event.loaded / event.total) * 100) });
+        }
+      };
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+          else reject(new Error(data?.error || 'Upload failed'));
+        } catch {
+          reject(new Error('Upload failed'));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.send(formData);
+    });
+  };
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -400,19 +426,17 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    const formData = new FormData();
-    formData.append('file', file);
+    setUploading({ name: file.name, progress: 0 });
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 25MB.' });
-      } else if (data.url) {
+      const data = await uploadFile(file);
+      if (data.url) {
         editor.commands.insertContent({ type: 'image', attrs: { src: data.url, alt: file.name } });
       }
     } catch (err) {
       console.error('Image upload failed:', err);
-      toast.error('Upload failed', { description: 'Maximum upload size is 25MB.' });
+      toast.error('Upload failed', { description: err instanceof Error ? err.message : 'Maximum upload size is 25MB.' });
+    } finally {
+      setUploading(null);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -425,14 +449,10 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       if (docInputRef.current) docInputRef.current.value = '';
       return;
     }
-    const formData = new FormData();
-    formData.append('file', file);
+    setUploading({ name: file.name, progress: 0 });
     try {
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 25MB.' });
-      } else if (data.url) {
+      const data = await uploadFile(file);
+      if (data.url) {
         editor.commands.insertContent({
           type: 'fileAttachment',
           attrs: { src: data.url, fileName: data.fileName || file.name },
@@ -440,7 +460,9 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       }
     } catch (err) {
       console.error('Document upload failed:', err);
-      toast.error('Upload failed', { description: 'Maximum upload size is 25MB.' });
+      toast.error('Upload failed', { description: err instanceof Error ? err.message : 'Maximum upload size is 25MB.' });
+    } finally {
+      setUploading(null);
     }
     if (docInputRef.current) docInputRef.current.value = '';
   };
@@ -652,7 +674,17 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
         <span className="text-[11px] text-muted-foreground/30">
           Type <kbd className="px-1 py-0.5 rounded bg-muted/30 text-muted-foreground/30 text-[10px] font-mono">/</kbd> for commands
         </span>
-        <span className="text-[11px] text-muted-foreground/30">Uploads up to 25MB</span>
+        {uploading ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] text-muted-foreground/60 truncate max-w-[180px]">Uploading {uploading.name}</span>
+            <div className="w-20 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${uploading.progress}%` }} />
+            </div>
+            <span className="text-[11px] text-muted-foreground/60 w-9 text-right">{uploading.progress}%</span>
+          </div>
+        ) : (
+          <span className="text-[11px] text-muted-foreground/30">Uploads up to 25MB</span>
+        )}
       </div>
     </div>
     </TooltipProvider>
