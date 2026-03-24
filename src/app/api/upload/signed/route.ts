@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: publicData } = supabaseAdmin.storage.from('uploads').getPublicUrl(path);
-    return NextResponse.json({ path, token: data.token, publicUrl: publicData.publicUrl });
+    return NextResponse.json({ path, token: data.token, signedUrl: (data as { signedUrl?: string }).signedUrl, publicUrl: publicData.publicUrl });
   } catch (error) {
     console.error('Signed upload prepare error:', error);
     return NextResponse.json({ error: 'Failed to prepare upload' }, { status: 500 });

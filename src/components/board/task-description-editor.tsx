@@ -405,11 +405,30 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       const prep = await prepRes.json();
       if (!prepRes.ok) throw new Error(prep?.error || 'Failed to prepare upload');
 
-      setUploading({ name: file.name, progress: 10 });
-      const { error } = await supabase.storage.from('uploads').uploadToSignedUrl(prep.path, prep.token, file, {
-        upsert: true,
-      });
-      if (error) throw new Error(error.message || 'Upload failed');
+      if (prep.signedUrl) {
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', prep.signedUrl);
+          if (file.type) xhr.setRequestHeader('content-type', file.type);
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              setUploading({ name: file.name, progress: Math.max(10, Math.round((event.loaded / event.total) * 100)) });
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else reject(new Error(`Upload failed (${xhr.status})`));
+          };
+          xhr.onerror = () => reject(new Error('Upload failed'));
+          xhr.send(file);
+        });
+      } else {
+        setUploading({ name: file.name, progress: 10 });
+        const { error } = await supabase.storage.from('uploads').uploadToSignedUrl(prep.path, prep.token, file, {
+          upsert: true,
+        });
+        if (error) throw new Error(error.message || 'Upload failed');
+      }
       setUploading({ name: file.name, progress: 100 });
       return { url: prep.publicUrl, fileName: file.name };
     }
