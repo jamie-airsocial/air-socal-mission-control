@@ -16,6 +16,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { toast } from 'sonner';
 
 const CompactEmojiPicker = dynamic(() => import('@/components/editor/emoji-picker').then(mod => ({ default: mod.CompactEmojiPicker })), {
   ssr: false,
@@ -394,16 +395,24 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large', { description: 'Maximum upload size is 10MB.' });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     const formData = new FormData();
     formData.append('file', file);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.url) {
+      if (!res.ok) {
+        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 10MB.' });
+      } else if (data.url) {
         editor.commands.insertContent({ type: 'image', attrs: { src: data.url, alt: file.name } });
       }
     } catch (err) {
       console.error('Image upload failed:', err);
+      toast.error('Upload failed', { description: 'Maximum upload size is 10MB.' });
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -411,12 +420,19 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
   const handleDocUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large', { description: 'Maximum upload size is 10MB.' });
+      if (docInputRef.current) docInputRef.current.value = '';
+      return;
+    }
     const formData = new FormData();
     formData.append('file', file);
     try {
       const res = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await res.json();
-      if (data.url) {
+      if (!res.ok) {
+        toast.error('Upload failed', { description: data?.error || 'Maximum upload size is 10MB.' });
+      } else if (data.url) {
         editor.commands.insertContent({
           type: 'fileAttachment',
           attrs: { src: data.url, fileName: data.fileName || file.name },
@@ -424,6 +440,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       }
     } catch (err) {
       console.error('Document upload failed:', err);
+      toast.error('Upload failed', { description: 'Maximum upload size is 10MB.' });
     }
     if (docInputRef.current) docInputRef.current.value = '';
   };
@@ -631,10 +648,11 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
         <EditorContent editor={editor} />
       </div>
       {/* Slash command hint strip */}
-      <div className="flex items-center px-3 py-1.5 border-t border-border/20 bg-muted/20">
+      <div className="flex items-center justify-between gap-3 px-3 py-1.5 border-t border-border/20 bg-muted/20">
         <span className="text-[11px] text-muted-foreground/30">
           Type <kbd className="px-1 py-0.5 rounded bg-muted/30 text-muted-foreground/30 text-[10px] font-mono">/</kbd> for commands
         </span>
+        <span className="text-[11px] text-muted-foreground/30">Uploads up to 10MB</span>
       </div>
     </div>
     </TooltipProvider>
