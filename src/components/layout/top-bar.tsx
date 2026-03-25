@@ -379,7 +379,7 @@ export function TopBar() {
           {/* Settings / Profile */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <Link href={isAdmin ? '/admin' : '/admin/profile'}>
+              <Link href={permissions.settings || isAdmin ? '/admin' : '/admin/profile'}>
                 <button
                   aria-label="Settings"
                   className="h-9 w-9 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:scale-[0.95] transition-all duration-150"
@@ -388,7 +388,7 @@ export function TopBar() {
                 </button>
               </Link>
             </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[12px]">{isAdmin ? 'Settings' : 'My Profile'}</TooltipContent>
+            <TooltipContent side="bottom" className="text-[12px]">{permissions.settings || isAdmin ? 'Settings' : 'My Profile'}</TooltipContent>
           </Tooltip>
 
           {/* Theme toggle */}
