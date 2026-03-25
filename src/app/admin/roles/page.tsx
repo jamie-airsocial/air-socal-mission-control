@@ -62,7 +62,7 @@ const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.ke
 const DEFAULT_PERMS: Permissions = {
   clients: true,
   tasks: true,
-  pipeline: false,
+  pipeline: true,
   teams: true,
   settings: false,
 };
@@ -423,13 +423,13 @@ export default function AdminRolesPage() {
                       </td>
                       {/* Toggle cells */}
                       {otherRoles.map(role => {
-                        const checked = role.permissions?.[key] === true;
+                        const checked = key === 'pipeline' ? true : role.permissions?.[key] === true;
                         const isDelivery = role.category === 'delivery';
                         return (
                           <td key={role.id} className={`px-3 py-2 text-center border-l border-border/10 ${isDelivery ? 'bg-primary/[0.02]' : ''}`}>
                             <PermissionCell
                               checked={checked}
-                              disabled={false}
+                              disabled={key === 'pipeline'}
                               onChange={v => savePermission(role.id, key, v)}
                             />
                           </td>
@@ -497,7 +497,8 @@ export default function AdminRolesPage() {
                     <div key={key} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/40">
                       <span className="text-[13px] text-foreground">{label}</span>
                       <Switch
-                        checked={newPerms[key] === true}
+                        checked={key === 'pipeline' ? true : newPerms[key] === true}
+                        disabled={key === 'pipeline'}
                         onCheckedChange={v => setNewPerms(p => ({ ...p, [key]: v }))}
                       />
                     </div>
@@ -568,7 +569,8 @@ export default function AdminRolesPage() {
                     <div key={key} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-secondary/40">
                       <span className="text-[13px] text-foreground">{label}</span>
                       <Switch
-                        checked={editPerms[key] === true}
+                        checked={key === 'pipeline' ? true : editPerms[key] === true}
+                        disabled={key === 'pipeline'}
                         onCheckedChange={v => setEditPerms(p => ({ ...p, [key]: v }))}
                       />
                     </div>
