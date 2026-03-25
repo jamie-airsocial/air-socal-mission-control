@@ -429,7 +429,7 @@ export default function AdminRolesPage() {
                           <td key={role.id} className={`px-3 py-2 text-center border-l border-border/10 ${isDelivery ? 'bg-primary/[0.02]' : ''}`}>
                             <PermissionCell
                               checked={checked}
-                              disabled={key === 'pipeline'}
+                              disabled={false}
                               onChange={v => savePermission(role.id, key, v)}
                             />
                           </td>
@@ -498,7 +498,6 @@ export default function AdminRolesPage() {
                       <span className="text-[13px] text-foreground">{label}</span>
                       <Switch
                         checked={key === 'pipeline' ? true : newPerms[key] === true}
-                        disabled={key === 'pipeline'}
                         onCheckedChange={v => setNewPerms(p => ({ ...p, [key]: v }))}
                       />
                     </div>
@@ -570,7 +569,6 @@ export default function AdminRolesPage() {
                       <span className="text-[13px] text-foreground">{label}</span>
                       <Switch
                         checked={key === 'pipeline' ? true : editPerms[key] === true}
-                        disabled={key === 'pipeline'}
                         onCheckedChange={v => setEditPerms(p => ({ ...p, [key]: v }))}
                       />
                     </div>
