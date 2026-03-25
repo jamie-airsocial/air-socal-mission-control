@@ -73,7 +73,7 @@ export function FilterPopover({
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
-          className={`h-8 px-3 text-[13px] rounded-lg border flex items-center gap-1.5 transition-colors whitespace-nowrap ${
+          className={`h-7.5 px-2.5 text-[12px] rounded-lg border flex items-center gap-1 transition-colors whitespace-nowrap ${
             hasActive
               ? 'border-primary text-primary'
               : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
@@ -85,8 +85,8 @@ export function FilterPopover({
               style={{ backgroundColor: options.find(o => o.value === selected[0])?.dot }}
             />
           )}
-          <span className="truncate max-w-[100px]">{displayText}</span>
-          <ChevronDown size={12} className="text-muted-foreground/60" />
+          <span className="truncate max-w-[92px]">{displayText}</span>
+          <ChevronDown size={11} className="text-muted-foreground/60" />
         </button>
       </PopoverTrigger>
       <PopoverContent className={`${width} p-0`} align="start">

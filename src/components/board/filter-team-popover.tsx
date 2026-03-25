@@ -59,11 +59,11 @@ export function FilterTeamPopover({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <button aria-label="Filter by team" className={`h-8 px-3 text-[13px] rounded-lg border transition-colors duration-150 flex items-center gap-1.5 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
+        <button aria-label="Filter by team" className={`h-7.5 px-2.5 text-[12px] rounded-lg border transition-colors duration-150 flex items-center gap-1 whitespace-nowrap focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
           isActive ? 'border-primary text-primary' : 'border-border/20 bg-secondary text-foreground hover:border-primary/50'
         }`}>
-          <span className="truncate max-w-[100px]">{displayText}</span>
-          <ChevronDown size={12} className="text-muted-foreground/60" />
+          <span className="truncate max-w-[92px]">{displayText}</span>
+          <ChevronDown size={11} className="text-muted-foreground/60" />
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-0" align="start">
