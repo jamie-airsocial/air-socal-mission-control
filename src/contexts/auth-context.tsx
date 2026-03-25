@@ -87,6 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ...DEFAULT_PERMISSIONS,
             ...rolePerms,
             ...userOverrides,
+            pipeline: true,
           } as Permissions);
         }
         setRoleName(data.role?.name || null);
@@ -167,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const effectivePermissions = viewAsUser ? (() => {
     const rolePerms = viewAsUser.role?.permissions || DEFAULT_PERMISSIONS;
     const userOverrides = viewAsUser.permission_overrides || {};
-    return { ...DEFAULT_PERMISSIONS, ...rolePerms, ...userOverrides } as Permissions;
+    return { ...DEFAULT_PERMISSIONS, ...rolePerms, ...userOverrides, pipeline: true } as Permissions;
   })() : permissions;
 
   // When viewing as another user, isAdmin reflects THEIR status (so you see exactly what they see)
