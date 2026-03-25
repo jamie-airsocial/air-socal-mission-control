@@ -457,7 +457,7 @@ export default function AdminUsersPage() {
     // Load current effective permissions (role + overrides)
     const rolePerms = user.role?.permissions || {};
     const userOverrides = user.permission_overrides || {};
-    setCustomPermissions({ ...rolePerms, ...userOverrides });
+    setCustomPermissions({ ...rolePerms, ...userOverrides, pipeline: true });
     setPermissionsOpen(true);
   };
 
@@ -469,6 +469,7 @@ export default function AdminUsersPage() {
       const rolePerms = (permissionsTarget.role?.permissions || {}) as Record<string, boolean | undefined>;
       const overrides: Record<string, boolean> = {};
       Object.keys(customPermissions).forEach((key) => {
+        if (key === 'pipeline') return; // pipeline is always enabled globally
         if (customPermissions[key] !== rolePerms[key]) {
           overrides[key] = customPermissions[key] || false;
         }
@@ -1153,7 +1154,7 @@ export default function AdminUsersPage() {
                               <span className="text-[13px]">{label}</span>
                             </div>
                             <Switch
-                              checked={customPermissions[key] || false}
+                              checked={key === 'pipeline' ? true : (customPermissions[key] || false)}
                               onCheckedChange={(checked) => setCustomPermissions(p => ({ ...p, [key]: checked }))}
                             />
                           </div>
