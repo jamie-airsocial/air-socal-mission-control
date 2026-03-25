@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Plus, Pencil, UserX, UserCheck, LockKeyhole, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, KeyRound } from 'lucide-react';
+import { Plus, Pencil, UserX, UserCheck, LockKeyhole, Trash2, Clock, Search, X, ChevronsUpDown, ChevronUp, ChevronDown, Filter, Check, ShieldCheck, KeyRound, Settings2, Users } from 'lucide-react';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -35,6 +36,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 // Check + ChevronDown consolidated into top import
 import { ASSIGNEE_COLORS, TEAM_STYLES, getTeamStyle } from '@/lib/constants';
 import type { AppUser, Role } from '@/lib/auth-types';
@@ -144,7 +146,24 @@ interface UserFormData {
   capacity_target: string;
 }
 
+interface BulkEditFormData {
+  team: string;
+  role_id: string;
+  is_active: 'keep' | 'active' | 'inactive';
+  is_admin: 'keep' | 'grant' | 'revoke';
+  permission_overrides: 'keep' | 'reset';
+  password: string;
+}
+
 const emptyForm: UserFormData = { email: '', full_name: '', role_id: '', team: '', password: '', capacity_target: '' };
+const emptyBulkForm: BulkEditFormData = {
+  team: '',
+  role_id: '',
+  is_active: 'keep',
+  is_admin: 'keep',
+  permission_overrides: 'keep',
+  password: '',
+};
 
 // ── Main page ────────────────────────────────────────────────────────────────
 // Owner accounts — permissions cannot be changed by anyone
@@ -163,6 +182,10 @@ export default function AdminUsersPage() {
   const [filterRoles, setFilterRoles] = useState<string[]>([]);
   const [sortField, setSortField] = useState<'name' | 'email' | 'team' | 'role' | 'lastActive' | 'status'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkForm, setBulkForm] = useState<BulkEditFormData>(emptyBulkForm);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const toggleSort = (field: typeof sortField) => {
     if (sortField === field) {
@@ -232,6 +255,10 @@ export default function AdminUsersPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    setSelectedUserIds(prev => prev.filter(id => users.some(user => user.id === id)));
+  }, [users]);
 
   // ── Add/Edit ───────────────────────────────────────────────────────────────
   const openAdd = () => { setEditingUser(null); setForm(emptyForm); setDialogOpen(true); };
@@ -548,18 +575,130 @@ export default function AdminUsersPage() {
     }
   });
 
+  const visibleSelectableUserIds = useMemo(
+    () => sortedUsers.filter(user => !OWNER_USER_IDS.includes(user.id)).map(user => user.id),
+    [sortedUsers]
+  );
+  const selectedVisibleUserIds = visibleSelectableUserIds.filter(id => selectedUserIds.includes(id));
+  const selectedUsers = users.filter(user => selectedUserIds.includes(user.id));
+  const selectedCount = selectedUsers.length;
+  const allVisibleSelected = visibleSelectableUserIds.length > 0 && selectedVisibleUserIds.length === visibleSelectableUserIds.length;
+  const someVisibleSelected = selectedVisibleUserIds.length > 0 && !allVisibleSelected;
   const hasFilters = searchQuery || filterTeams.length > 0 || filterRoles.length > 0;
+
+  const toggleUserSelection = (userId: string, checked: boolean) => {
+    setSelectedUserIds(prev => checked ? [...new Set([...prev, userId])] : prev.filter(id => id !== userId));
+  };
+
+  const toggleAllVisibleUsers = (checked: boolean) => {
+    setSelectedUserIds(prev => {
+      if (checked) return [...new Set([...prev, ...visibleSelectableUserIds])];
+      return prev.filter(id => !visibleSelectableUserIds.includes(id));
+    });
+  };
+
+  const openBulkEdit = () => {
+    if (selectedCount === 0) return;
+    setBulkForm(emptyBulkForm);
+    setBulkDialogOpen(true);
+  };
+
+  const handleBulkEdit = async () => {
+    if (selectedCount === 0) return;
+
+    const updates: Record<string, unknown> = {};
+    if (bulkForm.team) updates.team = bulkForm.team;
+    if (bulkForm.role_id) updates.role_id = bulkForm.role_id;
+    if (bulkForm.is_active !== 'keep') updates.is_active = bulkForm.is_active === 'active';
+    if (bulkForm.is_admin !== 'keep') updates.is_admin = bulkForm.is_admin === 'grant';
+    if (bulkForm.permission_overrides === 'reset') updates.permission_overrides = null;
+    const password = bulkForm.password.trim();
+
+    if (Object.keys(updates).length === 0 && !password) {
+      toast.error('Choose at least one change to apply');
+      return;
+    }
+
+    if (password && password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    const protectedUsers = selectedUsers.filter(user => OWNER_USER_IDS.includes(user.id));
+    if (protectedUsers.length > 0) {
+      toast.error('Owner account cannot be bulk edited', { description: 'Deselect the owner account and try again.' });
+      return;
+    }
+
+    setBulkSaving(true);
+    try {
+      const res = await fetch('/api/users/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_ids: selectedUsers.map(user => user.id),
+          updates,
+          password: password || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok && res.status !== 207) {
+        throw new Error(data.error || 'Failed to apply bulk changes');
+      }
+
+      await loadData();
+
+      if (data.failed_count > 0) {
+        toast.error('Bulk edit partially failed', {
+          description: `Updated ${data.updated_count} user${data.updated_count === 1 ? '' : 's'}. ${data.failures.map((failure: { full_name: string; error: string }) => `${failure.full_name}: ${failure.error}`).join(' · ')}`
+        });
+        setSelectedUserIds(data.failures.map((failure: { id: string }) => failure.id));
+        return;
+      }
+
+      toast.success('Bulk changes applied', {
+        description: `${selectedUsers.length} user${selectedUsers.length === 1 ? '' : 's'} updated.`
+      });
+      setBulkDialogOpen(false);
+      setSelectedUserIds([]);
+    } catch (err) {
+      toast.error('Bulk edit failed', {
+        description: err instanceof Error ? err.message : 'Something went wrong'
+      });
+    } finally {
+      setBulkSaving(false);
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={600}>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <p className="text-[13px] text-muted-foreground">
             {activeUsers.length} active · {users.length - activeUsers.length} inactive
           </p>
-          <Button onClick={openAdd} size="sm" className="h-8 text-[13px] gap-1.5">
-            <Plus size={14} /> Add user
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedCount > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/10 px-2.5 py-1.5">
+                <span className="text-[12px] font-medium text-primary">
+                  {selectedCount} selected
+                </span>
+                <Button onClick={openBulkEdit} size="sm" variant="outline" className="h-7 text-[12px] gap-1.5 border-primary/20 bg-background/80 hover:bg-background">
+                  <Settings2 size={12} /> Bulk edit
+                </Button>
+                <button
+                  onClick={() => setSelectedUserIds([])}
+                  className="text-[12px] text-muted-foreground/70 hover:text-foreground transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
+            <Button onClick={openAdd} size="sm" className="h-8 text-[13px] gap-1.5">
+              <Plus size={14} /> Add user
+            </Button>
+          </div>
         </div>
 
         {/* Filter bar */}
@@ -599,6 +738,14 @@ export default function AdminUsersPage() {
           <Table>
             <TableHeader>
               <TableRow className="border-border/20 hover:bg-transparent">
+                <TableHead className="w-10 text-[12px] text-muted-foreground font-medium">
+                  <Checkbox
+                    checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                    onCheckedChange={(checked) => toggleAllVisibleUsers(checked === true)}
+                    aria-label="Select all visible users"
+                    disabled={visibleSelectableUserIds.length === 0}
+                  />
+                </TableHead>
                 {([['name', 'Name'], ['email', 'Email'], ['team', 'Team'], ['role', 'Role'], ['lastActive', 'Last Active'], ['status', 'Status']] as const).map(([field, label]) => (
                   <TableHead key={field}
                     className="text-[12px] text-muted-foreground font-medium cursor-pointer select-none hover:text-foreground transition-colors"
@@ -612,19 +759,19 @@ export default function AdminUsersPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-[13px] text-muted-foreground/40">
+                  <TableCell colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">
                     Loading users…
                   </TableCell>
                 </TableRow>
               ) : users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-[13px] text-muted-foreground/40">
+                  <TableCell colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">
                     No users yet
                   </TableCell>
                 </TableRow>
               ) : sortedUsers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-[13px] text-muted-foreground/40">
+                  <TableCell colSpan={8} className="text-center py-8 text-[13px] text-muted-foreground/40">
                     No users match filters
                   </TableCell>
                 </TableRow>
@@ -635,8 +782,16 @@ export default function AdminUsersPage() {
                 return (
                   <TableRow
                     key={user.id}
-                    className={`border-border/20 transition-colors ${isInactive ? 'opacity-50' : 'hover:bg-secondary/30'}`}
+                    className={`border-border/20 transition-colors ${isInactive ? 'opacity-50' : 'hover:bg-secondary/30'} ${selectedUserIds.includes(user.id) ? 'bg-primary/5' : ''}`}
                   >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedUserIds.includes(user.id)}
+                        onCheckedChange={(checked) => toggleUserSelection(user.id, checked === true)}
+                        aria-label={`Select ${user.full_name}`}
+                        disabled={OWNER_USER_IDS.includes(user.id)}
+                      />
+                    </TableCell>
                     <TableCell className="text-[13px]">
                       <div className="flex items-center gap-2.5">
                         {user.avatar_url ? (
@@ -650,9 +805,16 @@ export default function AdminUsersPage() {
                             {user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                           </div>
                         )}
-                        <span className={`font-medium ${isInactive ? 'text-muted-foreground' : 'text-foreground'}`}>
-                          {user.full_name}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-medium ${isInactive ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            {user.full_name}
+                          </span>
+                          {OWNER_USER_IDS.includes(user.id) && (
+                            <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-medium">
+                              Owner
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-[13px] text-muted-foreground">{user.email}</TableCell>
@@ -705,12 +867,12 @@ export default function AdminUsersPage() {
                         {/* Edit */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => openEdit(user)}
-                              className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors">
+                            <button onClick={() => !OWNER_USER_IDS.includes(user.id) && openEdit(user)}
+                              className={`p-1.5 rounded transition-colors ${OWNER_USER_IDS.includes(user.id) ? 'text-muted-foreground/30 cursor-not-allowed' : 'hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground'}`}>
                               <Pencil size={14} />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-[12px]">Edit</TooltipContent>
+                          <TooltipContent side="top" className="text-[12px]">{OWNER_USER_IDS.includes(user.id) ? 'Owner — cannot be edited' : 'Edit'}</TooltipContent>
                         </Tooltip>
 
                         {/* Admin toggle */}
@@ -788,12 +950,12 @@ export default function AdminUsersPage() {
                         {/* Hard delete */}
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <button onClick={() => promptDelete(user)}
-                              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive transition-colors">
+                            <button onClick={() => !OWNER_USER_IDS.includes(user.id) && promptDelete(user)}
+                              className={`p-1.5 rounded transition-colors ${OWNER_USER_IDS.includes(user.id) ? 'text-muted-foreground/30 cursor-not-allowed' : 'hover:bg-destructive/10 text-muted-foreground/60 hover:text-destructive'}`}>
                               <Trash2 size={14} />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="text-[12px]">Permanently delete</TooltipContent>
+                          <TooltipContent side="top" className="text-[12px]">{OWNER_USER_IDS.includes(user.id) ? 'Owner — cannot be deleted' : 'Permanently delete'}</TooltipContent>
                         </Tooltip>
                       </div>
                     </TableCell>
@@ -803,6 +965,101 @@ export default function AdminUsersPage() {
             </TableBody>
           </Table>
         </div>
+
+        <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+          <DialogContent className="sm:max-w-lg bg-card border-border/20">
+            <DialogHeader>
+              <DialogTitle className="text-[15px] flex items-center gap-2">
+                <Users size={15} /> Bulk edit users
+              </DialogTitle>
+              <DialogDescription className="text-[13px] text-muted-foreground">
+                Apply shared changes to {selectedCount} selected user{selectedCount === 1 ? '' : 's'}. Leave fields untouched if you don&apos;t want to change them.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg border border-border/20 bg-secondary/40 px-3 py-2">
+                <p className="text-[12px] text-muted-foreground">
+                  Selected: <span className="text-foreground font-medium">{selectedUsers.map(user => user.full_name).join(', ')}</span>
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[13px] text-muted-foreground">Team</Label>
+                <TeamSelect value={bulkForm.team} onChange={v => setBulkForm(f => ({ ...f, team: v }))} teams={teamOptions} />
+                <p className="text-[11px] text-muted-foreground/50">Only applies if you choose a new team.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[13px] text-muted-foreground">Role</Label>
+                <RoleSelect value={bulkForm.role_id} onChange={v => setBulkForm(f => ({ ...f, role_id: v }))} roles={roles} />
+                <p className="text-[11px] text-muted-foreground/50">Only applies if you choose a role.</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[13px] text-muted-foreground">Status</Label>
+                  <select
+                    value={bulkForm.is_active}
+                    onChange={e => setBulkForm(f => ({ ...f, is_active: e.target.value as BulkEditFormData['is_active'] }))}
+                    className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary outline-none focus:border-primary/50"
+                  >
+                    <option value="keep">Keep as is</option>
+                    <option value="active">Set active</option>
+                    <option value="inactive">Set inactive</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[13px] text-muted-foreground">Admin access</Label>
+                  <select
+                    value={bulkForm.is_admin}
+                    onChange={e => setBulkForm(f => ({ ...f, is_admin: e.target.value as BulkEditFormData['is_admin'] }))}
+                    className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary outline-none focus:border-primary/50"
+                  >
+                    <option value="keep">Keep as is</option>
+                    <option value="grant">Grant admin</option>
+                    <option value="revoke">Revoke admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[13px] text-muted-foreground">Custom permissions</Label>
+                <select
+                  value={bulkForm.permission_overrides}
+                  onChange={e => setBulkForm(f => ({ ...f, permission_overrides: e.target.value as BulkEditFormData['permission_overrides'] }))}
+                  className="w-full h-9 px-3 text-[13px] rounded-md border border-border/20 bg-secondary outline-none focus:border-primary/50"
+                >
+                  <option value="keep">Keep as is</option>
+                  <option value="reset">Reset to role defaults</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[13px] text-muted-foreground">Set shared password</Label>
+                <Input
+                  type="password"
+                  value={bulkForm.password}
+                  onChange={e => setBulkForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Leave blank to keep current passwords"
+                  className="h-9 text-[13px] bg-secondary border-border/20"
+                />
+                <p className="text-[11px] text-muted-foreground/50">Applies the same password to every selected user.</p>
+              </div>
+
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-200">
+                Safety rules still apply — owner accounts are excluded, and bulk actions won&apos;t let you remove or deactivate the final active admin.
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkDialogOpen(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
+              <Button onClick={handleBulkEdit} disabled={bulkSaving || selectedCount === 0} className="text-[13px] h-8 gap-1.5">
+                <Settings2 size={13} />
+                {bulkSaving ? 'Applying…' : 'Apply bulk changes'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Add/Edit dialog ───────────────────────────────────────────────── */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+const OWNER_USER_IDS = ['83983bb2-3d05-4be3-97f3-fdac36929560'];
+
+async function countOtherActiveAdmins(excludeIds: string[]) {
+  const { count, error } = await supabaseAdmin
+    .from('app_users')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_admin', true)
+    .eq('is_active', true)
+    .not('id', 'in', `(${excludeIds.join(',')})`);
+
+  if (error) throw error;
+  return count || 0;
+}
+
 /**
  * POST /api/users/[id] — send a password reset email for the user.
  */
@@ -18,6 +32,10 @@ export async function POST(
 
   if (lookupError || !appUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  if (OWNER_USER_IDS.includes(id)) {
+    return NextResponse.json({ error: 'Owner password reset cannot be triggered by admins' }, { status: 403 });
   }
 
   const { error } = await supabaseAdmin.auth.resetPasswordForEmail(appUser.email, {
@@ -42,61 +60,32 @@ export async function PATCH(
   const body = await request.json();
   const { full_name, email, role_id, team, is_active, avatar_url, is_admin, permission_overrides } = body;
 
-  // Owner protection — cannot change permissions/admin/active status
-  const OWNER_USER_IDS = ['83983bb2-3d05-4be3-97f3-fdac36929560'];
+  // Owner protection — owner record is fully locked from admin edits
   if (OWNER_USER_IDS.includes(id)) {
-    if (is_admin !== undefined || permission_overrides !== undefined || is_active === false) {
-      return NextResponse.json({ error: 'Owner permissions and status cannot be modified' }, { status: 403 });
+    return NextResponse.json({ error: 'Owner account cannot be modified' }, { status: 403 });
+  }
+
+  const { data: existingUser, error: existingUserError } = await supabaseAdmin
+    .from('app_users')
+    .select('id, auth_user_id, email, is_admin, is_active')
+    .eq('id', id)
+    .single();
+
+  if (existingUserError || !existingUser) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  if (is_admin === false && existingUser.is_admin && existingUser.is_active) {
+    const remainingActiveAdmins = await countOtherActiveAdmins([id]);
+    if (remainingActiveAdmins === 0) {
+      return NextResponse.json({ error: 'At least one active admin is required' }, { status: 400 });
     }
   }
 
-  // If email is changing, sync to Supabase Auth first
-  if (email !== undefined) {
-    // Fetch the auth_user_id so we can update the auth record
-    const { data: existing, error: fetchErr } = await supabaseAdmin
-      .from('app_users')
-      .select('auth_user_id, email')
-      .eq('id', id)
-      .single();
-
-    if (fetchErr || !existing) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    if (existing.auth_user_id && email !== existing.email) {
-      const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(
-        existing.auth_user_id,
-        { email, email_confirm: true }
-      );
-      if (authErr) {
-        return NextResponse.json(
-          { error: `Auth email update failed: ${authErr.message}` },
-          { status: 500 }
-        );
-      }
-    }
-  }
-
-  // If deactivating/reactivating, also ban/unban in Supabase Auth
-  if (is_active !== undefined) {
-    const { data: existing } = await supabaseAdmin
-      .from('app_users')
-      .select('auth_user_id')
-      .eq('id', id)
-      .single();
-
-    if (existing?.auth_user_id) {
-      if (!is_active) {
-        // Ban the user so they can't log in
-        await supabaseAdmin.auth.admin.updateUserById(existing.auth_user_id, {
-          ban_duration: 'none', // permanent ban
-        });
-      } else {
-        // Unban the user
-        await supabaseAdmin.auth.admin.updateUserById(existing.auth_user_id, {
-          ban_duration: '0', // remove ban
-        });
-      }
+  if (is_active === false && existingUser.is_admin && existingUser.is_active) {
+    const remainingActiveAdmins = await countOtherActiveAdmins([id]);
+    if (remainingActiveAdmins === 0) {
+      return NextResponse.json({ error: 'At least one active admin is required' }, { status: 400 });
     }
   }
 
@@ -121,6 +110,39 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  if (existingUser.auth_user_id) {
+    if (email !== undefined && email !== existingUser.email) {
+      const { error: authEmailError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.auth_user_id, {
+        email,
+        email_confirm: true,
+      });
+
+      if (authEmailError) {
+        await supabaseAdmin
+          .from('app_users')
+          .update({ email: existingUser.email, updated_at: new Date().toISOString() })
+          .eq('id', id);
+
+        return NextResponse.json({ error: `Auth email update failed: ${authEmailError.message}` }, { status: 500 });
+      }
+    }
+
+    if (is_active !== undefined) {
+      const { error: authStatusError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.auth_user_id, {
+        ban_duration: is_active ? '0' : 'none',
+      });
+
+      if (authStatusError) {
+        await supabaseAdmin
+          .from('app_users')
+          .update({ is_active: existingUser.is_active, updated_at: new Date().toISOString() })
+          .eq('id', id);
+
+        return NextResponse.json({ error: `Auth status update failed: ${authStatusError.message}` }, { status: 500 });
+      }
+    }
+  }
+
   return NextResponse.json(data);
 }
 
@@ -134,15 +156,26 @@ export async function DELETE(
 ) {
   const { id } = await params;
 
+  if (OWNER_USER_IDS.includes(id)) {
+    return NextResponse.json({ error: 'Owner account cannot be deleted' }, { status: 403 });
+  }
+
   // Fetch the user so we can get their auth_user_id
   const { data: appUser, error: fetchError } = await supabaseAdmin
     .from('app_users')
-    .select('auth_user_id, full_name')
+    .select('auth_user_id, full_name, is_admin, is_active')
     .eq('id', id)
     .single();
 
   if (fetchError || !appUser) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
+  if (appUser.is_admin && appUser.is_active) {
+    const remainingActiveAdmins = await countOtherActiveAdmins([id]);
+    if (remainingActiveAdmins === 0) {
+      return NextResponse.json({ error: 'At least one active admin is required' }, { status: 400 });
+    }
   }
 
   // Delete from app_users first (FK constraints satisfied before auth deletion)
