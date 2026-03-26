@@ -258,15 +258,15 @@ export default function PipelinePage() {
   const sourceOptions = [{ value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' }];
 
   return (
-    <div className="animate-in fade-in duration-200 h-[calc(100vh-88px)] overflow-hidden flex flex-col">
-      <div className="mb-6">
+    <div className="animate-in fade-in duration-200 h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Sales Pipeline</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">
           {filtered.length} prospects · £{stats.pipelineValue.toLocaleString()} pipeline · £{stats.wonValue.toLocaleString()} won
         </p>
       </div>
 
-      <div className="mb-6 flex items-center gap-1.5 flex-wrap">
+      <div className="mb-4 flex items-center gap-1.5 flex-wrap">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
           <input
