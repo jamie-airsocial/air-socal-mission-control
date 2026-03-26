@@ -538,7 +538,7 @@ function BoardContent() {
       {loading ? (
         view === 'kanban' ? <KanbanBoardSkeleton /> : view === 'calendar' ? <CalendarViewSkeleton /> : <TableViewSkeleton />
       ) : view === 'kanban' ? (
-        <div className="animate-in fade-in duration-200">
+        <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden">
           <ErrorBoundary fallbackTitle="Board failed to load" fallbackSubtitle="The kanban board encountered an error. Try again.">
             <KanbanBoard
               tasks={serviceFilteredTasks}

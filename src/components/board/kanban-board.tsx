@@ -8,6 +8,7 @@ import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYL
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStatuses } from '@/hooks/use-statuses';
+import { HorizontalScrollRail } from '@/components/ui/horizontal-scroll-rail';
 
 export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service' | 'team';
 
@@ -425,7 +426,7 @@ export function KanbanBoard({
       <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
         <div
           ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto pb-4 scrollbar-thin min-h-0 flex-1"
+          className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin min-h-0 flex-1"
           role="region"
           aria-label="Kanban board"
         >
@@ -568,6 +569,8 @@ export function KanbanBoard({
           })}
         </div>
       </DragDropContext>
+
+      <HorizontalScrollRail targetRef={scrollContainerRef} />
 
       {/* Left scroll-fade gradient */}
       {canScrollLeft && (
