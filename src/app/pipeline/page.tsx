@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
   Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, Pencil,
@@ -1298,10 +1298,55 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
   openNewProspect: (stage?: string) => void;
   onEdit: (p: Prospect) => void;
 }) {
+  const boardScrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomScrollRef = useRef<HTMLDivElement | null>(null);
+  const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const board = boardScrollRef.current;
+    const bottom = bottomScrollRef.current;
+    const inner = bottomScrollInnerRef.current;
+    if (!board || !bottom || !inner) return;
+
+    const syncWidth = () => {
+      inner.style.width = `${board.scrollWidth}px`;
+    };
+
+    let syncingFromBoard = false;
+    let syncingFromBottom = false;
+
+    const handleBoardScroll = () => {
+      if (syncingFromBottom) return;
+      syncingFromBoard = true;
+      bottom.scrollLeft = board.scrollLeft;
+      syncingFromBoard = false;
+    };
+
+    const handleBottomScroll = () => {
+      if (syncingFromBoard) return;
+      syncingFromBottom = true;
+      board.scrollLeft = bottom.scrollLeft;
+      syncingFromBottom = false;
+    };
+
+    syncWidth();
+    handleBoardScroll();
+
+    board.addEventListener('scroll', handleBoardScroll);
+    bottom.addEventListener('scroll', handleBottomScroll);
+    window.addEventListener('resize', syncWidth);
+
+    return () => {
+      board.removeEventListener('scroll', handleBoardScroll);
+      bottom.removeEventListener('scroll', handleBottomScroll);
+      window.removeEventListener('resize', syncWidth);
+    };
+  }, [stages.length, prospects.length]);
+
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="min-h-0 flex-1 overflow-hidden">
-        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin min-h-0 h-[calc(100vh-220px)]">
+        <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin min-h-0 h-[calc(100vh-220px)]">
           {stages.map(stage => {
           const columnProspects = prospects.filter(p => p.stage === stage.id);
           const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
@@ -1378,6 +1423,9 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
           );
         })}
         </div>
+      </div>
+      <div ref={bottomScrollRef} className="mt-2 h-4 overflow-x-auto overflow-y-hidden scrollbar-thin">
+        <div ref={bottomScrollInnerRef} className="h-px min-w-full" />
       </div>
     </DragDropContext>
   );
