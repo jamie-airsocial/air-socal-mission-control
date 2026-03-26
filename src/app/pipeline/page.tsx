@@ -330,14 +330,14 @@ export default function PipelinePage() {
         onOpenChange={setSheetOpen}
       />
 
-      <div className="min-h-0 flex-1 overflow-hidden">
-        {loading ? (
+      {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-[300px] rounded-lg bg-muted/20 animate-pulse" />
             ))}
           </div>
         ) : viewMode === 'pipeline' ? (
+          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
           <PipelineView
             prospects={filtered}
             stages={PIPELINE_STAGES}
@@ -345,12 +345,12 @@ export default function PipelinePage() {
             openNewProspect={openNewProspect}
             onEdit={openEditProspect}
           />
+          </div>
         ) : viewMode === 'table' ? (
           <TableView prospects={filtered} />
         ) : (
           <StatsView stats={stats} />
         )}
-      </div>
 
       {lossModalProspect && <div />}
       <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} shortcuts={PAGE_SHORTCUTS} pageName="Pipeline" />
