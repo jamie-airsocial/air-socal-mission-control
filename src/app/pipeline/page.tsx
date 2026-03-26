@@ -34,14 +34,173 @@ interface Prospect {
 type ViewMode = 'pipeline' | 'table' | 'stats';
 
 
-function ProspectSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+function ProspectSheet({
+  open,
+  onOpenChange,
+  defaultStage,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultStage: string;
+  onCreated: () => Promise<void> | void;
+}) {
+  const [form, setForm] = useState({
+    name: '',
+    value: '',
+    service: '',
+    source: '',
+    contact_name: '',
+    contact_email: '',
+    contact_phone: '',
+    notes: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      name: '',
+      value: '',
+      service: '',
+      source: '',
+      contact_name: '',
+      contact_email: '',
+      contact_phone: '',
+      notes: '',
+    });
+    setSaving(false);
+  }, [open, defaultStage]);
+
   if (!open) return null;
+
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      toast.error('Prospect name required');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          stage: defaultStage || 'lead',
+          value: form.value.trim() ? Number(form.value.replace(/[^0-9.]/g, '')) : null,
+          service: form.service.trim() || null,
+          source: form.source.trim() || null,
+          contact_name: form.contact_name.trim() || null,
+          contact_email: form.contact_email.trim() || null,
+          contact_phone: form.contact_phone.trim() || null,
+          notes: form.notes.trim() || null,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to create prospect');
+
+      await onCreated();
+      onOpenChange(false);
+      toast.success('Prospect created');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create prospect');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => onOpenChange(false)}>
-      <div className="w-full max-w-lg rounded-xl border border-border/20 bg-card p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold">Prospect sheet</h3>
-        <p className="mt-2 text-[13px] text-muted-foreground">Prospect editing UI temporarily preserved outside this layout refactor pass.</p>
-        <div className="mt-4"><Button size="sm" onClick={() => onOpenChange(false)}>Close</Button></div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => onOpenChange(false)}>
+      <div className="w-full max-w-xl rounded-xl border border-border/20 bg-card p-6" onClick={e => e.stopPropagation()}>
+        <h3 className="text-lg font-semibold">New prospect</h3>
+        <p className="mt-1 text-[13px] text-muted-foreground">Add a new prospect to the {defaultStage || 'lead'} stage.</p>
+
+        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="md:col-span-2">
+            <label className="block text-[12px] text-muted-foreground mb-1">Prospect name</label>
+            <input
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="Company or opportunity name"
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] text-muted-foreground mb-1">Value</label>
+            <input
+              value={form.value}
+              onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
+              placeholder="e.g. 5000"
+              inputMode="decimal"
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] text-muted-foreground mb-1">Source</label>
+            <input
+              value={form.source}
+              onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
+              placeholder="Referral, website, etc."
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-[12px] text-muted-foreground mb-1">Service</label>
+            <input
+              value={form.service}
+              onChange={e => setForm(f => ({ ...f, service: e.target.value }))}
+              placeholder="SEO, Paid Advertising, Social Media..."
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] text-muted-foreground mb-1">Contact name</label>
+            <input
+              value={form.contact_name}
+              onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
+              placeholder="Primary contact"
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="block text-[12px] text-muted-foreground mb-1">Contact phone</label>
+            <input
+              value={form.contact_phone}
+              onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))}
+              placeholder="07xxx xxxxxx"
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-[12px] text-muted-foreground mb-1">Contact email</label>
+            <input
+              value={form.contact_email}
+              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
+              placeholder="email@company.com"
+              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-[12px] text-muted-foreground mb-1">Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Any context about this prospect..."
+              className="min-h-[96px] w-full rounded-lg border border-border/20 bg-background px-3 py-2 text-[13px] outline-none focus:border-primary/50 resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center gap-2">
+          <Button size="sm" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Creating...' : 'Create prospect'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
+            Cancel
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -329,6 +488,8 @@ export default function PipelinePage() {
       <ProspectSheet
         open={sheetOpen}
         onOpenChange={setSheetOpen}
+        defaultStage={sheetDefaultStage}
+        onCreated={fetchProspects}
       />
 
       {loading ? (
