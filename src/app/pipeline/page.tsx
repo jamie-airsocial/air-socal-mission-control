@@ -1300,13 +1300,14 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
 }) {
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
-        {stages.map(stage => {
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="flex gap-3 overflow-x-auto pb-4 min-h-0 h-[calc(100vh-280px)] scrollbar-thin">
+          {stages.map(stage => {
           const columnProspects = prospects.filter(p => p.stage === stage.id);
           const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
 
           return (
-            <div key={stage.id} className="flex-shrink-0 w-[280px]">
+            <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 h-full flex flex-col">
               <div className="flex items-center gap-2 mb-3 px-1">
                 <span className={`w-2 h-2 rounded-full ${stage.dotClass}`} />
                 <span className="text-[13px] font-semibold">{stage.label}</span>
@@ -1320,7 +1321,7 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[200px] rounded-lg p-1.5 transition-colors duration-150 ${
+                    className={`min-h-0 flex-1 rounded-lg p-1.5 overflow-y-auto scrollbar-thin transition-colors duration-150 ${
                       snapshot.isDraggingOver ? 'bg-primary/5 ring-1 ring-primary/20' : 'bg-muted/20'
                     }`}
                   >
@@ -1376,6 +1377,7 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
             </div>
           );
         })}
+        </div>
       </div>
     </DragDropContext>
   );
