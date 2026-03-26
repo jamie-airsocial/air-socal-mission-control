@@ -31,6 +31,7 @@ import { Switch } from '@/components/ui/switch';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import dynamic from 'next/dynamic';
+import { useAuth } from '@/contexts/auth-context';
 
 const TaskDescriptionEditor = dynamic(
   () => import('@/components/board/task-description-editor').then(mod => ({ default: mod.TaskDescriptionEditor })),
@@ -960,6 +961,7 @@ function ClientsPageContent() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [availableServices, setAvailableServices] = useState<{ value: string; label: string; dot: string }[]>([]);
+  const { isAdmin } = useAuth();
 
   useEffect(() => {
     try {
@@ -1169,7 +1171,7 @@ function ClientsPageContent() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-border/20 bg-muted/30">
-                    {([['name', 'Name'], ['team', 'Team'], ['status', 'Status'], ['retainer', 'Retainer'], ['tenure', 'Tenure']] as const).map(([field, label]) => (
+                    {([['name', 'Name'], ['team', 'Team'], ['status', 'Status'], ...(isAdmin ? [['retainer', 'Retainer']] as const : []), ['tenure', 'Tenure']] as const).map(([field, label]) => (
                       <th key={field} onClick={() => toggleSort(field)} className="text-left px-4 py-3 text-[11px] font-medium text-muted-foreground/60 cursor-pointer hover:text-foreground transition-colors select-none">
                         <span className="inline-flex items-center gap-1">{label} <SortIcon field={field} /></span>
                       </th>
@@ -1208,11 +1210,13 @@ function ClientsPageContent() {
                             {client.status.charAt(0).toUpperCase() + client.status.slice(1)}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
-                          £{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo
-                          <span className="mx-1 text-muted-foreground/30">·</span>
-                          £{(client.calculated_project_value ?? 0).toLocaleString()} project
-                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
+                            £{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo
+                            <span className="mx-1 text-muted-foreground/30">·</span>
+                            £{(client.calculated_project_value ?? 0).toLocaleString()} project
+                          </td>
+                        )}
                         <td className="px-4 py-2.5 text-muted-foreground/60">{tenure === 1 ? '1 month' : `${tenure} months`}</td>
                         <td className="px-4 py-2.5">
                           <div className="flex flex-wrap gap-1">
@@ -1257,10 +1261,15 @@ function ClientsPageContent() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 mb-2">
-                    {teamStyle && (<><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} /><span className="text-[11px] text-muted-foreground">{teamStyle.label}</span><span className="text-[11px] text-muted-foreground/40">·</span></>)}
-                    <span className="text-[11px] text-muted-foreground">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</span>
-                    <span className="text-[11px] text-muted-foreground/40">·</span>
-                    <span className="text-[11px] text-muted-foreground">£{(client.calculated_project_value ?? 0).toLocaleString()} project</span>
+                    {teamStyle && (<><span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: teamStyle.color }} /><span className="text-[11px] text-muted-foreground">{teamStyle.label}</span></>)}
+                    {isAdmin && (
+                      <>
+                        {teamStyle && <span className="text-[11px] text-muted-foreground/40">·</span>}
+                        <span className="text-[11px] text-muted-foreground">£{(client.calculated_retainer ?? client.monthly_retainer ?? 0).toLocaleString()}/mo</span>
+                        <span className="text-[11px] text-muted-foreground/40">·</span>
+                        <span className="text-[11px] text-muted-foreground">£{(client.calculated_project_value ?? 0).toLocaleString()} project</span>
+                      </>
+                    )}
                   </div>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {(client.derived_services || client.services || []).filter((s: string) => s !== 'account-management').map((service: string) => {
