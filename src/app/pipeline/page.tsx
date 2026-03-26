@@ -66,7 +66,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
     <div className="relative flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
       <KanbanFrame>
         <div className="flex flex-col min-w-max h-full">
-          <div className="flex gap-3 shrink-0 pb-2">
+          <div className="flex gap-4 shrink-0 pb-2">
             {stages.map(stage => {
               const columnProspects = prospects.filter(p => p.stage === stage.id);
               const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
@@ -83,7 +83,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
           </div>
 
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-3 pb-2 min-h-0 flex-1">
+            <div className="flex gap-4 pb-2 min-h-0 flex-1">
               {stages.map(stage => {
                 const columnProspects = prospects.filter(p => p.stage === stage.id);
                 return (
