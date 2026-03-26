@@ -1060,7 +1060,7 @@ function ClientsPageContent() {
   ]);
 
   return (
-    <div className="animate-in fade-in duration-200">
+    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-y-auto pr-1">
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Clients</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">{filteredClients.length} clients</p>
