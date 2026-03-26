@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <TopBar />
       <main className={cn(
-        'h-screen overflow-hidden bg-background px-6 pb-0 pt-[60px] transition-all duration-300',
+        'h-screen overflow-hidden bg-background p-6 pt-[60px] transition-all duration-300',
         collapsed ? 'ml-16' : 'ml-56'
       )}>
         {children}

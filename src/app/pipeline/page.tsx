@@ -63,9 +63,9 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
   onEdit: (p: Prospect) => void;
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
+    <div className="relative flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
       <KanbanFrame>
-        <div className="flex flex-col min-w-max min-h-full">
+        <div className="flex flex-col min-w-max h-full">
           <div className="flex gap-3 shrink-0 pb-2">
             {stages.map(stage => {
               const columnProspects = prospects.filter(p => p.stage === stage.id);
@@ -87,7 +87,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
               {stages.map(stage => {
                 const columnProspects = prospects.filter(p => p.stage === stage.id);
                 return (
-                  <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 flex-1 flex flex-col self-stretch">
+                  <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 h-full flex flex-col">
                     <Droppable droppableId={stage.id}>
                       {(provided, snapshot) => (
                         <div
@@ -104,6 +104,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
+                                  style={provided.draggableProps.style}
                                   onClick={() => onEdit(prospect)}
                                   className={`mb-2 p-3 rounded-lg border border-border/20 bg-card hover:bg-muted/40 transition-all duration-150 cursor-pointer ${
                                     snapshot.isDragging ? 'shadow-lg ring-1 ring-primary/30' : ''
@@ -258,7 +259,7 @@ export default function PipelinePage() {
   const sourceOptions = [{ value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' }];
 
   return (
-    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-hidden flex flex-col pb-0">
+    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-hidden flex flex-col">
       <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Sales Pipeline</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">
@@ -337,7 +338,7 @@ export default function PipelinePage() {
             ))}
           </div>
         ) : viewMode === 'pipeline' ? (
-          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden">
+          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
           <PipelineView
             prospects={filtered}
             stages={PIPELINE_STAGES}
