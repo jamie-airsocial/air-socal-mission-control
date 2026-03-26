@@ -36,7 +36,8 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger, PopoverClose } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { SERVICE_STYLES, PIPELINE_STAGES, LOSS_REASONS, getServiceStyle } from '@/lib/constants';
+import { SERVICE_STYLES, LOSS_REASONS, getServiceStyle } from '@/lib/constants';
+import { usePipelineStages } from '@/hooks/use-pipeline-stages';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
@@ -212,6 +213,7 @@ function ProspectSheet({
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceSearch, setSourceSearch] = useState('');
   const [lostReasonOpen, setLostReasonOpen] = useState(false);
+  const { stages: PIPELINE_STAGES } = usePipelineStages();
 
   // Line items
   interface LineItem { id: string; service: string; description: string | null; monthly_value: number; billing_type: 'recurring' | 'one-off'; start_date: string | null; end_date: string | null; is_active: boolean; }
@@ -934,6 +936,7 @@ export default function PipelinePage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [availableServices, setAvailableServices] = useState<{ value: string; label: string; dot?: string }[]>([]);
 
+  const { stages: PIPELINE_STAGES } = usePipelineStages();
   const { users } = useUsers();
 
   useEffect(() => {
@@ -1242,6 +1245,7 @@ export default function PipelinePage() {
       ) : viewMode === 'pipeline' ? (
         <PipelineView
           prospects={filtered}
+          stages={PIPELINE_STAGES}
           onDragEnd={onDragEnd}
           onUpdate={updateProspect}
           onDelete={deleteProspect}
@@ -1251,12 +1255,13 @@ export default function PipelinePage() {
       ) : viewMode === 'table' ? (
         <TableView
           prospects={filtered}
+          stages={PIPELINE_STAGES}
           onUpdate={updateProspect}
           onDelete={deleteProspect}
           onEdit={openEditProspect}
         />
       ) : (
-        <StatsView stats={stats} prospects={prospects} />
+        <StatsView stats={stats} prospects={prospects} stages={PIPELINE_STAGES} />
       )}
 
       {/* Convert to Client Dialog */}
@@ -1284,8 +1289,9 @@ export default function PipelinePage() {
 }
 
 // ── Pipeline (Kanban) View ───────────────────────────────────────────────────
-function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspect, onEdit }: {
+function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNewProspect, onEdit }: {
   prospects: Prospect[];
+  stages: { id: string; label: string; color: string; dotClass?: string | null }[];
   onDragEnd: (result: DropResult) => void;
   onUpdate: (id: string, updates: Partial<Prospect>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -1295,7 +1301,7 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspec
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
-        {PIPELINE_STAGES.map(stage => {
+        {stages.map(stage => {
           const columnProspects = prospects.filter(p => p.stage === stage.id);
           const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
 
@@ -1376,8 +1382,9 @@ function PipelineView({ prospects, onDragEnd, onUpdate, onDelete, openNewProspec
 }
 
 // ── Table View ───────────────────────────────────────────────────────────────
-function TableView({ prospects, onUpdate, onDelete, onEdit }: {
+function TableView({ prospects, stages, onUpdate, onDelete, onEdit }: {
   prospects: Prospect[];
+  stages: { id: string; label: string; color: string; dotClass?: string | null }[];
   onUpdate: (id: string, updates: Partial<Prospect>) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onEdit: (p: Prospect) => void;
@@ -1445,7 +1452,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
                   </td>
                 </tr>
               ) : sorted.map(p => {
-                const stage = PIPELINE_STAGES.find(s => s.id === p.stage);
+                const stage = stages.find(s => s.id === p.stage);
                 return (
                   <tr
                     key={p.id}
@@ -1492,7 +1499,7 @@ function TableView({ prospects, onUpdate, onDelete, onEdit }: {
 }
 
 // ── Stats View ───────────────────────────────────────────────────────────────
-function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; prospects: Prospect[] }) {
+function StatsView({ stats, prospects, stages }: { stats: ReturnType<typeof Object>; prospects: Prospect[]; stages: { id: string; label: string; color: string; dotClass?: string | null }[] }) {
   const s = stats as {
     total: number; won: number; lost: number; active: number;
     pipelineValue: number; wonValue: number; conversionRate: number; avgDealValue: number;
@@ -1527,7 +1534,7 @@ function StatsView({ stats, prospects }: { stats: ReturnType<typeof Object>; pro
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <h3 className="text-[13px] font-semibold mb-4">Pipeline Funnel</h3>
           <div className="space-y-3">
-            {PIPELINE_STAGES.map(stage => {
+            {stages.map(stage => {
               const count = s.stageCount[stage.id] || 0;
               const value = s.stageValue[stage.id] || 0;
               const widthPercent = Math.max((count / maxStageCount) * 100, 4);

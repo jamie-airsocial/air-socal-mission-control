@@ -25,8 +25,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useStatuses, type TaskStatus } from '@/hooks/use-statuses';
+import { usePipelineStages, type PipelineStage } from '@/hooks/use-pipeline-stages';
 
-// Predefined colour palette
 const COLOUR_PALETTE = [
   { hex: '#f59e0b', label: 'Orange' },
   { hex: '#a855f7', label: 'Purple' },
@@ -46,31 +46,42 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+type EditMode = 'status' | 'stage';
+
 export default function AdminStatusesPage() {
   const { statuses, setStatuses, loading, refetch } = useStatuses();
+  const { stages, setStages, loading: stagesLoading, refetch: refetchStages } = usePipelineStages();
+
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [addMode, setAddMode] = useState<EditMode>('status');
+  const [editMode, setEditMode] = useState<EditMode>('status');
+
   const [deleteTarget, setDeleteTarget] = useState<TaskStatus | null>(null);
+  const [deleteStageTarget, setDeleteStageTarget] = useState<PipelineStage | null>(null);
   const [editTarget, setEditTarget] = useState<TaskStatus | null>(null);
-  
-  // New status form
+  const [editStageTarget, setEditStageTarget] = useState<PipelineStage | null>(null);
+
   const [newLabel, setNewLabel] = useState('');
   const [newSlug, setNewSlug] = useState('');
   const [newColour, setNewColour] = useState(COLOUR_PALETTE[0].hex);
-  
-  // Edit status form
+
   const [editLabel, setEditLabel] = useState('');
   const [editSlug, setEditSlug] = useState('');
   const [editColour, setEditColour] = useState('');
-  
+
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteTaskCount, setDeleteTaskCount] = useState<number | null>(null);
+  const [deleteStageCount, setDeleteStageCount] = useState<number | null>(null);
 
-  // Fetch task count when delete dialog opens
   useEffect(() => {
-    if (!deleteTarget) { setDeleteTaskCount(null); return; }
+    if (!deleteTarget) {
+      setDeleteTaskCount(null);
+      return;
+    }
+
     setDeleteTaskCount(null);
     fetch(`/api/tasks?status=${deleteTarget.slug}`)
       .then(r => r.ok ? r.json() : [])
@@ -78,9 +89,40 @@ export default function AdminStatusesPage() {
       .catch(() => setDeleteTaskCount(null));
   }, [deleteTarget]);
 
+  useEffect(() => {
+    if (!deleteStageTarget) {
+      setDeleteStageCount(null);
+      return;
+    }
+
+    setDeleteStageCount(null);
+    fetch('/api/prospects')
+      .then(r => r.ok ? r.json() : [])
+      .then(prospects => setDeleteStageCount(Array.isArray(prospects) ? prospects.filter((p: { stage?: string }) => p.stage === deleteStageTarget.id).length : 0))
+      .catch(() => setDeleteStageCount(null));
+  }, [deleteStageTarget]);
+
+  const resetCreateForm = () => {
+    setNewLabel('');
+    setNewSlug('');
+    setNewColour(COLOUR_PALETTE[0].hex);
+  };
+
   const handleLabelChange = (value: string) => {
     setNewLabel(value);
     setNewSlug(slugify(value));
+  };
+
+  const openAddStatusDialog = () => {
+    setAddMode('status');
+    resetCreateForm();
+    setAddDialogOpen(true);
+  };
+
+  const openAddStageDialog = () => {
+    setAddMode('stage');
+    resetCreateForm();
+    setAddDialogOpen(true);
   };
 
   const createStatus = async () => {
@@ -92,7 +134,7 @@ export default function AdminStatusesPage() {
       toast.error('Slug is required');
       return;
     }
-    
+
     setCreating(true);
     const res = await fetch('/api/statuses', {
       method: 'POST',
@@ -105,13 +147,11 @@ export default function AdminStatusesPage() {
       }),
     });
     setCreating(false);
-    
+
     if (res.ok) {
       toast.success(`Status "${newLabel}" created`);
       setAddDialogOpen(false);
-      setNewLabel('');
-      setNewSlug('');
-      setNewColour(COLOUR_PALETTE[0].hex);
+      resetCreateForm();
       refetch();
     } else {
       const e = await res.json();
@@ -119,11 +159,56 @@ export default function AdminStatusesPage() {
     }
   };
 
+  const createStage = async () => {
+    if (!newLabel.trim()) {
+      toast.error('Label is required');
+      return;
+    }
+    if (!newSlug.trim()) {
+      toast.error('Slug is required');
+      return;
+    }
+
+    setCreating(true);
+    const res = await fetch('/api/pipeline-stages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: newSlug.trim(),
+        label: newLabel.trim(),
+        color: newColour,
+      }),
+    });
+    setCreating(false);
+
+    if (res.ok) {
+      toast.success(`Stage "${newLabel}" created`);
+      setAddDialogOpen(false);
+      resetCreateForm();
+      refetchStages();
+    } else {
+      const e = await res.json();
+      toast.error(e.error || 'Failed to create stage');
+    }
+  };
+
   const openEditDialog = (status: TaskStatus) => {
+    setEditMode('status');
     setEditTarget(status);
+    setEditStageTarget(null);
     setEditLabel(status.label);
     setEditSlug(status.slug);
     setEditColour(status.colour);
+    setEditDialogOpen(true);
+  };
+
+  const openEditStageDialog = (stage: PipelineStage) => {
+    setEditMode('stage');
+    setEditStageTarget(stage);
+    setEditTarget(null);
+    setEditLabel(stage.label);
+    setEditSlug(stage.id);
+    setEditColour(stage.color);
     setEditDialogOpen(true);
   };
 
@@ -133,7 +218,7 @@ export default function AdminStatusesPage() {
       toast.error('Label is required');
       return;
     }
-    
+
     setUpdating(true);
     const res = await fetch('/api/statuses', {
       method: 'PATCH',
@@ -146,7 +231,7 @@ export default function AdminStatusesPage() {
       }),
     });
     setUpdating(false);
-    
+
     if (res.ok) {
       toast.success('Status updated');
       setEditDialogOpen(false);
@@ -158,18 +243,46 @@ export default function AdminStatusesPage() {
     }
   };
 
+  const updateStage = async () => {
+    if (!editStageTarget) return;
+    if (!editLabel.trim()) {
+      toast.error('Label is required');
+      return;
+    }
+
+    setUpdating(true);
+    const res = await fetch('/api/pipeline-stages', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editStageTarget.id,
+        label: editLabel.trim(),
+        color: editColour,
+      }),
+    });
+    setUpdating(false);
+
+    if (res.ok) {
+      toast.success('Stage updated');
+      setEditDialogOpen(false);
+      setEditStageTarget(null);
+      refetchStages();
+    } else {
+      const e = await res.json();
+      toast.error(e.error || 'Failed to update stage');
+    }
+  };
+
   const onDragEnd = useCallback(async (result: DropResult) => {
     if (!result.destination || result.source.index === result.destination.index) return;
-    
+
     const reordered = Array.from(statuses);
     const [moved] = reordered.splice(result.source.index, 1);
     reordered.splice(result.destination.index, 0, moved);
-    
-    // Optimistic update — instant visual feedback
+
     const optimistic = reordered.map((s, i) => ({ ...s, sort_order: i }));
     setStatuses(optimistic);
-    
-    // Persist in background — single batch request
+
     try {
       const res = await fetch('/api/statuses', {
         method: 'PUT',
@@ -186,12 +299,38 @@ export default function AdminStatusesPage() {
     }
   }, [statuses, setStatuses, refetch]);
 
+  const onStageDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || result.source.index === result.destination.index) return;
+
+    const reordered = Array.from(stages);
+    const [moved] = reordered.splice(result.source.index, 1);
+    reordered.splice(result.destination.index, 0, moved);
+
+    const optimistic = reordered.map((s, i) => ({ ...s, sort_order: i }));
+    setStages(optimistic);
+
+    try {
+      const res = await fetch('/api/pipeline-stages', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(reordered.map((s, i) => ({ id: s.id, sort_order: i }))),
+      });
+      if (!res.ok) {
+        toast.error('Failed to reorder stages');
+        refetchStages();
+      }
+    } catch {
+      toast.error('Failed to reorder stages');
+      refetchStages();
+    }
+  }, [stages, setStages, refetchStages]);
+
   const confirmDeleteStatus = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     const res = await fetch(`/api/statuses?id=${deleteTarget.id}`, { method: 'DELETE' });
     setDeleting(false);
-    
+
     if (res.ok) {
       toast.success('Status deleted', { description: `${deleteTarget.label} has been removed.` });
       setDeleteTarget(null);
@@ -202,7 +341,23 @@ export default function AdminStatusesPage() {
     }
   };
 
-  if (loading) {
+  const confirmDeleteStage = async () => {
+    if (!deleteStageTarget) return;
+    setDeleting(true);
+    const res = await fetch(`/api/pipeline-stages?id=${deleteStageTarget.id}`, { method: 'DELETE' });
+    setDeleting(false);
+
+    if (res.ok) {
+      toast.success('Stage deleted', { description: `${deleteStageTarget.label} has been removed.` });
+      setDeleteStageTarget(null);
+      refetchStages();
+    } else {
+      const e = await res.json();
+      toast.error(e.error || 'Failed to delete stage');
+    }
+  };
+
+  if (loading || stagesLoading) {
     return (
       <div className="flex items-center justify-center py-16 gap-2 text-[13px] text-muted-foreground/40">
         <Loader2 size={16} className="animate-spin" /> Loading statuses…
@@ -212,7 +367,6 @@ export default function AdminStatusesPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[13px] text-muted-foreground">
@@ -222,12 +376,11 @@ export default function AdminStatusesPage() {
             Protected statuses (To Do, Done) cannot be deleted
           </p>
         </div>
-        <Button size="sm" onClick={() => setAddDialogOpen(true)} className="h-8 text-[13px] gap-1.5">
+        <Button size="sm" onClick={openAddStatusDialog} className="h-8 text-[13px] gap-1.5">
           <Plus size={14} /> Add status
         </Button>
       </div>
 
-      {/* Drag-and-drop status list */}
       <div className="bg-card border border-border/20 rounded-lg overflow-hidden">
         <div className="border-b border-border/20 bg-muted/30 grid grid-cols-[32px_28px_1fr_1fr_80px] gap-4 px-4 py-3">
           <span />
@@ -283,11 +436,81 @@ export default function AdminStatusesPage() {
         </DragDropContext>
       </div>
 
-      {/* Add Status Dialog */}
+      <div className="space-y-4 pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[13px] text-muted-foreground">
+              {stages.length} pipeline stage{stages.length !== 1 ? 's' : ''} · Drag to reorder
+            </p>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+              Protected stages (Lead, Won, Lost) cannot be deleted
+            </p>
+          </div>
+          <Button size="sm" onClick={openAddStageDialog} className="h-8 text-[13px] gap-1.5">
+            <Plus size={14} /> Add pipeline stage
+          </Button>
+        </div>
+
+        <div className="bg-card border border-border/20 rounded-lg overflow-hidden">
+          <div className="border-b border-border/20 bg-muted/30 grid grid-cols-[32px_28px_1fr_1fr_80px] gap-4 px-4 py-3">
+            <span />
+            <span />
+            <span className="text-[11px] font-medium text-muted-foreground/60">Label</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60">Slug</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60 text-right">Actions</span>
+          </div>
+          <DragDropContext onDragEnd={onStageDragEnd}>
+            <Droppable droppableId="pipeline-stages">
+              {(provided) => (
+                <div ref={provided.innerRef} {...provided.droppableProps}>
+                  {stages.map((stage, index) => {
+                    const isProtected = stage.is_default || ['lead', 'won', 'lost'].includes(stage.id);
+                    return (
+                      <Draggable key={stage.id} draggableId={stage.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`grid grid-cols-[32px_28px_1fr_1fr_80px] gap-4 items-center px-4 py-3 border-b border-border/10 transition-colors ${snapshot.isDragging ? 'bg-muted/40 shadow-lg rounded-lg' : 'hover:bg-secondary/20'}`}
+                          >
+                            <div {...provided.dragHandleProps} className="flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors">
+                              <GripVertical size={14} />
+                            </div>
+                            <div>
+                              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[13px] font-medium text-foreground">{stage.label}</span>
+                              {isProtected && <Lock size={11} className="text-muted-foreground/40 shrink-0" />}
+                            </div>
+                            <div>
+                              <code className="text-[12px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded">{stage.id}</code>
+                            </div>
+                            <div className="flex items-center justify-end gap-1">
+                              <button onClick={() => openEditStageDialog(stage)} className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground/40 hover:text-foreground transition-colors" title="Edit stage">
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={() => setDeleteStageTarget(stage)} disabled={isProtected} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/40 hover:text-destructive transition-colors disabled:opacity-20 disabled:cursor-not-allowed" title={isProtected ? 'Cannot delete protected stage' : 'Delete stage'}>
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    );
+                  })}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </DragDropContext>
+        </div>
+      </div>
+
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-md bg-card border-border/20">
           <DialogHeader>
-            <DialogTitle className="text-[15px]">Create new status</DialogTitle>
+            <DialogTitle className="text-[15px]">{addMode === 'stage' ? 'Create new pipeline stage' : 'Create new status'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -295,8 +518,8 @@ export default function AdminStatusesPage() {
               <Input
                 value={newLabel}
                 onChange={e => handleLabelChange(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') createStatus(); }}
-                placeholder="e.g. In Review"
+                onKeyDown={e => { if (e.key === 'Enter') addMode === 'stage' ? createStage() : createStatus(); }}
+                placeholder={addMode === 'stage' ? 'e.g. Qualified' : 'e.g. In Review'}
                 className="h-9 text-[13px] bg-secondary border-border/20"
                 autoFocus
               />
@@ -334,18 +557,17 @@ export default function AdminStatusesPage() {
             <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="text-[13px] h-8 border-border/20">
               Cancel
             </Button>
-            <Button onClick={createStatus} disabled={creating} className="text-[13px] h-8">
-              {creating ? 'Creating…' : 'Create status'}
+            <Button onClick={addMode === 'stage' ? createStage : createStatus} disabled={creating} className="text-[13px] h-8">
+              {creating ? 'Creating…' : addMode === 'stage' ? 'Create stage' : 'Create status'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Edit Status Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-md bg-card border-border/20">
           <DialogHeader>
-            <DialogTitle className="text-[15px]">Edit status</DialogTitle>
+            <DialogTitle className="text-[15px]">{editMode === 'stage' ? 'Edit stage' : 'Edit status'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
@@ -353,7 +575,7 @@ export default function AdminStatusesPage() {
               <Input
                 value={editLabel}
                 onChange={e => setEditLabel(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') updateStatus(); }}
+                onKeyDown={e => { if (e.key === 'Enter') editMode === 'stage' ? updateStage() : updateStatus(); }}
                 className="h-9 text-[13px] bg-secondary border-border/20"
                 autoFocus
               />
@@ -390,14 +612,13 @@ export default function AdminStatusesPage() {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="text-[13px] h-8 border-border/20">
               Cancel
             </Button>
-            <Button onClick={updateStatus} disabled={updating} className="text-[13px] h-8">
+            <Button onClick={editMode === 'stage' ? updateStage : updateStatus} disabled={updating} className="text-[13px] h-8">
               {updating ? 'Updating…' : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Status confirm */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent className="bg-card border-border/20 sm:max-w-md">
           <AlertDialogHeader>
@@ -418,6 +639,31 @@ export default function AdminStatusesPage() {
               className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {deleting ? 'Deleting…' : deleteTaskCount && deleteTaskCount > 0 ? `Can't delete — ${deleteTaskCount} task${deleteTaskCount !== 1 ? 's' : ''} in use` : 'Delete status'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteStageTarget} onOpenChange={open => { if (!open) setDeleteStageTarget(null); }}>
+        <AlertDialogContent className="bg-card border-border/20 sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">Delete &quot;{deleteStageTarget?.label}&quot;?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-muted-foreground">
+              {deleteStageCount === null
+                ? 'Checking prospects…'
+                : deleteStageCount > 0
+                  ? `${deleteStageCount} prospect${deleteStageCount !== 1 ? 's' : ''} currently ${deleteStageCount !== 1 ? 'use' : 'uses'} this stage. You must reassign them before deleting.`
+                  : 'No prospects are using this stage. It will be permanently removed.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px] h-8 border-border/20">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteStage}
+              disabled={deleting || (deleteStageCount !== null && deleteStageCount > 0)}
+              className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {deleting ? 'Deleting…' : deleteStageCount && deleteStageCount > 0 ? `Can't delete — ${deleteStageCount} prospect${deleteStageCount !== 1 ? 's' : ''} in use` : 'Delete stage'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
