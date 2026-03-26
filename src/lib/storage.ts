@@ -9,10 +9,21 @@ export function getStorageObjectPathFromUrl(url: string, bucket = DOCUMENTS_BUCK
 
   try {
     const parsed = new URL(url);
-    const marker = `/storage/v1/object/public/${bucket}/`;
-    const idx = parsed.pathname.indexOf(marker);
-    if (idx === -1) return null;
-    return decodeURIComponent(parsed.pathname.slice(idx + marker.length));
+    const markers = [
+      `/storage/v1/object/public/${bucket}/`,
+      `/storage/v1/object/sign/${bucket}/`,
+      `/storage/v1/object/authenticated/${bucket}/`,
+    ];
+
+    for (const marker of markers) {
+      const idx = parsed.pathname.indexOf(marker);
+      if (idx !== -1) {
+        const rawPath = parsed.pathname.slice(idx + marker.length);
+        return decodeURIComponent(rawPath.split('/sign/')[0]);
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -23,6 +34,9 @@ export function getStorageProxyUrl(path: string): string {
 }
 
 export function normaliseFileAttachmentUrl(url: string, bucket = DOCUMENTS_BUCKET): string {
+  if (!url) return url;
+  if (url.startsWith('/api/files?path=')) return url;
+
   const path = getStorageObjectPathFromUrl(url, bucket);
   return path ? getStorageProxyUrl(path) : url;
 }
