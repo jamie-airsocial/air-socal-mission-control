@@ -1108,7 +1108,7 @@ export default function PipelinePage() {
   ];
 
   return (
-    <div className="animate-in fade-in duration-200">
+    <div className="animate-in fade-in duration-200 h-[calc(100vh-88px)] overflow-hidden flex flex-col">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Sales Pipeline</h1>
@@ -1237,6 +1237,7 @@ export default function PipelinePage() {
       )}
 
       {/* Views */}
+      <div className="min-h-0 flex-1 overflow-hidden">
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -1264,6 +1265,7 @@ export default function PipelinePage() {
       ) : (
         <StatsView stats={stats} prospects={prospects} stages={PIPELINE_STAGES} />
       )}
+      </div>
 
       {/* Convert to Client Dialog */}
       {convertProspect && (
