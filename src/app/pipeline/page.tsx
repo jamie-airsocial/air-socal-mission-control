@@ -1304,9 +1304,9 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
   const boardScrollRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin min-h-0 h-[calc(100vh-220px)]">
+    <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin min-h-0 flex-1">
           {stages.map(stage => {
           const columnProspects = prospects.filter(p => p.stage === stage.id);
           const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
@@ -1383,9 +1383,9 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
           );
         })}
         </div>
-      </div>
-      <HorizontalScrollRail targetRef={boardScrollRef} />
-    </DragDropContext>
+      </DragDropContext>
+      <HorizontalScrollRail targetRef={boardScrollRef} className="shrink-0" />
+    </div>
   );
 }
 
