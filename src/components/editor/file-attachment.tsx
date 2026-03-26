@@ -3,6 +3,7 @@
 import { Node, mergeAttributes } from '@tiptap/react';
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react';
 import { FileText, FileSpreadsheet, File, FileCode } from 'lucide-react';
+import { normaliseFileAttachmentUrl } from '@/lib/storage';
 
 function getFileIcon(fileName: string) {
   const ext = fileName.split('.').pop()?.toLowerCase() || '';
@@ -15,11 +16,12 @@ function getFileIcon(fileName: string) {
 
 function FileAttachmentView({ node }: any) {
   const { src, fileName } = node.attrs;
+  const href = normaliseFileAttachmentUrl(src || '');
 
   return (
     <NodeViewWrapper className="inline" as="span">
       <a
-        href={src}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
         download={fileName}
@@ -54,7 +56,7 @@ export const FileAttachment = Node.create({
     return ['a', mergeAttributes({
       'data-file-attachment': '',
       class: 'file-attachment-chip',
-      href: HTMLAttributes.src,
+      href: normaliseFileAttachmentUrl(HTMLAttributes.src || ''),
       target: '_blank',
       rel: 'noopener noreferrer',
       download: HTMLAttributes.fileName,

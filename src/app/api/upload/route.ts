@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 import { supabaseAdmin } from '@/lib/supabase';
+import { DOCUMENTS_BUCKET, getStorageProxyUrl } from '@/lib/storage';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('documents')
+      .from(DOCUMENTS_BUCKET)
       .upload(storagePath, buffer, {
         contentType: file.type,
         upsert: false,
@@ -49,13 +50,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: uploadError.message }, { status: 500 });
     }
 
-    const { data: urlData } = supabaseAdmin.storage
-      .from('documents')
-      .getPublicUrl(storagePath);
-
     return NextResponse.json({
       success: true,
-      url: urlData.publicUrl,
+      url: getStorageProxyUrl(storagePath),
       fileName: file.name,
     });
   } catch (err) {

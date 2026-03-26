@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
+import { normaliseFileAttachmentUrl } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 
 const CompactEmojiPicker = dynamic(() => import('@/components/editor/emoji-picker').then(mod => ({ default: mod.CompactEmojiPicker })), {
@@ -504,7 +505,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       if (data.url) {
         editor.commands.insertContent({
           type: 'fileAttachment',
-          attrs: { src: data.url, fileName: data.fileName || file.name },
+          attrs: { src: normaliseFileAttachmentUrl(data.url), fileName: data.fileName || file.name },
         });
       }
     } catch (err) {
