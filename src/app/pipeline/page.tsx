@@ -1299,60 +1299,78 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
   onEdit: (p: Prospect) => void;
 }) {
   const boardScrollRef = useRef<HTMLDivElement | null>(null);
-  const bottomScrollRef = useRef<HTMLDivElement | null>(null);
-  const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const [thumbWidth, setThumbWidth] = useState(80);
+  const [thumbLeft, setThumbLeft] = useState(0);
+  const dragStateRef = useRef<{ startX: number; startLeft: number; maxThumbLeft: number; maxScrollLeft: number } | null>(null);
 
-  const bottomScrollbarStyle = `
-    [data-pipeline-bottom-scroll]::-webkit-scrollbar { height: 12px; }
-    [data-pipeline-bottom-scroll]::-webkit-scrollbar-track { background: rgba(255,255,255,0.08); border-radius: 9999px; }
-    [data-pipeline-bottom-scroll]::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 9999px; }
-    [data-pipeline-bottom-scroll]::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
-  `;
+  const onThumbMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const board = boardScrollRef.current;
+    const rail = railRef.current;
+    if (!board || !rail) return;
+
+    const maxScrollLeft = Math.max(board.scrollWidth - board.clientWidth, 0);
+    const maxThumbLeft = Math.max(rail.clientWidth - thumbWidth, 0);
+
+    dragStateRef.current = {
+      startX: e.clientX,
+      startLeft: thumbLeft,
+      maxThumbLeft,
+      maxScrollLeft,
+    };
+
+    const handleMove = (event: MouseEvent) => {
+      if (!dragStateRef.current || !board) return;
+      const delta = event.clientX - dragStateRef.current.startX;
+      const nextLeft = Math.min(Math.max(dragStateRef.current.startLeft + delta, 0), dragStateRef.current.maxThumbLeft);
+      const ratio = dragStateRef.current.maxThumbLeft <= 0 ? 0 : nextLeft / dragStateRef.current.maxThumbLeft;
+      board.scrollLeft = ratio * dragStateRef.current.maxScrollLeft;
+    };
+
+    const handleUp = () => {
+      dragStateRef.current = null;
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  };
 
   useEffect(() => {
     const board = boardScrollRef.current;
-    const bottom = bottomScrollRef.current;
-    const inner = bottomScrollInnerRef.current;
-    if (!board || !bottom || !inner) return;
+    const rail = railRef.current;
+    if (!board || !rail) return;
 
-    const syncWidth = () => {
-      inner.style.width = `${board.scrollWidth}px`;
+    const updateThumb = () => {
+      const visible = board.clientWidth;
+      const total = board.scrollWidth;
+      const maxScroll = Math.max(total - visible, 0);
+      const railWidth = rail.clientWidth;
+
+      if (total <= 0 || railWidth <= 0) return;
+
+      const nextThumbWidth = maxScroll <= 0 ? railWidth : Math.max((visible / total) * railWidth, 56);
+      const maxThumbLeft = Math.max(railWidth - nextThumbWidth, 0);
+      const ratio = maxScroll <= 0 ? 0 : board.scrollLeft / maxScroll;
+      const nextThumbLeft = ratio * maxThumbLeft;
+
+      setThumbWidth(nextThumbWidth);
+      setThumbLeft(nextThumbLeft);
     };
 
-    let syncingFromBoard = false;
-    let syncingFromBottom = false;
-
-    const handleBoardScroll = () => {
-      if (syncingFromBottom) return;
-      syncingFromBoard = true;
-      bottom.scrollLeft = board.scrollLeft;
-      syncingFromBoard = false;
-    };
-
-    const handleBottomScroll = () => {
-      if (syncingFromBoard) return;
-      syncingFromBottom = true;
-      board.scrollLeft = bottom.scrollLeft;
-      syncingFromBottom = false;
-    };
-
-    syncWidth();
-    handleBoardScroll();
-
-    board.addEventListener('scroll', handleBoardScroll);
-    bottom.addEventListener('scroll', handleBottomScroll);
-    window.addEventListener('resize', syncWidth);
+    updateThumb();
+    board.addEventListener('scroll', updateThumb);
+    window.addEventListener('resize', updateThumb);
 
     return () => {
-      board.removeEventListener('scroll', handleBoardScroll);
-      bottom.removeEventListener('scroll', handleBottomScroll);
-      window.removeEventListener('resize', syncWidth);
+      board.removeEventListener('scroll', updateThumb);
+      window.removeEventListener('resize', updateThumb);
     };
   }, [stages.length, prospects.length]);
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <style>{bottomScrollbarStyle}</style>
       <div className="min-h-0 flex-1 overflow-hidden">
         <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin min-h-0 h-[calc(100vh-220px)]">
           {stages.map(stage => {
@@ -1432,9 +1450,16 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
         })}
         </div>
       </div>
-      <div className="mt-2 rounded-md border border-border/20 bg-muted/20 px-1 py-1">
-        <div ref={bottomScrollRef} data-pipeline-bottom-scroll className="h-4 overflow-x-auto overflow-y-hidden scrollbar-thin">
-          <div ref={bottomScrollInnerRef} className="h-2 min-w-full rounded-full bg-border/40" />
+      <div className="mt-2 px-1">
+        <div ref={railRef} className="relative h-4 rounded-full bg-muted/40 border border-border/30">
+          <div
+            role="scrollbar"
+            aria-orientation="horizontal"
+            aria-label="Pipeline horizontal scroll"
+            onMouseDown={onThumbMouseDown}
+            className="absolute top-0.5 h-3 rounded-full bg-foreground/25 hover:bg-foreground/35 cursor-grab active:cursor-grabbing transition-colors"
+            style={{ width: `${thumbWidth}px`, transform: `translateX(${thumbLeft}px)` }}
+          />
         </div>
       </div>
     </DragDropContext>
