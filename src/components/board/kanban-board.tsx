@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult, type DragStart, type DragUpdate } from '@hello-pangea/dnd';
 import type { Task, Project } from '@/lib/types';
 import { STATUSES, PRIORITIES } from '@/lib/types';
-import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYLES } from '@/lib/constants';
+import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYLES, toDisplayName, toSlug } from '@/lib/constants';
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStatuses } from '@/hooks/use-statuses';
@@ -189,11 +189,17 @@ export function KanbanBoard({
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
       });
       const cols: KanbanColumn[] = assigneeSlugs.map((slug) => {
-        const matchedUser = users.find((u) => u.full_name === slug || u.email === slug || u.id === slug);
+        const normalisedSlug = toSlug(slug);
+        const matchedUser = users.find((u) =>
+          u.id === slug ||
+          u.email === slug ||
+          u.full_name === slug ||
+          toSlug(u.full_name) === normalisedSlug
+        );
         return {
           id: slug,
-          label: matchedUser?.full_name || SLUG_TO_NAME[slug] || slug,
-          dotClass: ASSIGNEE_DOT_CLASSES[slug] || 'bg-muted-foreground',
+          label: matchedUser?.full_name || SLUG_TO_NAME[normalisedSlug] || toDisplayName(slug),
+          dotClass: ASSIGNEE_DOT_CLASSES[normalisedSlug] || ASSIGNEE_DOT_CLASSES[slug] || 'bg-muted-foreground',
         };
       });
       if (tasks.some((t) => !t.assignee)) {
