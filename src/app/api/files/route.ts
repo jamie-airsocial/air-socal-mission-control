@@ -6,19 +6,34 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  const path = request.nextUrl.searchParams.get('path');
+  const rawPath = request.nextUrl.searchParams.get('path');
 
-  if (!path) {
+  if (!rawPath) {
     return NextResponse.json({ error: 'Missing file path' }, { status: 400 });
   }
 
-  const { data, error } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).createSignedUrl(path, 60 * 10, {
-    download: false,
-  });
+  const decodeHtmlEntities = (value: string) => value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
 
-  if (error || !data?.signedUrl) {
-    return NextResponse.json({ error: error?.message || 'Unable to open file' }, { status: 404 });
+  const candidatePaths = Array.from(new Set([
+    rawPath,
+    decodeHtmlEntities(rawPath),
+    rawPath.replace(/&amp;/g, '&'),
+  ].filter(Boolean)));
+
+  for (const path of candidatePaths) {
+    const { data, error } = await supabaseAdmin.storage.from(DOCUMENTS_BUCKET).createSignedUrl(path, 60 * 10, {
+      download: false,
+    });
+
+    if (!error && data?.signedUrl) {
+      return NextResponse.redirect(data.signedUrl, { status: 302 });
+    }
   }
 
-  return NextResponse.redirect(data.signedUrl, { status: 302 });
+  return NextResponse.json({ error: 'Unable to open file' }, { status: 404 });
 }
