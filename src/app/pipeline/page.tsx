@@ -1300,9 +1300,8 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
 }) {
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="min-h-0 flex-1 flex flex-col">
-        <div className="flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin min-h-0 h-[calc(100vh-240px)]">
-          <div className="flex gap-3 h-full min-w-max pb-2">
+      <div className="min-h-0 flex-1 overflow-hidden">
+        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-thin min-h-0 h-[calc(100vh-220px)]">
           {stages.map(stage => {
           const columnProspects = prospects.filter(p => p.stage === stage.id);
           const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
@@ -1378,7 +1377,6 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
             </div>
           );
         })}
-          </div>
         </div>
       </div>
     </DragDropContext>
