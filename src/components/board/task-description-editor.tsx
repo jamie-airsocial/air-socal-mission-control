@@ -18,6 +18,15 @@ import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { normaliseFileAttachmentUrl } from '@/lib/storage';
+
+function normaliseLegacyStorageLinksInHtml(html: string): string {
+  if (!html) return html;
+
+  return html.replace(/href=(['"])(.*?)\1/g, (_match, quote: string, href: string) => {
+    const normalised = normaliseFileAttachmentUrl(href);
+    return `href=${quote}${normalised}${quote}`;
+  });
+}
 import { supabase } from '@/lib/supabase';
 
 const CompactEmojiPicker = dynamic(() => import('@/components/editor/emoji-picker').then(mod => ({ default: mod.CompactEmojiPicker })), {
@@ -365,8 +374,9 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       isInternalUpdate.current = false;
       return;
     }
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content);
+    const normalisedContent = normaliseLegacyStorageLinksInHtml(content);
+    if (editor && normalisedContent !== editor.getHTML()) {
+      editor.commands.setContent(normalisedContent);
     }
   }, [content, editor]);
 
