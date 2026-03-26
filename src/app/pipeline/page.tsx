@@ -1302,6 +1302,13 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
   const bottomScrollRef = useRef<HTMLDivElement | null>(null);
   const bottomScrollInnerRef = useRef<HTMLDivElement | null>(null);
 
+  const bottomScrollbarStyle = `
+    [data-pipeline-bottom-scroll]::-webkit-scrollbar { height: 12px; }
+    [data-pipeline-bottom-scroll]::-webkit-scrollbar-track { background: rgba(255,255,255,0.08); border-radius: 9999px; }
+    [data-pipeline-bottom-scroll]::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 9999px; }
+    [data-pipeline-bottom-scroll]::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.4); }
+  `;
+
   useEffect(() => {
     const board = boardScrollRef.current;
     const bottom = bottomScrollRef.current;
@@ -1345,6 +1352,7 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
+      <style>{bottomScrollbarStyle}</style>
       <div className="min-h-0 flex-1 overflow-hidden">
         <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin min-h-0 h-[calc(100vh-220px)]">
           {stages.map(stage => {
@@ -1424,8 +1432,10 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
         })}
         </div>
       </div>
-      <div ref={bottomScrollRef} className="mt-2 h-4 overflow-x-auto overflow-y-hidden scrollbar-thin">
-        <div ref={bottomScrollInnerRef} className="h-px min-w-full" />
+      <div className="mt-2 rounded-md border border-border/20 bg-muted/20 px-1 py-1">
+        <div ref={bottomScrollRef} data-pipeline-bottom-scroll className="h-4 overflow-x-auto overflow-y-hidden scrollbar-thin">
+          <div ref={bottomScrollInnerRef} className="h-2 min-w-full rounded-full bg-border/40" />
+        </div>
       </div>
     </DragDropContext>
   );
