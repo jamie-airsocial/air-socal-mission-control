@@ -231,7 +231,10 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
               const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
               return (
                 <div key={`${stage.id}-header`} className="flex-shrink-0 w-[280px] flex items-center gap-2 px-1">
-                  <span className={`w-2 h-2 rounded-full ${stage.dotClass}`} />
+                  <span
+                    className={`w-2 h-2 rounded-full ${stage.dotClass || ''}`}
+                    style={!stage.dotClass && stage.color ? { backgroundColor: stage.color } : undefined}
+                  />
                   <span className="text-[13px] font-semibold">{stage.label}</span>
                   <span className="text-[11px] text-muted-foreground/60 ml-auto">
                     {columnProspects.length}{columnValue > 0 ? ` · £${columnValue.toLocaleString()}` : ''}
