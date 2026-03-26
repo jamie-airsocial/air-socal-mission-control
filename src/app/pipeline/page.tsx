@@ -65,7 +65,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
   return (
     <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
       <KanbanFrame>
-        <div className="flex flex-col min-w-max h-full">
+        <div className="flex flex-col min-w-max min-h-full">
           <div className="flex gap-3 shrink-0 pb-2">
             {stages.map(stage => {
               const columnProspects = prospects.filter(p => p.stage === stage.id);
@@ -87,7 +87,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
               {stages.map(stage => {
                 const columnProspects = prospects.filter(p => p.stage === stage.id);
                 return (
-                  <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 h-full flex flex-col">
+                  <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 h-[calc(100vh-320px)] flex flex-col">
                     <Droppable droppableId={stage.id}>
                       {(provided, snapshot) => (
                         <div
