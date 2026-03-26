@@ -23,7 +23,7 @@ export function KanbanFrame({ children, className = '', scrollClassName = '', ra
       >
         {children}
       </div>
-      <HorizontalScrollRail targetRef={scrollRef} className={`shrink-0 ${railClassName}`} />
+      <HorizontalScrollRail targetRef={scrollRef} className={`shrink-0 mt-0 ${railClassName}`} />
     </div>
   );
 }

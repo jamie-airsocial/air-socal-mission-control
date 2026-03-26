@@ -90,7 +90,7 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
   };
 
   return (
-    <div className={`mt-2 px-1 ${className}`}>
+    <div className={`mt-0 px-1 ${className}`}>
       <div ref={railRef} className="relative h-4 rounded-full bg-muted/40 border border-border/30">
         <div
           role="scrollbar"
