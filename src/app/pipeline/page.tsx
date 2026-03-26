@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import {
   Plus, Search, X, Phone, Mail, Building2, TrendingUp, ChevronDown, Check, Pencil,
@@ -44,7 +44,7 @@ import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { FilterPopover } from '@/components/ui/filter-popover';
-import { HorizontalScrollRail } from '@/components/ui/horizontal-scroll-rail';
+import { KanbanFrame } from '@/components/ui/kanban-frame';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Prospect {
@@ -1301,13 +1301,12 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
   openNewProspect: (stage?: string) => void;
   onEdit: (p: Prospect) => void;
 }) {
-  const boardScrollRef = useRef<HTMLDivElement | null>(null);
-
   return (
     <div className="min-h-0 flex-1 overflow-hidden flex flex-col">
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div ref={boardScrollRef} className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin min-h-0 flex-1">
-          {stages.map(stage => {
+      <KanbanFrame>
+        <DragDropContext onDragEnd={onDragEnd}>
+          <div className="flex gap-3 pb-2 min-h-0 flex-1 min-w-max h-full">
+            {stages.map(stage => {
           const columnProspects = prospects.filter(p => p.stage === stage.id);
           const columnValue = columnProspects.reduce((sum, p) => sum + (p.value || 0), 0);
 
@@ -1382,9 +1381,9 @@ function PipelineView({ prospects, stages, onDragEnd, onUpdate, onDelete, openNe
             </div>
           );
         })}
-        </div>
-      </DragDropContext>
-      <HorizontalScrollRail targetRef={boardScrollRef} className="shrink-0" />
+          </div>
+        </DragDropContext>
+      </KanbanFrame>
     </div>
   );
 }
@@ -1542,7 +1541,7 @@ function StatsView({ stats, prospects, stages }: { stats: ReturnType<typeof Obje
         <div className="p-4 rounded-lg border border-border/20 bg-card">
           <h3 className="text-[13px] font-semibold mb-4">Pipeline Funnel</h3>
           <div className="space-y-3">
-            {stages.map(stage => {
+              {stages.map(stage => {
               const count = s.stageCount[stage.id] || 0;
               const value = s.stageValue[stage.id] || 0;
               const widthPercent = Math.max((count / maxStageCount) * 100, 4);

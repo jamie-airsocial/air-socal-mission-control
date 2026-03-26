@@ -8,7 +8,7 @@ import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYL
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStatuses } from '@/hooks/use-statuses';
-import { HorizontalScrollRail } from '@/components/ui/horizontal-scroll-rail';
+import { KanbanFrame } from '@/components/ui/kanban-frame';
 
 export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service' | 'team';
 
@@ -404,9 +404,10 @@ export function KanbanBoard({
 
   return (
     <div className="relative flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
-      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin" role="region" aria-label="Kanban board">
+      <KanbanFrame>
       {/* Column headers — fixed above scroll area */}
-      <div className="flex gap-4 shrink-0 pb-2 min-w-max">
+      <div ref={scrollContainerRef} className="flex flex-col min-w-max h-full">
+      <div className="flex gap-4 shrink-0 pb-2">
         {columns.map((column) => {
           const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
           const totalCount = columnTasks.length;
@@ -425,7 +426,7 @@ export function KanbanBoard({
       </div>
 
       <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
-        <div className="flex gap-4 pb-2 min-h-0 min-w-max flex-1">
+        <div className="flex gap-4 pb-2 min-h-0 flex-1">
           {columns.map((column) => {
             const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
             const totalCount = columnTasks.length;
@@ -566,8 +567,7 @@ export function KanbanBoard({
         </div>
       </DragDropContext>
       </div>
-
-      <HorizontalScrollRail targetRef={scrollContainerRef} />
+      </KanbanFrame>
 
       {/* Left scroll-fade gradient */}
       {canScrollLeft && (
