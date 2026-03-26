@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 interface HorizontalScrollRailProps {
   targetRef: React.RefObject<HTMLDivElement | null>;
@@ -19,10 +19,13 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
     maxScrollLeft: number;
   } | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const target = targetRef.current;
     const rail = railRef.current;
     if (!target || !rail) return;
+
+    let frame1 = 0;
+    let frame2 = 0;
 
     const updateThumb = () => {
       const visible = target.clientWidth;
@@ -42,20 +45,39 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
 
       const nextThumbWidth = Math.max((visible / total) * railWidth, 56);
       const maxThumbLeft = Math.max(railWidth - nextThumbWidth, 0);
-      const ratio = target.scrollLeft / maxScroll;
+      const ratio = maxScroll <= 0 ? 0 : target.scrollLeft / maxScroll;
       const nextThumbLeft = ratio * maxThumbLeft;
 
       setThumbWidth(nextThumbWidth);
       setThumbLeft(nextThumbLeft);
     };
 
-    updateThumb();
+    const scheduleMeasure = () => {
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
+      frame1 = requestAnimationFrame(() => {
+        updateThumb();
+        frame2 = requestAnimationFrame(updateThumb);
+      });
+    };
+
+    scheduleMeasure();
+
+    const resizeObserver = new ResizeObserver(scheduleMeasure);
+    resizeObserver.observe(target);
+    if (target.firstElementChild instanceof HTMLElement) {
+      resizeObserver.observe(target.firstElementChild);
+    }
+
     target.addEventListener('scroll', updateThumb);
-    window.addEventListener('resize', updateThumb);
+    window.addEventListener('resize', scheduleMeasure);
 
     return () => {
+      cancelAnimationFrame(frame1);
+      cancelAnimationFrame(frame2);
+      resizeObserver.disconnect();
       target.removeEventListener('scroll', updateThumb);
-      window.removeEventListener('resize', updateThumb);
+      window.removeEventListener('resize', scheduleMeasure);
     };
   }, [targetRef]);
 
@@ -92,10 +114,8 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
     window.addEventListener('mouseup', handleUp);
   };
 
-  if (!isScrollable) return null;
-
   return (
-    <div className={`mt-0 px-1 ${className}`}>
+    <div className={`${isScrollable ? 'block' : 'hidden'} mt-0 px-1 ${className}`}>
       <div ref={railRef} className="relative h-4 rounded-full bg-muted/40 border border-border/30">
         <div
           role="scrollbar"
