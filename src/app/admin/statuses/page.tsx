@@ -357,6 +357,8 @@ export default function AdminStatusesPage() {
     }
   };
 
+  const totalItems = statuses.length + stages.length;
+
   if (loading || stagesLoading) {
     return (
       <div className="flex items-center justify-center py-16 gap-2 text-[13px] text-muted-foreground/40">
@@ -367,6 +369,11 @@ export default function AdminStatusesPage() {
 
   return (
     <div className="space-y-4">
+      <div>
+        <h2 className="text-[15px] font-semibold text-foreground">Workflow</h2>
+        <p className="text-[13px] text-muted-foreground mt-1">Manage task statuses and pipeline stages in one place.</p>
+        <p className="text-[11px] text-muted-foreground/50 mt-1">{totalItems} configurable workflow item{totalItems !== 1 ? 's' : ''} across tasks and pipeline</p>
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[13px] text-muted-foreground">

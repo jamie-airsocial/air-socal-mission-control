@@ -9,7 +9,7 @@ const ALL_ADMIN_TABS = [
   { href: '/admin/users', label: 'Users', adminOnly: true },
   { href: '/admin/roles', label: 'Roles & Permissions', adminOnly: true },
   { href: '/admin/teams', label: 'Teams', adminOnly: true },
-  { href: '/admin/statuses', label: 'Statuses', adminOnly: true },
+  { href: '/admin/statuses', label: 'Workflow', adminOnly: true },
   { href: '/admin/capacity', label: 'Capacity', adminOnly: true },
 ];
 
@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="space-y-6">
       <div>
         <h1 className="text-[20px] font-semibold text-foreground">{isAdmin ? 'Admin' : 'Settings'}</h1>
-        <p className="text-[13px] text-muted-foreground mt-0.5">{isAdmin ? 'Manage users, roles, permissions and teams' : 'Your profile settings'}</p>
+        <p className="text-[13px] text-muted-foreground mt-0.5">{isAdmin ? 'Manage users, roles, permissions, teams and workflow settings' : 'Your profile settings'}</p>
       </div>
 
       {/* Admin tabs */}
