@@ -11,6 +11,7 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
   const railRef = useRef<HTMLDivElement | null>(null);
   const [thumbWidth, setThumbWidth] = useState(80);
   const [thumbLeft, setThumbLeft] = useState(0);
+  const [isScrollable, setIsScrollable] = useState(false);
   const dragStateRef = useRef<{
     startX: number;
     startLeft: number;
@@ -27,11 +28,13 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
       const visible = target.clientWidth;
       const total = target.scrollWidth;
       const maxScroll = Math.max(total - visible, 0);
-      const railWidth = rail.clientWidth;
+      const nextScrollable = maxScroll > 1;
+      setIsScrollable(nextScrollable);
 
+      const railWidth = rail.clientWidth;
       if (railWidth <= 0) return;
 
-      if (maxScroll <= 0) {
+      if (!nextScrollable) {
         setThumbWidth(railWidth);
         setThumbLeft(0);
         return;
@@ -59,7 +62,7 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
   const onThumbMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = targetRef.current;
     const rail = railRef.current;
-    if (!target || !rail) return;
+    if (!target || !rail || !isScrollable) return;
 
     const maxScrollLeft = Math.max(target.scrollWidth - target.clientWidth, 0);
     const maxThumbLeft = Math.max(rail.clientWidth - thumbWidth, 0);
@@ -88,6 +91,8 @@ export function HorizontalScrollRail({ targetRef, className = '' }: HorizontalSc
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseup', handleUp);
   };
+
+  if (!isScrollable) return null;
 
   return (
     <div className={`mt-0 px-1 ${className}`}>
