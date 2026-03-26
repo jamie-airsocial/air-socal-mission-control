@@ -87,7 +87,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
               {stages.map(stage => {
                 const columnProspects = prospects.filter(p => p.stage === stage.id);
                 return (
-                  <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 h-[calc(100vh-320px)] flex flex-col">
+                  <div key={stage.id} className="flex-shrink-0 w-[280px] min-h-0 flex-1 flex flex-col self-stretch">
                     <Droppable droppableId={stage.id}>
                       {(provided, snapshot) => (
                         <div
@@ -258,7 +258,7 @@ export default function PipelinePage() {
   const sourceOptions = [{ value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' }];
 
   return (
-    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-hidden flex flex-col">
+    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-hidden flex flex-col pb-0">
       <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Sales Pipeline</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">
@@ -337,7 +337,7 @@ export default function PipelinePage() {
             ))}
           </div>
         ) : viewMode === 'pipeline' ? (
-          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-140px)]">
+          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden">
           <PipelineView
             prospects={filtered}
             stages={PIPELINE_STAGES}
