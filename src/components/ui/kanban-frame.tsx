@@ -17,7 +17,7 @@ export function KanbanFrame({ children, className = '', scrollClassName = '', ra
     <div className={`min-h-0 flex-1 overflow-hidden flex flex-col ${className}`}>
       <div
         ref={scrollRef}
-        className={`min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin ${scrollClassName}`}
+        className={`min-h-0 flex-1 overflow-x-auto overflow-y-hidden hide-horizontal-scrollbar ${scrollClassName}`}
         role="region"
         aria-label="Kanban board"
       >

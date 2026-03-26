@@ -218,6 +218,14 @@
   border-radius: 9999px;
 }
 
+/* Hide native horizontal scrollbar when a custom rail is used */
+.hide-horizontal-scrollbar {
+  scrollbar-width: none;
+}
+.hide-horizontal-scrollbar::-webkit-scrollbar {
+  height: 0;
+}
+
 @layer utilities {
   @keyframes fade-in {
     from {
