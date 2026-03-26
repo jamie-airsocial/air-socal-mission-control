@@ -403,9 +403,10 @@ export function KanbanBoard({
   }, [isDragging]);
 
   return (
-    <div className="relative flex flex-col" style={{ height: 'calc(100vh - 200px)' }}>
+    <div className="relative flex flex-col min-h-0 overflow-hidden" style={{ height: 'calc(100vh - 200px)' }}>
+      <div ref={scrollContainerRef} className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden scrollbar-thin" role="region" aria-label="Kanban board">
       {/* Column headers — fixed above scroll area */}
-      <div className="flex gap-4 shrink-0 pb-2">
+      <div className="flex gap-4 shrink-0 pb-2 min-w-max">
         {columns.map((column) => {
           const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
           const totalCount = columnTasks.length;
@@ -424,12 +425,7 @@ export function KanbanBoard({
       </div>
 
       <DragDropContext onDragStart={onDragStart} onDragUpdate={onDragUpdate} onDragEnd={onDragEnd}>
-        <div
-          ref={scrollContainerRef}
-          className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin min-h-0 flex-1"
-          role="region"
-          aria-label="Kanban board"
-        >
+        <div className="flex gap-4 pb-2 min-h-0 min-w-max flex-1">
           {columns.map((column) => {
             const columnTasks = columnTasksMap[column.id] ?? getColumnTasks(column.id);
             const totalCount = columnTasks.length;
@@ -569,6 +565,7 @@ export function KanbanBoard({
           })}
         </div>
       </DragDropContext>
+      </div>
 
       <HorizontalScrollRail targetRef={scrollContainerRef} />
 
