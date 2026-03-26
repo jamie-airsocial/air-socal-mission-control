@@ -258,7 +258,7 @@ export default function PipelinePage() {
   const sourceOptions = [{ value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' }];
 
   return (
-    <div className="animate-in fade-in duration-200 h-screen overflow-hidden flex flex-col">
+    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-hidden flex flex-col">
       <div className="mb-4">
         <h1 className="text-2xl font-bold tracking-tight">Sales Pipeline</h1>
         <p className="text-[13px] text-muted-foreground/60 mt-1">
