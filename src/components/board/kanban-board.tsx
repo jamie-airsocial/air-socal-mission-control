@@ -8,6 +8,7 @@ import { STATUS_STYLES, PRIORITY_STYLES, SLUG_TO_NAME, SERVICE_STYLES, TEAM_STYL
 import { TaskCard } from './task-card';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useStatuses } from '@/hooks/use-statuses';
+import { useUsers } from '@/hooks/use-users';
 import { KanbanFrame } from '@/components/ui/kanban-frame';
 
 export type KanbanGroupBy = 'status' | 'priority' | 'project' | 'assignee' | 'service' | 'team';
@@ -138,6 +139,7 @@ export function KanbanBoard({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const { statuses: dynamicStatuses, loading: statusesLoading } = useStatuses();
+  const { users } = useUsers();
 
   // Reset column order when group-by changes
   useEffect(() => {
@@ -186,11 +188,14 @@ export function KanbanBoard({
         const bi = knownOrder.indexOf(b);
         return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
       });
-      const cols: KanbanColumn[] = assigneeSlugs.map((slug) => ({
-        id: slug,
-        label: SLUG_TO_NAME[slug] || slug,
-        dotClass: ASSIGNEE_DOT_CLASSES[slug] || 'bg-muted-foreground',
-      }));
+      const cols: KanbanColumn[] = assigneeSlugs.map((slug) => {
+        const matchedUser = users.find((u) => u.full_name === slug || u.email === slug || u.id === slug);
+        return {
+          id: slug,
+          label: matchedUser?.full_name || SLUG_TO_NAME[slug] || slug,
+          dotClass: ASSIGNEE_DOT_CLASSES[slug] || 'bg-muted-foreground',
+        };
+      });
       if (tasks.some((t) => !t.assignee)) {
         cols.unshift({ id: 'unassigned', label: 'No assignee', dotClass: 'bg-muted-foreground/40' });
       }
@@ -248,7 +253,7 @@ export function KanbanBoard({
       cols.unshift({ id: 'no-status', label: 'No status', dotClass: 'bg-muted-foreground/40' });
     }
     return cols;
-  }, [groupBy, projects, tasks, dynamicStatuses, statusesLoading]);
+  }, [groupBy, projects, tasks, dynamicStatuses, statusesLoading, users]);
 
   const getColumnTasks = useCallback(
     (columnId: string): TaskWithProject[] => {

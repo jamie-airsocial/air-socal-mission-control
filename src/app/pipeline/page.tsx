@@ -337,7 +337,7 @@ export default function PipelinePage() {
             ))}
           </div>
         ) : viewMode === 'pipeline' ? (
-          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
+          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-140px)]">
           <PipelineView
             prospects={filtered}
             stages={PIPELINE_STAGES}
