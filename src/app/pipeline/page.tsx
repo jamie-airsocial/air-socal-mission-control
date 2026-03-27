@@ -207,11 +207,101 @@ function ProspectSheet({
 }
 
 function TableView({ prospects }: { prospects: Prospect[] }) {
-  return <div className="rounded-lg border border-border/20 p-4 text-[13px] text-muted-foreground">Table view unchanged · {prospects.length} prospects</div>;
+  return (
+    <div className="rounded-lg border border-border/20 bg-card overflow-hidden h-[calc(100vh-170px)]">
+      <div className="overflow-auto h-full">
+        <table className="w-full text-left" aria-label="Pipeline table">
+          <thead className="sticky top-0 bg-card z-10">
+            <tr className="border-b border-border/20">
+              <th className="px-5 py-3 text-[11px] font-medium text-muted-foreground/60">Prospect</th>
+              <th className="px-4 py-3 text-[11px] font-medium text-muted-foreground/60">Stage</th>
+              <th className="px-4 py-3 text-[11px] font-medium text-muted-foreground/60">Service</th>
+              <th className="px-4 py-3 text-[11px] font-medium text-muted-foreground/60">Contact</th>
+              <th className="px-4 py-3 text-[11px] font-medium text-muted-foreground/60">Source</th>
+              <th className="px-4 py-3 text-[11px] font-medium text-muted-foreground/60 text-right">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {prospects.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-5 py-12 text-center text-[13px] text-muted-foreground/60">No prospects found</td>
+              </tr>
+            ) : prospects.map((prospect) => {
+              const serviceStyle = prospect.service ? getServiceStyle(prospect.service) : null;
+              return (
+                <tr key={prospect.id} className="border-b border-border/10 last:border-b-0 hover:bg-muted/20 transition-colors duration-150">
+                  <td className="px-5 py-3">
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-foreground truncate">{prospect.name}</div>
+                      {prospect.assignee && <div className="text-[11px] text-muted-foreground/60 mt-0.5">{prospect.assignee}</div>}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-[13px] text-foreground">{prospect.stage}</td>
+                  <td className="px-4 py-3">
+                    {serviceStyle ? (
+                      <span className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${serviceStyle.bg} ${serviceStyle.text}`}>
+                        <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: serviceStyle.dot }} />
+                        {serviceStyle.label}
+                      </span>
+                    ) : (
+                      <span className="text-[13px] text-muted-foreground/60">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-[13px] text-foreground">{prospect.contact_name || '—'}</div>
+                    {prospect.contact_email && <div className="text-[11px] text-muted-foreground/60 mt-0.5">{prospect.contact_email}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-[13px] text-muted-foreground/80">{prospect.source || '—'}</td>
+                  <td className="px-4 py-3 text-[13px] text-foreground text-right tabular-nums">{prospect.value ? `£${prospect.value.toLocaleString()}` : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
-function StatsView({ stats }: { stats: { pipelineValue: number; wonValue: number } }) {
-  return <div className="rounded-lg border border-border/20 p-4 text-[13px] text-muted-foreground">Stats view · £{stats.pipelineValue.toLocaleString()} pipeline · £{stats.wonValue.toLocaleString()} won</div>;
+function StatsView({ stats, prospects }: { stats: { pipelineValue: number; wonValue: number }; prospects: Prospect[] }) {
+  const openCount = prospects.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
+  const wonCount = prospects.filter(p => p.stage === 'won').length;
+  const lostCount = prospects.filter(p => p.stage === 'lost').length;
+  const totalTracked = wonCount + lostCount;
+  const winRate = totalTracked > 0 ? Math.round((wonCount / totalTracked) * 100) : 0;
+  const averageValue = prospects.length > 0
+    ? Math.round(prospects.reduce((sum, p) => sum + (p.value || 0), 0) / prospects.length)
+    : 0;
+
+  const cards = [
+    { label: 'Open pipeline', value: `£${stats.pipelineValue.toLocaleString()}`, icon: PoundSterling },
+    { label: 'Won value', value: `£${stats.wonValue.toLocaleString()}`, icon: Trophy },
+    { label: 'Win rate', value: `${winRate}%`, icon: Percent },
+    { label: 'Average prospect value', value: `£${averageValue.toLocaleString()}`, icon: TrendingUp },
+    { label: 'Open prospects', value: String(openCount), icon: BarChart3 },
+    { label: 'Lost prospects', value: String(lostCount), icon: X },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {cards.map((card) => {
+        const Icon = card.icon;
+        return (
+          <div key={card.label} className="rounded-lg border border-border/20 bg-card p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[13px] text-muted-foreground/60">{card.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-foreground tracking-tight">{card.value}</p>
+              </div>
+              <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Icon className="h-4 w-4" />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }: {
@@ -512,9 +602,13 @@ export default function PipelinePage() {
           />
           </div>
         ) : viewMode === 'table' ? (
-          <TableView prospects={filtered} />
+          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
+            <TableView prospects={filtered} />
+          </div>
         ) : (
-          <StatsView stats={stats} />
+          <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-auto h-[calc(100vh-170px)]">
+            <StatsView stats={stats} prospects={filtered} />
+          </div>
         )}
 
       {lossModalProspect && <div />}
