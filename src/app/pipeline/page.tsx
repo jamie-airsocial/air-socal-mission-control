@@ -39,11 +39,13 @@ function ProspectSheet({
   onOpenChange,
   defaultStage,
   onCreated,
+  prospect,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultStage: string;
   onCreated: () => Promise<void> | void;
+  prospect: Prospect | null;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -60,17 +62,17 @@ function ProspectSheet({
   useEffect(() => {
     if (!open) return;
     setForm({
-      name: '',
-      value: '',
-      service: '',
-      source: '',
-      contact_name: '',
-      contact_email: '',
-      contact_phone: '',
+      name: prospect?.name || '',
+      value: prospect?.value != null ? String(prospect.value) : '',
+      service: prospect?.service || '',
+      source: prospect?.source || '',
+      contact_name: prospect?.contact_name || '',
+      contact_email: prospect?.contact_email || '',
+      contact_phone: prospect?.contact_phone || '',
       notes: '',
     });
     setSaving(false);
-  }, [open, defaultStage]);
+  }, [open, defaultStage, prospect]);
 
   if (!open) return null;
 
@@ -83,11 +85,12 @@ function ProspectSheet({
     setSaving(true);
     try {
       const res = await fetch('/api/prospects', {
-        method: 'POST',
+        method: prospect ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          ...(prospect ? { id: prospect.id } : {}),
           name: form.name.trim(),
-          stage: defaultStage || 'lead',
+          stage: prospect?.stage || defaultStage || 'lead',
           value: form.value.trim() ? Number(form.value.replace(/[^0-9.]/g, '')) : null,
           service: form.service.trim() || null,
           source: form.source.trim() || null,
@@ -103,7 +106,7 @@ function ProspectSheet({
 
       await onCreated();
       onOpenChange(false);
-      toast.success('Prospect created');
+      toast.success(prospect ? 'Prospect updated' : 'Prospect created');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to create prospect');
     } finally {
@@ -114,8 +117,8 @@ function ProspectSheet({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => onOpenChange(false)}>
       <div className="w-full max-w-xl rounded-xl border border-border/20 bg-card p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold">New prospect</h3>
-        <p className="mt-1 text-[13px] text-muted-foreground">Add a new prospect to the {defaultStage || 'lead'} stage.</p>
+        <h3 className="text-lg font-semibold">{prospect ? 'Edit prospect' : 'New prospect'}</h3>
+        <p className="mt-1 text-[13px] text-muted-foreground">{prospect ? 'Update this prospect and keep the pipeline current.' : `Add a new prospect to the ${defaultStage || 'lead'} stage.`}</p>
 
         <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="md:col-span-2">
@@ -195,7 +198,7 @@ function ProspectSheet({
 
         <div className="mt-5 flex items-center gap-2">
           <Button size="sm" onClick={handleSubmit} disabled={saving}>
-            {saving ? 'Creating...' : 'Create prospect'}
+            {saving ? (prospect ? 'Saving...' : 'Creating...') : (prospect ? 'Save changes' : 'Create prospect')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
@@ -580,9 +583,13 @@ export default function PipelinePage() {
 
       <ProspectSheet
         open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setEditingProspect(null);
+        }}
         defaultStage={sheetDefaultStage}
         onCreated={fetchProspects}
+        prospect={editingProspect}
       />
 
       {loading ? (
