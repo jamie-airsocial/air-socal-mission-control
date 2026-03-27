@@ -101,8 +101,10 @@ function TaskCardInner({ task, onClick, dimDone = false }: TaskCardProps) {
       role="button"
       tabIndex={0}
       aria-label={`Task: ${task.title}`}
-      className={`group relative cursor-pointer rounded-lg border border-border/20 bg-card transition-[background-color,box-shadow,opacity] duration-150 hover:bg-muted/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${isDone && dimDone ? 'opacity-60' : ''}`}
+      className={`group relative cursor-pointer rounded-lg border bg-card transition-[background-color,box-shadow,opacity,border-color] duration-150 hover:bg-muted/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none dark:border-border/20 dark:hover:shadow-sm ${isDone && dimDone ? 'opacity-60' : ''}`}
       style={{
+        borderColor: 'color-mix(in oklab, var(--border) 55%, var(--foreground) 8%)',
+        boxShadow: '0 1px 2px color-mix(in oklab, var(--foreground) 5%, transparent)',
         borderLeftWidth: task.priority ? '3px' : '1px',
         borderLeftColor: task.priority ? PRIORITY_BORDER_COLORS[task.priority] : undefined,
       }}

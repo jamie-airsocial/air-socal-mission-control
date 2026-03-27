@@ -459,7 +459,7 @@ export function KanbanBoard({
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
-                      className="min-h-0 flex-1 rounded-lg p-1.5 overflow-y-auto scrollbar-thin"
+                      className="min-h-0 flex-1 rounded-lg p-1.5 overflow-y-auto scrollbar-thin bg-muted/25 border border-border/15"
                     >
                       {/* Drop indicator at top */}
                       {isDragging && showDestIndicator && destIdx === 0 && (
