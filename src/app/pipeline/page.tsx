@@ -497,6 +497,10 @@ function ProspectSheet({
                 <Popover open={stageOpen} onOpenChange={setStageOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{stageOptions.find(s => s.id === form.stage)?.label || form.stage || 'Select stage'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{stageOptions.map(stage => <button key={stage.id} onClick={() => { setForm(f => ({ ...f, stage: stage.id })); setStageOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{stage.label}</button>)}</PopoverContent></Popover>
               </div>
               <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><PoundSterling size={13} /> Total value</div>
+                <div className="px-2.5 py-2 rounded-lg border border-border/10 bg-muted/20 text-foreground">{calculatedValue}</div>
+              </div>
+              <div>
                 <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><MessageSquare size={13} /> Lead source</div>
                 <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
                   <PopoverTrigger asChild>
