@@ -1,14 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase';
 
-async function resolveAuthorFromRequest(request: NextRequest): Promise<string> {
+async function resolveAuthorFromRequest(request: NextRequest): Promise<{ author: string; author_name: string }> {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  if (!token) return 'casper';
+  if (!token) {
+    throw new Error('Missing auth token for comment author resolution');
+  }
 
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData.user) return 'casper';
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !anon) {
+    throw new Error('Missing Supabase public env vars');
+  }
+
+  const userClient = createClient(url, anon, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  });
+
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+  if (authError || !authData.user) {
+    throw new Error('Unable to resolve signed-in user');
+  }
 
   const { data: appUser } = await supabaseAdmin
     .from('app_users')
@@ -16,13 +35,15 @@ async function resolveAuthorFromRequest(request: NextRequest): Promise<string> {
     .eq('auth_user_id', authData.user.id)
     .single();
 
-  if (!appUser?.full_name) return 'casper';
+  const fullName = appUser?.full_name?.trim();
+  if (!fullName) {
+    throw new Error('Signed-in user has no matching app user full name');
+  }
 
-  return appUser.full_name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'casper';
+  return {
+    author: authData.user.id,
+    author_name: fullName,
+  };
 }
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -35,7 +56,14 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     .order('created_at', { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  return NextResponse.json((data || []).map((comment: Record<string, unknown>) => ({
+    ...comment,
+    author_name: typeof comment.author_name === 'string' && comment.author_name.trim().length > 0
+      ? comment.author_name
+      : typeof comment.author === 'string'
+        ? comment.author
+        : 'Unknown user',
+  })));
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,14 +74,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const content = typeof body.content === 'string' ? body.content.trim().slice(0, 10000) : null;
   if (!content) return NextResponse.json({ error: 'Content required' }, { status: 400 });
 
-  const author = await resolveAuthorFromRequest(request);
+  let authorData;
+  try {
+    authorData = await resolveAuthorFromRequest(request);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to resolve comment author' }, { status: 401 });
+  }
 
   const { data, error } = await supabaseAdmin
     .from('comments')
     .insert({
       task_id: taskId,
       content,
-      author,
+      author: authorData.author,
+      author_name: authorData.author_name,
     })
     .select()
     .single();

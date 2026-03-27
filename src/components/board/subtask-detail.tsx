@@ -63,10 +63,9 @@ export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: Su
 
   const addSubtaskComment = async () => {
     if (!subtaskNewComment.trim()) return;
-    const localAuthor = toSlug(appUser?.full_name || 'casper');
     if (subtask.id.startsWith('temp-')) {
       // Local-only for temp subtasks
-      setSubtaskComments(prev => [...prev, { id: `temp-${Date.now()}`, content: subtaskNewComment, author: localAuthor, created_at: new Date().toISOString() } as Comment]);
+      setSubtaskComments(prev => [...prev, { id: `temp-${Date.now()}`, content: subtaskNewComment, author: appUser?.id || 'temp-user', author_name: appUser?.full_name || 'Unknown user', created_at: new Date().toISOString() } as Comment]);
       setSubtaskNewComment('');
       return;
     }
@@ -310,7 +309,7 @@ export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: Su
             {subtaskComments.map((c) => (
               <div key={c.id} className="flex gap-2.5 group relative">
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] leading-none flex-shrink-0 mt-0.5">
-                  {getInitials(c.author)}
+                  {getInitials(c.author_name || c.author)}
                 </div>
                 <button
                   aria-label="Delete comment"
@@ -321,7 +320,7 @@ export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: Su
                 </button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-baseline gap-2 mb-0.5">
-                    <span className="text-[13px] font-medium text-foreground">{toDisplayName(c.author)}</span>
+                    <span className="text-[13px] font-medium text-foreground">{c.author_name || c.author}</span>
                     <span className="text-[10px] text-muted-foreground/30">
                       {formatTimestamp(c.created_at)}
                     </span>
