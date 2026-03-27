@@ -3,13 +3,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  Plus, Search, X, Kanban, Table2, BarChart3, Mail, Phone,
-  PoundSterling, Trophy, Percent, TrendingUp,
+  Plus, Search, X, Kanban, Table2, BarChart3, Mail, Phone, Check, ChevronDown,
+  PoundSterling, Trophy, Percent, TrendingUp, User, Users, Globe, Tag, Calendar,
+  Briefcase, MessageSquare, Pencil, Trash2,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { FilterPopover } from '@/components/ui/filter-popover';
 import { KanbanFrame } from '@/components/ui/kanban-frame';
+import { EnhancedDatePicker, formatRelativeDate } from '@/components/board/enhanced-date-picker';
 import { usePersistedState } from '@/hooks/use-persisted-state';
 import { usePipelineStages } from '@/hooks/use-pipeline-stages';
 import { useUsers } from '@/hooks/use-users';
@@ -28,11 +32,213 @@ interface Prospect {
   contact_email?: string | null;
   contact_phone?: string | null;
   assignee?: string | null;
+  notes?: string | null;
+  team?: string | null;
+  website?: string | null;
+  won_at?: string | null;
+  lost_at?: string | null;
+  lost_reason?: string | null;
+  updated_at?: string | null;
   created_at: string;
 }
 
 type ViewMode = 'pipeline' | 'table' | 'stats';
 
+interface ProspectLineItem {
+  id: string;
+  prospect_id: string;
+  service: string;
+  description: string | null;
+  monthly_value: number;
+  billing_type: 'recurring' | 'one-off';
+  start_date: string | null;
+  end_date: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface TeamOption {
+  id: string;
+  name: string;
+}
+
+interface Activity {
+  id: string;
+  prospect_id: string;
+  type: 'call' | 'email' | 'meeting' | 'note' | 'stage_change' | 'created' | 'won' | 'lost';
+  title: string;
+  description?: string;
+  from_stage?: string;
+  to_stage?: string;
+  created_at: string;
+}
+
+interface LineItemFormData {
+  service: string;
+  description: string;
+  monthly_value: string;
+  billing_type: 'recurring' | 'one-off';
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+}
+
+const emptyLineItem: LineItemFormData = {
+  service: '',
+  description: '',
+  monthly_value: '',
+  billing_type: 'recurring',
+  start_date: '',
+  end_date: '',
+  is_active: true,
+};
+
+function formatTimestamp(date: string) {
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+}
+
+function toISODateString(d: string | null | undefined) {
+  if (!d) return '';
+  try { return new Date(d).toISOString().split('T')[0]; } catch { return ''; }
+}
+
+function ProspectLineItemDialog({
+  open,
+  onOpenChange,
+  initialData,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  initialData?: ProspectLineItem | null;
+  onSave: (data: LineItemFormData) => Promise<void>;
+}) {
+  const [form, setForm] = useState<LineItemFormData>(emptyLineItem);
+  const [saving, setSaving] = useState(false);
+  const [services, setServices] = useState<{ id: string; label: string }[]>([]);
+  const [serviceOpen, setServiceOpen] = useState(false);
+  const [serviceSearch, setServiceSearch] = useState('');
+
+  useEffect(() => {
+    fetch('/api/services').then(r => r.json()).then(d => { if (Array.isArray(d)) setServices(d); }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setForm(initialData ? {
+        service: initialData.service,
+        description: initialData.description || '',
+        monthly_value: String(initialData.monthly_value),
+        billing_type: initialData.billing_type || 'recurring',
+        start_date: toISODateString(initialData.start_date),
+        end_date: toISODateString(initialData.end_date),
+        is_active: initialData.is_active,
+      } : emptyLineItem);
+      setServiceSearch('');
+    }
+  }, [open, initialData]);
+
+  const handleSave = async () => {
+    if (!form.service) { toast.error('Service is required'); return; }
+    setSaving(true);
+    try { await onSave(form); onOpenChange(false); }
+    catch (e) { toast.error(e instanceof Error ? e.message : 'Failed to save'); }
+    finally { setSaving(false); }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-[520px] bg-card border-border/20 p-0 overflow-y-auto">
+        <div className="px-5 py-4 border-b border-border/20">
+          <h3 className="text-[15px] font-semibold">{initialData ? 'Edit line item' : 'Add line item'}</h3>
+        </div>
+        <div className="px-5 py-4 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-[13px] text-muted-foreground">Service *</label>
+            <Popover open={serviceOpen} onOpenChange={setServiceOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-secondary border border-border/20 rounded-md flex items-center justify-between hover:bg-muted/40 transition-colors">
+                  {form.service ? (services.find(s => s.id === form.service)?.label || form.service) : <span className="text-muted-foreground/40">Select service...</span>}
+                  <ChevronDown size={14} className="text-muted-foreground/40" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
+                <input
+                  value={serviceSearch}
+                  onChange={e => setServiceSearch(e.target.value)}
+                  placeholder="Search or create..."
+                  className="w-full px-2 py-1.5 text-[13px] bg-transparent border-b border-border/10 outline-none mb-1"
+                  autoFocus
+                />
+                <div className="max-h-[200px] overflow-y-auto">
+                  {services.filter(s => s.label.toLowerCase().includes(serviceSearch.toLowerCase())).map(s => (
+                    <button key={s.id} type="button" onClick={() => { setForm(f => ({ ...f, service: s.id })); setServiceOpen(false); setServiceSearch(''); }} className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 transition-colors ${form.service === s.id ? 'bg-muted/40' : ''}`}>
+                      <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: getServiceStyle(s.id).dot }} /> {s.label}</span>
+                      {form.service === s.id && <Check size={14} className="text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[13px] text-muted-foreground">Description</label>
+            <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className="min-h-[96px] w-full rounded-lg border border-border/20 bg-background px-3 py-2 text-[13px] outline-none focus:border-primary/50 resize-none" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[13px] text-muted-foreground">Value</label>
+              <input value={form.monthly_value} onChange={e => setForm(f => ({ ...f, monthly_value: e.target.value }))} inputMode="decimal" className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] text-muted-foreground">Billing type</label>
+              <div className="flex rounded-lg border border-border/20 bg-secondary p-0.5">
+                {(['recurring', 'one-off'] as const).map(type => (
+                  <button key={type} type="button" onClick={() => setForm(f => ({ ...f, billing_type: type }))} className={`flex-1 px-3 py-1.5 rounded-md text-[13px] transition-colors ${form.billing_type === type ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                    {type === 'recurring' ? 'Recurring' : 'One-off'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[13px] text-muted-foreground">Start date</label>
+              <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] text-muted-foreground">End date</label>
+              <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 text-[13px] text-foreground">
+            <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
+            Active line item
+          </label>
+        </div>
+        <div className="px-5 py-3 border-t border-border/20 flex items-center justify-end gap-2 sticky bottom-0 bg-card">
+          <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
+          <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : (initialData ? 'Save changes' : 'Add line item')}</Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 function ProspectSheet({
   open,
@@ -40,172 +246,374 @@ function ProspectSheet({
   defaultStage,
   onCreated,
   prospect,
+  stageOptions,
+  teamOptions,
+  assigneeOptions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultStage: string;
   onCreated: () => Promise<void> | void;
   prospect: Prospect | null;
+  stageOptions: { id: string; label: string; color: string; dotClass?: string | null }[];
+  teamOptions: TeamOption[];
+  assigneeOptions: { slug: string; full_name: string }[];
 }) {
   const [form, setForm] = useState({
     name: '',
+    stage: 'lead',
     value: '',
     service: '',
     source: '',
+    assignee: '',
+    team: '',
+    website: '',
     contact_name: '',
     contact_email: '',
     contact_phone: '',
     notes: '',
+    lost_reason: '',
   });
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'billing' | 'activity' | 'conversion'>('details');
+  const [lineItems, setLineItems] = useState<ProspectLineItem[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
+  const [editingLineItem, setEditingLineItem] = useState<ProspectLineItem | null>(null);
+  const [deleteLineItem, setDeleteLineItem] = useState<ProspectLineItem | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [stageOpen, setStageOpen] = useState(false);
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [teamOpen, setTeamOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setForm({
       name: prospect?.name || '',
+      stage: prospect?.stage || defaultStage || 'lead',
       value: prospect?.value != null ? String(prospect.value) : '',
       service: prospect?.service || '',
       source: prospect?.source || '',
+      assignee: prospect?.assignee || '',
+      team: prospect?.team || '',
+      website: prospect?.website || '',
       contact_name: prospect?.contact_name || '',
       contact_email: prospect?.contact_email || '',
       contact_phone: prospect?.contact_phone || '',
-      notes: '',
+      notes: prospect?.notes || '',
+      lost_reason: prospect?.lost_reason || '',
     });
     setSaving(false);
+    setActiveTab('details');
   }, [open, defaultStage, prospect]);
 
-  if (!open) return null;
-
-  const handleSubmit = async () => {
-    if (!form.name.trim()) {
-      toast.error('Prospect name required');
+  useEffect(() => {
+    if (!open || !prospect?.id) {
+      setLineItems([]);
+      setActivities([]);
       return;
     }
+    fetch(`/api/prospects/${prospect.id}/line-items`).then(r => r.json()).then(d => setLineItems(Array.isArray(d) ? d : [])).catch(() => setLineItems([]));
+    fetch(`/api/prospects/${prospect.id}/activities`).then(r => r.json()).then(d => setActivities(Array.isArray(d) ? d : [])).catch(() => setActivities([]));
+  }, [open, prospect?.id]);
 
+  const persistProspect = async () => {
+    if (!form.name.trim()) {
+      toast.error('Prospect name required');
+      return null;
+    }
+    const res = await fetch('/api/prospects', {
+      method: prospect ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(prospect ? { id: prospect.id } : {}),
+        name: form.name.trim(),
+        stage: form.stage || defaultStage || 'lead',
+        value: form.value.trim() ? Number(form.value.replace(/[^0-9.]/g, '')) : null,
+        service: form.service.trim() || null,
+        source: form.source.trim() || null,
+        assignee: form.assignee || null,
+        team: form.team || null,
+        website: form.website.trim() || null,
+        contact_name: form.contact_name.trim() || null,
+        contact_email: form.contact_email.trim() || null,
+        contact_phone: form.contact_phone.trim() || null,
+        notes: form.notes.trim() || null,
+        lost_reason: form.stage === 'lost' ? (form.lost_reason.trim() || null) : null,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to save prospect');
+    return data as Prospect;
+  };
+
+  const handleSubmit = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/prospects', {
-        method: prospect ? 'PATCH' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...(prospect ? { id: prospect.id } : {}),
-          name: form.name.trim(),
-          stage: prospect?.stage || defaultStage || 'lead',
-          value: form.value.trim() ? Number(form.value.replace(/[^0-9.]/g, '')) : null,
-          service: form.service.trim() || null,
-          source: form.source.trim() || null,
-          contact_name: form.contact_name.trim() || null,
-          contact_email: form.contact_email.trim() || null,
-          contact_phone: form.contact_phone.trim() || null,
-          notes: form.notes.trim() || null,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || 'Failed to create prospect');
-
+      await persistProspect();
       await onCreated();
       onOpenChange(false);
       toast.success(prospect ? 'Prospect updated' : 'Prospect created');
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to create prospect');
+      toast.error(error instanceof Error ? error.message : 'Failed to save prospect');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleSaveLineItem = async (lineForm: LineItemFormData) => {
+    const targetProspect = prospect || await persistProspect();
+    if (!targetProspect?.id) throw new Error('Save the prospect first');
+
+    const payload = {
+      ...(editingLineItem ? { id: editingLineItem.id } : {}),
+      service: lineForm.service,
+      description: lineForm.description || null,
+      monthly_value: Number(lineForm.monthly_value || 0),
+      billing_type: lineForm.billing_type,
+      start_date: lineForm.start_date || null,
+      end_date: lineForm.end_date || null,
+      is_active: lineForm.is_active,
+    };
+
+    const res = await fetch(`/api/prospects/${targetProspect.id}/line-items`, {
+      method: editingLineItem ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to save line item');
+    const refresh = await fetch(`/api/prospects/${targetProspect.id}/line-items`).then(r => r.json()).catch(() => []);
+    setLineItems(Array.isArray(refresh) ? refresh : []);
+    await onCreated();
+    toast.success(editingLineItem ? 'Line item updated' : 'Line item added');
+  };
+
+  const handleDeleteLineItem = async () => {
+    if (!prospect?.id || !deleteLineItem) return;
+    const res = await fetch(`/api/prospects/${prospect.id}/line-items`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: deleteLineItem.id }),
+    });
+    if (!res.ok) {
+      toast.error('Failed to delete line item');
+      return;
+    }
+    setLineItems(prev => prev.filter(item => item.id !== deleteLineItem.id));
+    setDeleteLineItem(null);
+    await onCreated();
+    toast.success('Line item deleted');
+  };
+
+  const handleConvert = async () => {
+    const targetProspect = prospect || await persistProspect();
+    if (!targetProspect?.id) return;
+    setConverting(true);
+    try {
+      const res = await fetch(`/api/prospects/${targetProspect.id}/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to convert prospect');
+      await onCreated();
+      onOpenChange(false);
+      toast.success('Prospect converted to client');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to convert prospect');
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const recurringTotal = lineItems.filter(item => item.is_active && item.billing_type === 'recurring').reduce((sum, item) => sum + (item.monthly_value || 0), 0);
+  const convertedServices = [...new Set(lineItems.filter(item => item.is_active).map(item => item.service).filter(Boolean))];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => onOpenChange(false)}>
-      <div className="w-full max-w-xl rounded-xl border border-border/20 bg-card p-6" onClick={e => e.stopPropagation()}>
-        <h3 className="text-lg font-semibold">{prospect ? 'Edit prospect' : 'New prospect'}</h3>
-        <p className="mt-1 text-[13px] text-muted-foreground">{prospect ? 'Update this prospect and keep the pipeline current.' : `Add a new prospect to the ${defaultStage || 'lead'} stage.`}</p>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full sm:max-w-[760px] bg-card border-border/20 p-0 overflow-hidden">
+          <div className="flex h-full flex-col">
+            <div className="px-5 py-4 border-b border-border/20">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="text-[11px] text-muted-foreground/60">
+                  {prospect ? `Created ${new Date(prospect.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'New prospect'}
+                  {prospect?.updated_at ? ` · Updated ${formatTimestamp(prospect.updated_at)}` : ''}
+                  {prospect?.won_at ? ` · Won ${new Date(prospect.won_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
+                </div>
+                {prospect?.id && <a href={`/pipeline/${prospect.id}`} className="text-[13px] text-primary hover:underline">Open full page</a>}
+              </div>
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Prospect name" className="w-full bg-transparent text-[24px] font-semibold tracking-tight outline-none placeholder:text-muted-foreground/30" />
+            </div>
 
-        <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="md:col-span-2">
-            <label className="block text-[12px] text-muted-foreground mb-1">Prospect name</label>
-            <input
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Company or opportunity name"
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] text-muted-foreground mb-1">Value</label>
-            <input
-              value={form.value}
-              onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
-              placeholder="e.g. 5000"
-              inputMode="decimal"
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] text-muted-foreground mb-1">Source</label>
-            <input
-              value={form.source}
-              onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
-              placeholder="Referral, website, etc."
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-[12px] text-muted-foreground mb-1">Service</label>
-            <input
-              value={form.service}
-              onChange={e => setForm(f => ({ ...f, service: e.target.value }))}
-              placeholder="SEO, Paid Advertising, Social Media..."
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] text-muted-foreground mb-1">Contact name</label>
-            <input
-              value={form.contact_name}
-              onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))}
-              placeholder="Primary contact"
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div>
-            <label className="block text-[12px] text-muted-foreground mb-1">Contact phone</label>
-            <input
-              value={form.contact_phone}
-              onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))}
-              placeholder="07xxx xxxxxx"
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-[12px] text-muted-foreground mb-1">Contact email</label>
-            <input
-              value={form.contact_email}
-              onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
-              placeholder="email@company.com"
-              className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-[12px] text-muted-foreground mb-1">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Any context about this prospect..."
-              className="min-h-[96px] w-full rounded-lg border border-border/20 bg-background px-3 py-2 text-[13px] outline-none focus:border-primary/50 resize-none"
-            />
-          </div>
-        </div>
+            <div className="px-5 py-3 border-b border-border/20 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Tag size={13} /> Stage</div>
+                <Popover open={stageOpen} onOpenChange={setStageOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{stageOptions.find(s => s.id === form.stage)?.label || form.stage || 'Select stage'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{stageOptions.map(stage => <button key={stage.id} onClick={() => { setForm(f => ({ ...f, stage: stage.id })); setStageOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{stage.label}</button>)}</PopoverContent></Popover>
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><PoundSterling size={13} /> Value</div>
+                <input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} inputMode="decimal" className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Briefcase size={13} /> Primary service</div>
+                <input value={form.service} onChange={e => setForm(f => ({ ...f, service: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><MessageSquare size={13} /> Lead source</div>
+                <input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><User size={13} /> Sale owner</div>
+                <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || 'Unassigned'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{assigneeOptions.map(user => <button key={user.slug} onClick={() => { setForm(f => ({ ...f, assignee: user.slug })); setAssigneeOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{user.full_name}</button>)}</PopoverContent></Popover>
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Users size={13} /> Team</div>
+                <Popover open={teamOpen} onOpenChange={setTeamOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{teamOptions.find(t => t.id === form.team)?.name || 'No team'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{teamOptions.map(team => <button key={team.id} onClick={() => { setForm(f => ({ ...f, team: team.id })); setTeamOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{team.name}</button>)}</PopoverContent></Popover>
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Mail size={13} /> Contact email</div>
+                <input value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              </div>
+              <div>
+                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Phone size={13} /> Contact phone</div>
+                <input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              </div>
+            </div>
 
-        <div className="mt-5 flex items-center gap-2">
-          <Button size="sm" onClick={handleSubmit} disabled={saving}>
-            {saving ? (prospect ? 'Saving...' : 'Creating...') : (prospect ? 'Save changes' : 'Create prospect')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    </div>
+            <div className="px-5 py-2 border-b border-border/20 flex items-center gap-1.5">
+              {(['details', 'billing', 'activity', 'conversion'] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${activeTab === tab ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'}`}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {activeTab === 'details' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[12px] text-muted-foreground mb-1">Primary contact</label>
+                      <input value={form.contact_name} onChange={e => setForm(f => ({ ...f, contact_name: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-muted-foreground mb-1">Website</label>
+                      <input value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                    </div>
+                  </div>
+                  {form.stage === 'lost' && (
+                    <div>
+                      <label className="block text-[12px] text-muted-foreground mb-1">Lost reason</label>
+                      <input value={form.lost_reason} onChange={e => setForm(f => ({ ...f, lost_reason: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-[12px] text-muted-foreground mb-1">Notes</label>
+                    <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Deal context, next steps, objections, handover notes..." className="min-h-[180px] w-full rounded-lg border border-border/20 bg-background px-3 py-2 text-[13px] outline-none focus:border-primary/50 resize-none" />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'billing' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[13px] font-medium text-foreground">Line items</p>
+                      <p className="text-[13px] text-muted-foreground/60">Exactly what should carry through to the client on conversion.</p>
+                    </div>
+                    <Button size="sm" onClick={() => { setEditingLineItem(null); setLineItemDialogOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add line item</Button>
+                  </div>
+                  <div className="rounded-lg border border-border/20 overflow-hidden">
+                    {lineItems.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-[13px] text-muted-foreground/60">No line items yet</div>
+                    ) : (
+                      <table className="w-full text-left">
+                        <thead className="bg-muted/20 border-b border-border/20">
+                          <tr>
+                            <th className="px-4 py-2 text-[11px] text-muted-foreground/60">Service</th>
+                            <th className="px-4 py-2 text-[11px] text-muted-foreground/60">Description</th>
+                            <th className="px-4 py-2 text-[11px] text-muted-foreground/60">Billing</th>
+                            <th className="px-4 py-2 text-[11px] text-muted-foreground/60 text-right">Value</th>
+                            <th className="px-4 py-2" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lineItems.map(item => (
+                            <tr key={item.id} className="border-b border-border/10 last:border-b-0">
+                              <td className="px-4 py-3 text-[13px]">{getServiceStyle(item.service).label}</td>
+                              <td className="px-4 py-3 text-[13px] text-muted-foreground/80">{item.description || '—'}</td>
+                              <td className="px-4 py-3 text-[13px] text-muted-foreground/80">{item.billing_type === 'recurring' ? 'Recurring' : 'One-off'}</td>
+                              <td className="px-4 py-3 text-[13px] text-right">£{item.monthly_value.toLocaleString()}</td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button onClick={() => { setEditingLineItem(item); setLineItemDialogOpen(true); }} className="p-1 rounded hover:bg-muted/40"><Pencil size={12} /></button>
+                                  <button onClick={() => setDeleteLineItem(item)} className="p-1 rounded hover:bg-destructive/10 text-destructive/70"><Trash2 size={12} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                  <div className="rounded-lg border border-border/20 bg-muted/10 p-4 text-[13px]">
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Recurring total</span><span className="font-medium">£{recurringTotal.toLocaleString()}</span></div>
+                    <div className="flex items-center justify-between mt-2"><span className="text-muted-foreground/60">Services that will convert</span><span className="font-medium">{convertedServices.length > 0 ? convertedServices.map(s => getServiceStyle(s).label).join(', ') : (form.service || 'None')}</span></div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'activity' && (
+                <div className="space-y-3">
+                  {activities.length === 0 ? <div className="text-[13px] text-muted-foreground/60">No activity yet</div> : activities.map(activity => (
+                    <div key={activity.id} className="rounded-lg border border-border/20 p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[13px] font-medium">{activity.title}</div>
+                        <div className="text-[11px] text-muted-foreground/40">{formatTimestamp(activity.created_at)}</div>
+                      </div>
+                      {activity.description && <div className="text-[13px] text-muted-foreground/70 mt-1">{activity.description}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'conversion' && (
+                <div className="space-y-4">
+                  <div className="rounded-lg border border-border/20 bg-muted/10 p-4 space-y-2 text-[13px]">
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Client name</span><span>{form.name || '—'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Lead source → sale source</span><span>{form.source || '—'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Sale owner → sold by</span><span>{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || '—'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Team</span><span>{teamOptions.find(t => t.id === form.team)?.name || '—'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Contact details</span><span>{form.contact_name || form.contact_email || form.contact_phone ? 'Will carry over' : '—'}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Billing line items</span><span>{lineItems.length}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Derived monthly retainer</span><span>£{(recurringTotal || Number(form.value || 0)).toLocaleString()}</span></div>
+                  </div>
+                  <Button onClick={handleConvert} disabled={converting || !form.name.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                    {converting ? 'Converting...' : 'Convert to client'}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-3 border-t border-border/20 flex items-center justify-between sticky bottom-0 bg-card">
+              <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving || converting}>Close</Button>
+              <Button size="sm" onClick={handleSubmit} disabled={saving || converting}>{saving ? (prospect ? 'Saving...' : 'Creating...') : (prospect ? 'Save changes' : 'Create prospect')}</Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <ProspectLineItemDialog open={lineItemDialogOpen} onOpenChange={(v) => { setLineItemDialogOpen(v); if (!v) setEditingLineItem(null); }} initialData={editingLineItem} onSave={handleSaveLineItem} />
+
+      {deleteLineItem && (
+        <Sheet open={!!deleteLineItem} onOpenChange={(open) => { if (!open) setDeleteLineItem(null); }}>
+          <SheetContent side="right" className="w-full sm:max-w-[420px] bg-card border-border/20 p-0">
+            <div className="px-5 py-4 border-b border-border/20"><h3 className="text-[15px] font-semibold">Delete line item</h3></div>
+            <div className="px-5 py-4 text-[13px] text-muted-foreground/70">Remove this line item from the prospect?</div>
+            <div className="px-5 py-3 border-t border-border/20 flex justify-end gap-2"><Button size="sm" variant="ghost" onClick={() => setDeleteLineItem(null)}>Cancel</Button><Button size="sm" variant="destructive" onClick={handleDeleteLineItem}>Delete</Button></div>
+          </SheetContent>
+        </Sheet>
+      )}
+    </>
   );
 }
 
@@ -410,6 +818,7 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
 export default function PipelinePage() {
   const { stages: PIPELINE_STAGES } = usePipelineStages();
   const { users } = useUsers();
+  const [teams, setTeams] = useState<TeamOption[]>([]);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = usePersistedState<ViewMode>('pipeline-view', 'pipeline');
@@ -430,6 +839,10 @@ export default function PipelinePage() {
       .then(r => r.ok ? r.json() : [])
       .then(data => setProspects(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
+    fetch('/api/teams')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setTeams(Array.isArray(data) ? data : []))
+      .catch(() => setTeams([]));
   }, []);
 
   const filtered = useMemo(() => prospects.filter(p => {
@@ -590,6 +1003,9 @@ export default function PipelinePage() {
         defaultStage={sheetDefaultStage}
         onCreated={fetchProspects}
         prospect={editingProspect}
+        stageOptions={PIPELINE_STAGES}
+        teamOptions={teams}
+        assigneeOptions={users.map(user => ({ slug: user.full_name.toLowerCase().replace(/\s+/g, '-'), full_name: user.full_name }))}
       />
 
       {loading ? (

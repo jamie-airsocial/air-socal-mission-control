@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, company, email, phone, stage, value, notes, service, assignee, source, contact_name, contact_email, contact_phone } = body;
+  const { name, company, email, phone, stage, value, notes, service, assignee, source, contact_name, contact_email, contact_phone, team, website } = body;
 
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       contact_name: contact_name || null,
       contact_email: contact_email || null,
       contact_phone: contact_phone || null,
+      team: team || null,
+      website: website || null,
     })
     .select()
     .single();
@@ -59,7 +61,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json(data, { status: 201 });
 }
 
-export async function PUT(request: NextRequest) {
+async function updateProspect(request: NextRequest) {
   const body = await request.json();
   const { id, ...updates } = body;
 
@@ -97,6 +99,14 @@ export async function PUT(request: NextRequest) {
   }
 
   return NextResponse.json(data);
+}
+
+export async function PUT(request: NextRequest) {
+  return updateProspect(request);
+}
+
+export async function PATCH(request: NextRequest) {
+  return updateProspect(request);
 }
 
 export async function DELETE(request: NextRequest) {
