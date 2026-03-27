@@ -267,12 +267,14 @@ function ProspectSheet({
     lost_reason: '',
   });
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'billing' | 'activity' | 'conversion'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'billing' | 'activity'>('details');
   const [lineItems, setLineItems] = useState<ProspectLineItem[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<ProspectLineItem | null>(null);
   const [deleteLineItem, setDeleteLineItem] = useState<ProspectLineItem | null>(null);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [convertLineItems, setConvertLineItems] = useState<Array<ProspectLineItem & { selected: boolean; edit_monthly_value: string; edit_start_date: string }>>([]);
   const [converting, setConverting] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
@@ -395,15 +397,66 @@ function ProspectSheet({
     toast.success('Line item deleted');
   };
 
+  const openConvertDialog = async () => {
+    const targetProspect = prospect || await persistProspect();
+    if (!targetProspect?.id) return;
+
+    const latestItems = await fetch(`/api/prospects/${targetProspect.id}/line-items`).then(r => r.json()).catch(() => []);
+    const mappedItems = (Array.isArray(latestItems) ? latestItems : []).map((item: ProspectLineItem) => ({
+      ...item,
+      selected: true,
+      edit_monthly_value: String(item.monthly_value || 0),
+      edit_start_date: toISODateString(item.start_date),
+    }));
+    setConvertLineItems(mappedItems);
+    setConvertDialogOpen(true);
+  };
+
   const handleConvert = async () => {
     const targetProspect = prospect || await persistProspect();
     if (!targetProspect?.id) return;
     setConverting(true);
     try {
+      for (const item of convertLineItems) {
+        if (!item.selected) {
+          await fetch(`/api/prospects/${targetProspect.id}/line-items`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: item.id,
+              service: item.service,
+              description: item.description || null,
+              monthly_value: item.monthly_value,
+              billing_type: item.billing_type,
+              start_date: item.start_date,
+              end_date: item.end_date,
+              is_active: false,
+            }),
+          });
+          continue;
+        }
+
+        await fetch(`/api/prospects/${targetProspect.id}/line-items`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            service: item.service,
+            description: item.description || null,
+            monthly_value: Number(item.edit_monthly_value || 0),
+            billing_type: item.billing_type,
+            start_date: item.edit_start_date || null,
+            end_date: item.end_date,
+            is_active: true,
+          }),
+        });
+      }
+
       const res = await fetch(`/api/prospects/${targetProspect.id}/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Failed to convert prospect');
       await onCreated();
+      setConvertDialogOpen(false);
       onOpenChange(false);
       toast.success('Prospect converted to client');
     } catch (error) {
@@ -420,16 +473,20 @@ function ProspectSheet({
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-[760px] bg-card border-border/20 p-0 overflow-hidden">
+        <SheetContent side="right" className="top-2 bottom-2 right-2 h-auto rounded-l-2xl border border-border/20 bg-card p-0 overflow-hidden shadow-2xl sm:max-w-[760px]">
           <div className="flex h-full flex-col">
             <div className="px-5 py-4 border-b border-border/20">
-              <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center justify-between gap-3 mb-3 pr-10">
                 <div className="text-[11px] text-muted-foreground/60">
                   {prospect ? `Created ${new Date(prospect.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'New prospect'}
                   {prospect?.updated_at ? ` · Updated ${formatTimestamp(prospect.updated_at)}` : ''}
                   {prospect?.won_at ? ` · Won ${new Date(prospect.won_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
                 </div>
-                <div />
+                {prospect && (
+                  <Button size="sm" onClick={openConvertDialog} disabled={converting} className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+                    Convert to client
+                  </Button>
+                )}
               </div>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Prospect name" className="w-full bg-transparent text-[24px] font-semibold tracking-tight outline-none ring-0 border-0 shadow-none placeholder:text-muted-foreground/30 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none selection:bg-transparent" />
             </div>
@@ -468,18 +525,11 @@ function ProspectSheet({
                 <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><User size={13} /> Sale owner</div>
                 <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || 'Unassigned'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{assigneeOptions.map(user => <button key={user.slug} onClick={() => { setForm(f => ({ ...f, assignee: user.slug })); setAssigneeOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{user.full_name}</button>)}</PopoverContent></Popover>
               </div>
-              <div>
-                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Mail size={13} /> Contact email</div>
-                <input value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
-              </div>
-              <div>
-                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Phone size={13} /> Contact phone</div>
-                <input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
-              </div>
+
             </div>
 
             <div className="px-5 py-2 border-b border-border/20 flex items-center gap-1.5">
-              {(['details', 'billing', 'activity', 'conversion'] as const).map(tab => (
+              {(['details', 'billing', 'activity'] as const).map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} className={`px-2.5 py-1.5 rounded-md text-[13px] transition-colors ${activeTab === tab ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'}`}>
                   {tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
@@ -497,6 +547,14 @@ function ProspectSheet({
                     <div>
                       <label className="block text-[12px] text-muted-foreground mb-1">Website</label>
                       <input value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-muted-foreground mb-1">Contact email</label>
+                      <input value={form.contact_email} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-muted-foreground mb-1">Contact phone</label>
+                      <input value={form.contact_phone} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
                     </div>
                   </div>
                   {form.stage === 'lost' && (
@@ -579,21 +637,7 @@ function ProspectSheet({
                 </div>
               )}
 
-              {activeTab === 'conversion' && (
-                <div className="space-y-4">
-                  <div className="rounded-lg border border-border/20 bg-muted/10 p-4 space-y-2 text-[13px]">
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Client name</span><span>{form.name || '—'}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Lead source → sale source</span><span>{form.source || '—'}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Sale owner → sold by</span><span>{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || '—'}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Contact details</span><span>{form.contact_name || form.contact_email || form.contact_phone ? 'Will carry over' : '—'}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Billing line items</span><span>{lineItems.length}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Derived monthly retainer</span><span>£{recurringTotal.toLocaleString()}</span></div>
-                  </div>
-                  <Button onClick={handleConvert} disabled={converting || !form.name.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    {converting ? 'Converting...' : 'Convert to client'}
-                  </Button>
-                </div>
-              )}
+
             </div>
 
             <div className="px-5 py-3 border-t border-border/20 flex items-center justify-between sticky bottom-0 bg-card">
@@ -608,13 +652,60 @@ function ProspectSheet({
 
       {deleteLineItem && (
         <Sheet open={!!deleteLineItem} onOpenChange={(open) => { if (!open) setDeleteLineItem(null); }}>
-          <SheetContent side="right" className="w-full sm:max-w-[420px] bg-card border-border/20 p-0">
+          <SheetContent side="right" className="top-2 bottom-2 right-2 h-auto rounded-l-2xl border border-border/20 bg-card p-0 shadow-2xl sm:max-w-[420px]">
             <div className="px-5 py-4 border-b border-border/20"><h3 className="text-[15px] font-semibold">Delete line item</h3></div>
             <div className="px-5 py-4 text-[13px] text-muted-foreground/70">Remove this line item from the prospect?</div>
             <div className="px-5 py-3 border-t border-border/20 flex justify-end gap-2"><Button size="sm" variant="ghost" onClick={() => setDeleteLineItem(null)}>Cancel</Button><Button size="sm" variant="destructive" onClick={handleDeleteLineItem}>Delete</Button></div>
           </SheetContent>
         </Sheet>
       )}
+
+      <Sheet open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <SheetContent side="right" className="top-2 bottom-2 right-2 h-auto rounded-l-2xl border border-border/20 bg-card p-0 shadow-2xl sm:max-w-[620px]">
+          <div className="flex h-full flex-col">
+            <div className="px-5 py-4 border-b border-border/20">
+              <h3 className="text-[15px] font-semibold">Convert to client</h3>
+              <p className="mt-1 text-[13px] text-muted-foreground/70">Review which billing items should carry over, and adjust values or start dates before conversion.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              <div className="rounded-lg border border-border/20 bg-muted/10 p-4 space-y-2 text-[13px]">
+                <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Client name</span><span>{form.name || '—'}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Lead source</span><span>{form.source || '—'}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Sale owner</span><span>{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || '—'}</span></div>
+              </div>
+
+              <div className="space-y-3">
+                {convertLineItems.length === 0 ? (
+                  <div className="text-[13px] text-muted-foreground/60">No line items to convert</div>
+                ) : convertLineItems.map((item, index) => (
+                  <div key={item.id} className="rounded-lg border border-border/20 p-4 space-y-3">
+                    <label className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+                      <input type="checkbox" checked={item.selected} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, selected: e.target.checked } : row))} />
+                      {getServiceStyle(item.service).label}
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[12px] text-muted-foreground mb-1">Amount</label>
+                        <input value={item.edit_monthly_value} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, edit_monthly_value: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                      </div>
+                      <div>
+                        <label className="block text-[12px] text-muted-foreground mb-1">Start date</label>
+                        <input type="date" value={item.edit_start_date} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, edit_start_date: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="px-5 py-3 border-t border-border/20 flex items-center justify-between bg-card">
+              <Button size="sm" variant="ghost" onClick={() => setConvertDialogOpen(false)} disabled={converting}>Cancel</Button>
+              <Button size="sm" onClick={handleConvert} disabled={converting || !form.name.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {converting ? 'Converting...' : 'Mark won and convert'}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }
