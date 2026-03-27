@@ -856,8 +856,8 @@ export function TableView({ tasks, allTasks = [], projects, onTaskClick, onUpdat
           </div>
       )}
 
-      <div className="rounded-lg border border-border/20 bg-card overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="rounded-lg border border-border/20 bg-card overflow-hidden h-full min-h-0 flex flex-col">
+        <div className="overflow-auto min-h-0 flex-1">
           <table className="w-full" aria-label="Tasks table">
             <thead className="sticky top-0 bg-card z-10">
               <tr className="border-b border-border/20">

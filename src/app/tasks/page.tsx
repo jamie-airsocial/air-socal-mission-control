@@ -582,7 +582,7 @@ function BoardContent() {
           </ErrorBoundary>
         </div>
       ) : view === 'table' ? (
-        <div className="animate-in fade-in duration-200">
+        <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
           <ErrorBoundary fallbackTitle="Table failed to load" fallbackSubtitle="The table view encountered an error. Try again.">
             <TableView
               tasks={serviceFilteredTasks}
@@ -603,7 +603,7 @@ function BoardContent() {
           </ErrorBoundary>
         </div>
       ) : (
-        <div className="animate-in fade-in duration-200">
+        <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
           <ErrorBoundary fallbackTitle="Calendar failed to load" fallbackSubtitle="The calendar view encountered an error. Try again.">
             <CalendarView
               tasks={serviceFilteredTasks}

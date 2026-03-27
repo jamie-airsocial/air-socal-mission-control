@@ -14,6 +14,7 @@ import { SearchableStatusPopover } from './searchable-status-popover';
 import { SearchablePriorityPopover } from './searchable-priority-popover';
 import { SearchableAssigneePopover } from './searchable-assignee-popover';
 import { EnhancedDatePicker, formatRelativeDate } from './enhanced-date-picker';
+import { useAuth } from '@/contexts/auth-context';
 import { CollapsibleAttachments, type TaskAttachment } from './task-attachments';
 import {
   ArrowLeft, Activity, Flag, User, Calendar as CalendarIcon,
@@ -40,6 +41,7 @@ export interface SubtaskDetailViewProps {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: SubtaskDetailViewProps) {
+  const { appUser } = useAuth();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(subtask.title);
   const [dueDateOpen, setDueDateOpen] = useState(false);
@@ -61,15 +63,28 @@ export function SubtaskDetailView({ subtask, parentTitle, onBack, onUpdate }: Su
 
   const addSubtaskComment = async () => {
     if (!subtaskNewComment.trim()) return;
+    const localAuthor = toSlug(appUser?.full_name || 'casper');
     if (subtask.id.startsWith('temp-')) {
       // Local-only for temp subtasks
-      setSubtaskComments(prev => [...prev, { id: `temp-${Date.now()}`, content: subtaskNewComment, author: 'jamie', created_at: new Date().toISOString() } as Comment]);
+      setSubtaskComments(prev => [...prev, { id: `temp-${Date.now()}`, content: subtaskNewComment, author: localAuthor, created_at: new Date().toISOString() } as Comment]);
       setSubtaskNewComment('');
       return;
     }
+
+    const { createBrowserClient } = await import('@supabase/ssr');
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
     const res = await fetch(`/api/tasks/${subtask.id}/comments`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: subtaskNewComment, author: 'jamie' }),
+      method: 'POST', headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ content: subtaskNewComment }),
     });
     if (!res.ok) { toast.error('Failed to post comment'); return; }
     const comment = await res.json();

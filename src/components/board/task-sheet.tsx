@@ -24,6 +24,7 @@ import { SearchableAssigneePopover } from './searchable-assignee-popover';
 import { SearchableProjectPopover } from './searchable-project-popover';
 import { SearchableTeamPopover } from './searchable-team-popover';
 import { useUsers } from '@/hooks/use-users';
+import { useAuth } from '@/contexts/auth-context';
 import { EnhancedDatePicker, formatRelativeDate } from './enhanced-date-picker';
 import { LabelCombobox } from './label-combobox';
 import { useStatuses } from '@/hooks/use-statuses';
@@ -155,6 +156,7 @@ export function TaskSheet({
   const [teamOpen, setTeamOpen] = useState(false);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const { users } = useUsers();
+  const { appUser } = useAuth();
   const [dueDateOpen, setDueDateOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
@@ -672,17 +674,30 @@ export function TaskSheet({
 
   const addComment = async () => {
     if (!newComment.trim()) return;
+    const localAuthor = toSlug(appUser?.full_name || 'casper');
     if (isNew) {
       // Local-only for new tasks — saved on Create
-      setComments(prev => [...prev, { id: `temp-${Date.now()}`, content: newComment, author: 'jamie', created_at: new Date().toISOString() } as Comment]);
+      setComments(prev => [...prev, { id: `temp-${Date.now()}`, content: newComment, author: localAuthor, created_at: new Date().toISOString() } as Comment]);
       setNewComment('');
       return;
     }
     if (!task) return;
+
+    const { createBrowserClient } = await import('@supabase/ssr');
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+
     const res = await fetch(`/api/tasks/${task.id}/comments`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: newComment, author: 'jamie' }),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ content: newComment }),
     });
     if (!res.ok) {
       toast.error('Failed to post comment');

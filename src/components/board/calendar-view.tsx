@@ -713,7 +713,7 @@ export function CalendarView({ tasks, onTaskClick, onDateChange, onCreateTask, h
 
   return (
     <TooltipProvider>
-      <div className="bg-card rounded-lg border border-border/20 p-4">
+      <div className="bg-card rounded-lg border border-border/20 p-4 h-full min-h-0 overflow-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           {/* Left: nav arrows + date label + Today */}
