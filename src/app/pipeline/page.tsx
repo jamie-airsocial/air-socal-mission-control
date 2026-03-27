@@ -626,7 +626,6 @@ function ProspectSheet({
                   </div>
                   <div className="rounded-lg border border-border/20 bg-muted/10 p-4 text-[13px]">
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Totals</span><span className="font-medium">Recurring £{recurringTotal.toLocaleString()} · Project £{projectTotal.toLocaleString()}</span></div>
-                    <div className="flex items-center justify-between mt-2"><span className="text-muted-foreground/60">Services that will convert</span><span className="font-medium">{convertedServices.length > 0 ? convertedServices.map(s => getServiceStyle(s).label).join(', ') : 'None'}</span></div>
                   </div>
                 </div>
               )}
