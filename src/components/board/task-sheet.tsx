@@ -676,7 +676,7 @@ export function TaskSheet({
     if (!newComment.trim()) return;
     if (isNew) {
       // Local-only for new tasks — saved on Create
-      setComments(prev => [...prev, { id: `temp-${Date.now()}`, content: newComment, author: appUser?.id || 'temp-user', author_name: appUser?.full_name || 'Unknown user', created_at: new Date().toISOString() } as Comment]);
+      setComments(prev => [...prev, { id: `temp-${Date.now()}`, content: newComment, author: appUser?.full_name || 'Unknown user', created_at: new Date().toISOString() } as Comment]);
       setNewComment('');
       return;
     }
@@ -1396,7 +1396,7 @@ export function TaskSheet({
                 {comments.map((c) => (
                   <div key={c.id} className="flex gap-2.5 group relative">
                     <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] leading-none flex-shrink-0 mt-0.5">
-                      {getInitials(c.author_name || c.author)}
+                      {getInitials(c.author)}
                     </div>
                     <button 
                       aria-label="Delete comment"
@@ -1407,7 +1407,7 @@ export function TaskSheet({
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2 mb-0.5">
-                        <span className="text-[13px] font-medium text-foreground">{c.author_name || c.author}</span>
+                        <span className="text-[13px] font-medium text-foreground">{c.author}</span>
                         <span className="text-[10px] text-muted-foreground/30">
                           {formatTimestamp(c.created_at)}
                         </span>

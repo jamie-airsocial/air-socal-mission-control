@@ -49,7 +49,6 @@ export interface Comment {
   task_id: string;
   content: string;
   author: string;
-  author_name?: string | null;
   created_at: string;
 }
 

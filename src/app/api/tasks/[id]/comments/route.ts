@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase';
 
-async function resolveAuthorFromRequest(request: NextRequest): Promise<{ author: string; author_name: string }> {
+async function resolveAuthorFromRequest(request: NextRequest): Promise<string> {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
@@ -40,10 +40,7 @@ async function resolveAuthorFromRequest(request: NextRequest): Promise<{ author:
     throw new Error('Signed-in user has no matching app user full name');
   }
 
-  return {
-    author: authData.user.id,
-    author_name: fullName,
-  };
+  return fullName;
 }
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,14 +53,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     .order('created_at', { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json((data || []).map((comment: Record<string, unknown>) => ({
-    ...comment,
-    author_name: typeof comment.author_name === 'string' && comment.author_name.trim().length > 0
-      ? comment.author_name
-      : typeof comment.author === 'string'
-        ? comment.author
-        : 'Unknown user',
-  })));
+  return NextResponse.json(data);
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -86,8 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     .insert({
       task_id: taskId,
       content,
-      author: authorData.author,
-      author_name: authorData.author_name,
+      author: authorData,
     })
     .select()
     .single();
