@@ -467,8 +467,12 @@ function ProspectSheet({
   };
 
   const recurringTotal = lineItems.filter(item => item.is_active && item.billing_type === 'recurring').reduce((sum, item) => sum + (item.monthly_value || 0), 0);
+  const projectTotal = lineItems.filter(item => item.is_active && item.billing_type === 'one-off').reduce((sum, item) => sum + (item.monthly_value || 0), 0);
   const convertedServices = [...new Set(lineItems.filter(item => item.is_active).map(item => item.service).filter(Boolean))];
-  const calculatedValue = recurringTotal > 0 ? `£${recurringTotal.toLocaleString()}` : 'Calculated from billing';
+  const calculatedValue = [
+    recurringTotal > 0 ? `Recurring £${recurringTotal.toLocaleString()}` : null,
+    projectTotal > 0 ? `Project £${projectTotal.toLocaleString()}` : null,
+  ].filter(Boolean).join(' · ') || 'Calculated from billing';
 
   return (
     <>
