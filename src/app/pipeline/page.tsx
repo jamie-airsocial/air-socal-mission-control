@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Plus, Search, X, Kanban, Table2, BarChart3, Mail, Phone, Check, ChevronDown,
-  PoundSterling, Trophy, Percent, TrendingUp, User, Users, Globe, Tag, Calendar,
-  Briefcase, MessageSquare, Pencil, Trash2,
+  PoundSterling, Trophy, Percent, TrendingUp, User, Globe, Tag, Calendar,
+  MessageSquare, Pencil, Trash2,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { FilterPopover } from '@/components/ui/filter-popover';
@@ -20,6 +21,11 @@ import { useUsers } from '@/hooks/use-users';
 import { getServiceStyle, LOSS_REASONS } from '@/lib/constants';
 import { ShortcutsDialog } from '@/components/ui/shortcuts-dialog';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
+
+const TaskDescriptionEditor = dynamic(
+  () => import('@/components/board/task-description-editor').then(mod => ({ default: mod.TaskDescriptionEditor })),
+  { ssr: false, loading: () => <div className="h-32 bg-secondary rounded-lg animate-pulse" /> }
+);
 
 interface Prospect {
   id: string;
@@ -57,10 +63,6 @@ interface ProspectLineItem {
   created_at: string;
 }
 
-interface TeamOption {
-  id: string;
-  name: string;
-}
 
 interface Activity {
   id: string;
@@ -80,7 +82,6 @@ interface LineItemFormData {
   billing_type: 'recurring' | 'one-off';
   start_date: string;
   end_date: string;
-  is_active: boolean;
 }
 
 const emptyLineItem: LineItemFormData = {
@@ -90,7 +91,6 @@ const emptyLineItem: LineItemFormData = {
   billing_type: 'recurring',
   start_date: '',
   end_date: '',
-  is_active: true,
 };
 
 function formatTimestamp(date: string) {
@@ -143,7 +143,6 @@ function ProspectLineItemDialog({
         billing_type: initialData.billing_type || 'recurring',
         start_date: toISODateString(initialData.start_date),
         end_date: toISODateString(initialData.end_date),
-        is_active: initialData.is_active,
       } : emptyLineItem);
       setServiceSearch('');
     }
@@ -226,10 +225,6 @@ function ProspectLineItemDialog({
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-[13px] text-foreground">
-            <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} />
-            Active line item
-          </label>
         </div>
         <div className="px-5 py-3 border-t border-border/20 flex items-center justify-end gap-2 sticky bottom-0 bg-card">
           <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancel</Button>
@@ -247,8 +242,8 @@ function ProspectSheet({
   onCreated,
   prospect,
   stageOptions,
-  teamOptions,
   assigneeOptions,
+  leadSourceOptions,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -256,17 +251,14 @@ function ProspectSheet({
   onCreated: () => Promise<void> | void;
   prospect: Prospect | null;
   stageOptions: { id: string; label: string; color: string; dotClass?: string | null }[];
-  teamOptions: TeamOption[];
   assigneeOptions: { slug: string; full_name: string }[];
+  leadSourceOptions: string[];
 }) {
   const [form, setForm] = useState({
     name: '',
     stage: 'lead',
-    value: '',
-    service: '',
     source: '',
     assignee: '',
-    team: '',
     website: '',
     contact_name: '',
     contact_email: '',
@@ -284,18 +276,16 @@ function ProspectSheet({
   const [converting, setConverting] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
-  const [teamOpen, setTeamOpen] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceSearch, setSourceSearch] = useState('');
 
   useEffect(() => {
     if (!open) return;
     setForm({
       name: prospect?.name || '',
       stage: prospect?.stage || defaultStage || 'lead',
-      value: prospect?.value != null ? String(prospect.value) : '',
-      service: prospect?.service || '',
       source: prospect?.source || '',
       assignee: prospect?.assignee || '',
-      team: prospect?.team || '',
       website: prospect?.website || '',
       contact_name: prospect?.contact_name || '',
       contact_email: prospect?.contact_email || '',
@@ -329,16 +319,15 @@ function ProspectSheet({
         ...(prospect ? { id: prospect.id } : {}),
         name: form.name.trim(),
         stage: form.stage || defaultStage || 'lead',
-        value: form.value.trim() ? Number(form.value.replace(/[^0-9.]/g, '')) : null,
-        service: form.service.trim() || null,
+        value: recurringTotal > 0 ? recurringTotal : null,
+        service: convertedServices[0] || null,
         source: form.source.trim() || null,
         assignee: form.assignee || null,
-        team: form.team || null,
         website: form.website.trim() || null,
         contact_name: form.contact_name.trim() || null,
         contact_email: form.contact_email.trim() || null,
         contact_phone: form.contact_phone.trim() || null,
-        notes: form.notes.trim() || null,
+        notes: form.notes || null,
         lost_reason: form.stage === 'lost' ? (form.lost_reason.trim() || null) : null,
       }),
     });
@@ -373,7 +362,7 @@ function ProspectSheet({
       billing_type: lineForm.billing_type,
       start_date: lineForm.start_date || null,
       end_date: lineForm.end_date || null,
-      is_active: lineForm.is_active,
+      is_active: true,
     };
 
     const res = await fetch(`/api/prospects/${targetProspect.id}/line-items`, {
@@ -426,6 +415,7 @@ function ProspectSheet({
 
   const recurringTotal = lineItems.filter(item => item.is_active && item.billing_type === 'recurring').reduce((sum, item) => sum + (item.monthly_value || 0), 0);
   const convertedServices = [...new Set(lineItems.filter(item => item.is_active).map(item => item.service).filter(Boolean))];
+  const calculatedValue = recurringTotal > 0 ? `£${recurringTotal.toLocaleString()}` : 'Calculated from billing';
 
   return (
     <>
@@ -439,9 +429,9 @@ function ProspectSheet({
                   {prospect?.updated_at ? ` · Updated ${formatTimestamp(prospect.updated_at)}` : ''}
                   {prospect?.won_at ? ` · Won ${new Date(prospect.won_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
                 </div>
-                {prospect?.id && <a href={`/pipeline/${prospect.id}`} className="text-[13px] text-primary hover:underline">Open full page</a>}
+                <div />
               </div>
-              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Prospect name" className="w-full bg-transparent text-[24px] font-semibold tracking-tight outline-none placeholder:text-muted-foreground/30" />
+              <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Prospect name" className="w-full bg-transparent text-[24px] font-semibold tracking-tight outline-none ring-0 border-0 shadow-none placeholder:text-muted-foreground/30 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none selection:bg-transparent" />
             </div>
 
             <div className="px-5 py-3 border-b border-border/20 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px]">
@@ -450,24 +440,33 @@ function ProspectSheet({
                 <Popover open={stageOpen} onOpenChange={setStageOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{stageOptions.find(s => s.id === form.stage)?.label || form.stage || 'Select stage'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{stageOptions.map(stage => <button key={stage.id} onClick={() => { setForm(f => ({ ...f, stage: stage.id })); setStageOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{stage.label}</button>)}</PopoverContent></Popover>
               </div>
               <div>
-                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><PoundSterling size={13} /> Value</div>
-                <input value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} inputMode="decimal" className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
-              </div>
-              <div>
-                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Briefcase size={13} /> Primary service</div>
-                <input value={form.service} onChange={e => setForm(f => ({ ...f, service: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
-              </div>
-              <div>
                 <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><MessageSquare size={13} /> Lead source</div>
-                <input value={form.source} onChange={e => setForm(f => ({ ...f, source: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                <Popover open={sourceOpen} onOpenChange={setSourceOpen}>
+                  <PopoverTrigger asChild>
+                    <button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{form.source || 'Select or add lead source'}</button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-64 p-1" align="start">
+                    <input
+                      value={sourceSearch}
+                      onChange={e => setSourceSearch(e.target.value)}
+                      placeholder="Search or create..."
+                      className="w-full px-2 py-1.5 text-[13px] bg-transparent border-b border-border/10 outline-none mb-1"
+                      autoFocus
+                    />
+                    <div className="max-h-[220px] overflow-y-auto">
+                      {leadSourceOptions.filter(source => source.toLowerCase().includes(sourceSearch.toLowerCase())).map(source => (
+                        <button key={source} onClick={() => { setForm(f => ({ ...f, source })); setSourceOpen(false); setSourceSearch(''); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{source}</button>
+                      ))}
+                      {sourceSearch.trim() && !leadSourceOptions.some(source => source.toLowerCase() === sourceSearch.trim().toLowerCase()) && (
+                        <button onClick={() => { setForm(f => ({ ...f, source: sourceSearch.trim() })); setSourceOpen(false); setSourceSearch(''); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] text-primary hover:bg-primary/10">Create “{sourceSearch.trim()}”</button>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
               <div>
                 <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><User size={13} /> Sale owner</div>
                 <Popover open={assigneeOpen} onOpenChange={setAssigneeOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || 'Unassigned'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{assigneeOptions.map(user => <button key={user.slug} onClick={() => { setForm(f => ({ ...f, assignee: user.slug })); setAssigneeOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{user.full_name}</button>)}</PopoverContent></Popover>
-              </div>
-              <div>
-                <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Users size={13} /> Team</div>
-                <Popover open={teamOpen} onOpenChange={setTeamOpen}><PopoverTrigger asChild><button className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-muted/40 border border-border/10">{teamOptions.find(t => t.id === form.team)?.name || 'No team'}</button></PopoverTrigger><PopoverContent className="w-56 p-1" align="start">{teamOptions.map(team => <button key={team.id} onClick={() => { setForm(f => ({ ...f, team: team.id })); setTeamOpen(false); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">{team.name}</button>)}</PopoverContent></Popover>
               </div>
               <div>
                 <div className="text-muted-foreground/60 mb-1 flex items-center gap-1.5"><Mail size={13} /> Contact email</div>
@@ -507,8 +506,12 @@ function ProspectSheet({
                     </div>
                   )}
                   <div>
-                    <label className="block text-[12px] text-muted-foreground mb-1">Notes</label>
-                    <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Deal context, next steps, objections, handover notes..." className="min-h-[180px] w-full rounded-lg border border-border/20 bg-background px-3 py-2 text-[13px] outline-none focus:border-primary/50 resize-none" />
+                    <label className="block text-[12px] text-muted-foreground mb-2">Notes</label>
+                    <TaskDescriptionEditor
+                      content={form.notes}
+                      onChange={(content) => setForm(f => ({ ...f, notes: content }))}
+                      placeholder="Deal context, next steps, objections, handover notes..."
+                    />
                   </div>
                 </div>
               )}
@@ -557,7 +560,7 @@ function ProspectSheet({
                   </div>
                   <div className="rounded-lg border border-border/20 bg-muted/10 p-4 text-[13px]">
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Recurring total</span><span className="font-medium">£{recurringTotal.toLocaleString()}</span></div>
-                    <div className="flex items-center justify-between mt-2"><span className="text-muted-foreground/60">Services that will convert</span><span className="font-medium">{convertedServices.length > 0 ? convertedServices.map(s => getServiceStyle(s).label).join(', ') : (form.service || 'None')}</span></div>
+                    <div className="flex items-center justify-between mt-2"><span className="text-muted-foreground/60">Services that will convert</span><span className="font-medium">{convertedServices.length > 0 ? convertedServices.map(s => getServiceStyle(s).label).join(', ') : 'None'}</span></div>
                   </div>
                 </div>
               )}
@@ -582,10 +585,9 @@ function ProspectSheet({
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Client name</span><span>{form.name || '—'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Lead source → sale source</span><span>{form.source || '—'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Sale owner → sold by</span><span>{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || '—'}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Team</span><span>{teamOptions.find(t => t.id === form.team)?.name || '—'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Contact details</span><span>{form.contact_name || form.contact_email || form.contact_phone ? 'Will carry over' : '—'}</span></div>
                     <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Billing line items</span><span>{lineItems.length}</span></div>
-                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Derived monthly retainer</span><span>£{(recurringTotal || Number(form.value || 0)).toLocaleString()}</span></div>
+                    <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Derived monthly retainer</span><span>£{recurringTotal.toLocaleString()}</span></div>
                   </div>
                   <Button onClick={handleConvert} disabled={converting || !form.name.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                     {converting ? 'Converting...' : 'Convert to client'}
@@ -818,7 +820,6 @@ function PipelineView({ prospects, stages, onDragEnd, openNewProspect, onEdit }:
 export default function PipelinePage() {
   const { stages: PIPELINE_STAGES } = usePipelineStages();
   const { users } = useUsers();
-  const [teams, setTeams] = useState<TeamOption[]>([]);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = usePersistedState<ViewMode>('pipeline-view', 'pipeline');
@@ -839,10 +840,6 @@ export default function PipelinePage() {
       .then(r => r.ok ? r.json() : [])
       .then(data => setProspects(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
-    fetch('/api/teams')
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setTeams(Array.isArray(data) ? data : []))
-      .catch(() => setTeams([]));
   }, []);
 
   const filtered = useMemo(() => prospects.filter(p => {
@@ -924,7 +921,6 @@ export default function PipelinePage() {
   ];
 
   const hasFilters = !!searchQuery || filterService.length > 0 || filterStage.length > 0;
-  const sourceOptions = [{ value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' }];
 
   return (
     <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-hidden flex flex-col">
@@ -1004,8 +1000,8 @@ export default function PipelinePage() {
         onCreated={fetchProspects}
         prospect={editingProspect}
         stageOptions={PIPELINE_STAGES}
-        teamOptions={teams}
         assigneeOptions={users.map(user => ({ slug: user.full_name.toLowerCase().replace(/\s+/g, '-'), full_name: user.full_name }))}
+        leadSourceOptions={[...new Set(prospects.map(prospect => prospect.source).filter((source): source is string => !!source && source.trim().length > 0))]}
       />
 
       {loading ? (
