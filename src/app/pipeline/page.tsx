@@ -584,11 +584,7 @@ function ProspectSheet({
 
               {activeTab === 'billing' && (
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[13px] font-medium text-foreground">Line items</p>
-                      <p className="text-[13px] text-muted-foreground/60">Exactly what should carry through to the client on conversion.</p>
-                    </div>
+                  <div className="flex items-center justify-end gap-3">
                     <Button size="sm" onClick={() => { setEditingLineItem(null); setLineItemDialogOpen(true); }}><Plus className="h-4 w-4 mr-1" /> Add line item</Button>
                   </div>
                   <div className="rounded-lg border border-border/20 overflow-hidden">
