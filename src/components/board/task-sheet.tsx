@@ -121,6 +121,7 @@ export function TaskSheet({
     client_team: '' as string,
     service: '' as string,
     start_date: null as Date | null,
+    start_time: '' as string,
     due_date: null as Date | null,
     due_time: '' as string,
     labels: [] as string[],
@@ -266,6 +267,8 @@ export function TaskSheet({
       const dueTime = rawDueTime === '00:00' ? '' : rawDueTime;
       
       const startDate = task.start_date ? new Date(task.start_date) : null;
+      const rawStartTime = startDate ? format(startDate, 'HH:mm') : '';
+      const startTime = rawStartTime === '00:00' ? '' : rawStartTime;
       const nextForm = {
         title: task.title || '',
         description: ensureHtml(task.description) || '',
@@ -276,6 +279,7 @@ export function TaskSheet({
         client_team: task.client_team || '',
         service: task.service || '',
         start_date: startDate,
+        start_time: startTime,
         due_date: dueDate,
         due_time: dueTime,
         labels: task.labels || []
@@ -309,6 +313,8 @@ export function TaskSheet({
       const newRawTime = newDueDate ? format(newDueDate, 'HH:mm') : '';
       const newDueTime = newRawTime === '00:00' ? '' : newRawTime;
       const newStartDate = task?.start_date ? new Date(task.start_date) : null;
+      const newRawStartTime = newStartDate ? format(newStartDate, 'HH:mm') : '';
+      const newStartTime = newRawStartTime === '00:00' ? '' : newRawStartTime;
       setForm({
         title: '',
         description: '',
@@ -319,6 +325,7 @@ export function TaskSheet({
         client_team: task?.client_team || '',
         service: task?.service || '',
         start_date: newStartDate,
+        start_time: newStartTime,
         due_date: newDueDate,
         due_time: newDueTime,
         labels: [],
@@ -528,6 +535,21 @@ export function TaskSheet({
       }
       finalDueDate = d.toISOString();
     }
+    let finalStartDate: string | null = null;
+    if (f.start_date) {
+      const d = new Date(f.start_date);
+      if (f.start_time) {
+        const [h, m] = f.start_time.split(':').map(Number);
+        d.setHours(h, m, 0, 0);
+        finalStartDate = d.toISOString();
+      } else {
+        d.setHours(0, 0, 0, 0);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        finalStartDate = `${y}-${m}-${day}T00:00:00`;
+      }
+    }
     return {
       title: f.title,
       description: f.description || null,
@@ -537,7 +559,7 @@ export function TaskSheet({
       client_id: f.project_id || null,
       team: f.client_team || null,
       service: f.service || null,
-      start_date: f.start_date ? new Date(f.start_date).toISOString() : null,
+      start_date: finalStartDate,
       due_date: finalDueDate,
       labels: f.labels || [],
     };
@@ -581,7 +603,7 @@ export function TaskSheet({
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveNow(task.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.status, form.priority, form.assignee, form.project_id, form.client_team, form.service, form.start_date, form.due_date, form.due_time, form.labels]);
+  }, [form.status, form.priority, form.assignee, form.project_id, form.client_team, form.service, form.start_date, form.start_time, form.due_date, form.due_time, form.labels]);
 
   // Debounced save for text fields (title, description)
   useEffect(() => {
@@ -614,8 +636,8 @@ export function TaskSheet({
       priority: form.priority,
       assignee: form.assignee ? toSlug(form.assignee) : null,
       client_id: form.project_id,
-      start_date: form.start_date ? new Date(form.start_date).toISOString() : null,
-      due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+      start_date: buildSavePayload()?.start_date ?? null,
+      due_date: buildSavePayload()?.due_date ?? null,
       parent_id: task.parent_id,
       labels: form.labels,
     };
@@ -1153,16 +1175,16 @@ export function TaskSheet({
                 <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                   <PopoverTrigger asChild>
                     <button className={`text-[13px] whitespace-nowrap hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 ${!form.start_date ? 'text-muted-foreground/30' : ''}`}>
-                      {formatRelativeDate(form.start_date)}
+                      {form.start_date ? `${formatRelativeDate(form.start_date)}${form.start_time ? ` at ${form.start_time}` : ''}` : 'Set date'}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <EnhancedDatePicker
                       date={form.start_date}
-                      time=""
+                      time={form.start_time}
                       onDateChange={(date) => setForm(prev => ({ ...prev, start_date: date }))}
-                      onTimeChange={() => {}}
-                      onClear={() => setForm(prev => ({ ...prev, start_date: null }))}
+                      onTimeChange={(time) => setForm(prev => ({ ...prev, start_time: time }))}
+                      onClear={() => setForm(prev => ({ ...prev, start_date: null, start_time: '' }))}
                       onOpenChange={setStartDateOpen}
                     />
                   </PopoverContent>
@@ -1171,7 +1193,7 @@ export function TaskSheet({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() => setForm(prev => ({ ...prev, start_date: null }))}
+                        onClick={() => setForm(prev => ({ ...prev, start_date: null, start_time: '' }))}
                         className="p-1 flex items-center justify-center rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors duration-150 opacity-0 group-hover:opacity-100"
                       >
                         <X size={11} />
@@ -1188,7 +1210,7 @@ export function TaskSheet({
                 <Popover open={dueDateOpen} onOpenChange={setDueDateOpen}>
                   <PopoverTrigger asChild>
                     <button className={`text-[13px] whitespace-nowrap hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 ${!form.due_date ? 'text-muted-foreground/30' : ''}`}>
-                      {formatRelativeDate(form.due_date)}
+                      {form.due_date ? `${formatRelativeDate(form.due_date)}${form.due_time ? ` at ${form.due_time}` : ''}` : 'Set date'}
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
