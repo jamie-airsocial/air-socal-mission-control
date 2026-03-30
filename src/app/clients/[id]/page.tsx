@@ -966,7 +966,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Detail tabs */}
-      <div className="flex items-center gap-1 mb-4 border-b border-border/20 overflow-x-auto">
+      <div className="flex items-center gap-1 mb-4 border-b border-border/20">
         {([
           { id: 'overview', label: 'Overview', icon: <Tag size={13} /> },
           { id: 'tasks', label: 'Tasks', icon: <FileText size={13} /> },
