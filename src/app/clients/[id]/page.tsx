@@ -831,7 +831,7 @@ export default function ClientDetailPage() {
 
   if (loading) {
     return (
-      <div className="animate-in fade-in duration-200">
+      <div className="animate-in fade-in duration-200 pr-1 pb-6">
         <div className="h-6 w-24 bg-muted/30 rounded animate-pulse mb-4" />
         <div className="h-48 bg-muted/20 rounded-lg animate-pulse mb-6" />
         <div className="h-64 bg-muted/20 rounded-lg animate-pulse" />
@@ -841,7 +841,7 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <div className="flex flex-col items-center justify-center py-16">
+      <div className="flex flex-col items-center justify-center py-16 pr-1 pb-6">
         <p className="text-[13px] text-muted-foreground">Client not found</p>
         <Link href="/clients" className="text-[13px] text-primary hover:underline mt-2">Back to clients</Link>
       </div>
@@ -870,7 +870,7 @@ export default function ClientDetailPage() {
   const derivedServices = [...new Set(contractItems.filter(i => i.is_active).map(i => i.service).filter(Boolean))];
 
   return (
-    <div className="animate-in fade-in duration-200">
+    <div className="animate-in fade-in duration-200 pr-1 pb-6">
       <button
         onClick={() => { if (window.history.length > 1) router.back(); else router.push('/clients'); }}
         className="flex items-center gap-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors duration-150 mb-4"
