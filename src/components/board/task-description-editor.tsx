@@ -726,7 +726,7 @@ export function TaskDescriptionEditor({ content, onChange, placeholder = "Add de
       )}
 
       {/* Editor */}
-      <div className="overflow-y-auto bg-background">
+      <div className="bg-background">
         <EditorContent editor={editor} />
       </div>
       {/* Slash command hint strip */}
