@@ -1491,6 +1491,7 @@ export default function ClientDetailPage() {
         allTasks={tasks as unknown as Task[]}
         onTaskClick={handleTaskClick}
         allLabels={[]}
+        teams={teamOptions.map(t => ({ slug: t.name.toLowerCase(), name: t.name }))}
       />
 
       {/* Line item dialog */}
