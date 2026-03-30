@@ -21,29 +21,30 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { name, company, email, phone, stage, value, notes, service, assignee, source, contact_name, contact_email, contact_phone, team, website } = body;
+  const { name, company, email, phone, stage, value, notes, service, assignee, source, contact_name, contact_email, contact_phone, team } = body;
 
   if (!name) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
+  const insertData = {
+    name,
+    company: company || null,
+    email: email || null,
+    phone: phone || null,
+    stage: stage || 'lead',
+    value: value || null,
+    notes: notes || null,
+    service: service || null,
+    assignee: assignee || null,
+    source: source || null,
+    contact_name: contact_name || null,
+    contact_email: contact_email || null,
+    contact_phone: contact_phone || null,
+    team: team || null,
+  };
+
   const { data, error } = await supabaseAdmin
     .from('prospects')
-    .insert({
-      name,
-      company: company || null,
-      email: email || null,
-      phone: phone || null,
-      stage: stage || 'lead',
-      value: value || null,
-      notes: notes || null,
-      service: service || null,
-      assignee: assignee || null,
-      source: source || null,
-      contact_name: contact_name || null,
-      contact_email: contact_email || null,
-      contact_phone: contact_phone || null,
-      team: team || null,
-      website: website || null,
-    })
+    .insert(insertData)
     .select()
     .single();
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
 async function updateProspect(request: NextRequest) {
   const body = await request.json();
-  const { id, ...updates } = body;
+  const { id, website: _website, ...updates } = body;
 
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
