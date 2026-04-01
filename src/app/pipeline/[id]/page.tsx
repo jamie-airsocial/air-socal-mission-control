@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Phone, Mail, Calendar, FileText, MessageSquare, Plus, Clock, ChevronRight, Trash2, User, Globe, Building2, Check, X, Search, ChevronDown, Pencil, BadgePoundSterling, ArrowRightLeft } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, Calendar, FileText, MessageSquare, Plus, Clock, ChevronRight, Trash2, User, Globe, Building2, Check, X, Search, ChevronDown, Pencil, BadgePoundSterling, ArrowRightLeft, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { PIPELINE_STAGES, getServiceStyle, SERVICE_STYLES, getAssigneeColor, getInitials } from '@/lib/constants';
@@ -81,6 +81,24 @@ interface ProspectLineItem {
   end_date: string | null;
   is_active: boolean;
   created_at: string;
+}
+
+interface ClientOption {
+  id: string;
+  name: string;
+  team?: string | null;
+  services?: string[] | null;
+}
+
+interface ConversionLineItemDraft {
+  id: string;
+  service: string;
+  description: string;
+  monthly_value: string;
+  billing_type: 'recurring' | 'one-off';
+  start_date: string;
+  end_date: string;
+  selected: boolean;
 }
 
 interface Team {
@@ -358,38 +376,77 @@ function ConvertDialog({
   lineItems: ProspectLineItem[];
   onConverted: (clientId: string) => void;
 }) {
-  const [team, setTeam] = useState(prospect.team || '');
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [archiveProspect, setArchiveProspect] = useState(true);
+  const router = useRouter();
   const [converting, setConverting] = useState(false);
+  const [convertMode, setConvertMode] = useState<'new' | 'existing'>('new');
+  const [convertTargetClientId, setConvertTargetClientId] = useState('');
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [convertLineItems, setConvertLineItems] = useState<ConversionLineItemDraft[]>([]);
 
   useEffect(() => {
-    fetch('/api/teams').then(r => r.json()).then(d => setTeams(d || [])).catch(() => {});
-  }, []);
+    if (!open) return;
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then(d => setClientOptions(Array.isArray(d) ? d : []))
+      .catch(() => setClientOptions([]));
+  }, [open]);
 
-  const totalRecurring = lineItems.filter(i => i.is_active && i.billing_type === 'recurring').reduce((s, i) => s + i.monthly_value, 0);
-  const services = [...new Set(lineItems.map(i => i.service))];
+  useEffect(() => {
+    if (!open) return;
+    setConvertMode('new');
+    setConvertTargetClientId('');
+    setClientSearch('');
+    setConvertLineItems(
+      lineItems.map((item) => ({
+        id: item.id,
+        service: item.service,
+        description: item.description || '',
+        monthly_value: String(item.monthly_value || 0),
+        billing_type: item.billing_type,
+        start_date: toISODateString(item.start_date),
+        end_date: toISODateString(item.end_date),
+        selected: item.is_active ?? true,
+      }))
+    );
+  }, [open, lineItems]);
 
   const handleConvert = async () => {
+    const selectedItems = convertLineItems
+      .filter(item => item.selected)
+      .map(item => ({
+        service: item.service,
+        description: item.description.trim() || null,
+        monthly_value: Number(item.monthly_value || 0),
+        billing_type: item.billing_type,
+        start_date: item.start_date || null,
+        end_date: item.end_date || null,
+        is_active: true,
+      }))
+      .filter(item => item.service && !Number.isNaN(item.monthly_value));
+
+    if (convertMode === 'existing' && !convertTargetClientId) {
+      toast.error('Choose an existing client');
+      return;
+    }
+
     setConverting(true);
     try {
       const res = await fetch(`/api/prospects/${prospect.id}/convert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: prospect.name,
-          team: team || null,
-          services,
-          monthly_retainer: totalRecurring,
-          sale_source: prospect.source || null,
-          sold_by: prospect.assignee || null,
-          archive_prospect: archiveProspect,
+          mode: convertMode,
+          ...(convertMode === 'existing' ? { client_id: convertTargetClientId } : {}),
+          line_items: selectedItems,
+          archive_prospect: true,
         }),
       });
-      if (!res.ok) throw new Error((await res.json()).error);
-      const data = await res.json();
-      toast.success('Prospect converted to client', { description: `${prospect.name} is now an active client.` });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to convert');
+      toast.success(convertMode === 'existing' ? 'Prospect merged into existing client' : 'Prospect converted to client');
       onConverted(data.client.id);
+      if (convertMode === 'existing') router.push(`/clients/${data.client.id}`);
     } catch (err) {
       toast.error('Failed to convert', { description: err instanceof Error ? err.message : 'Unknown error' });
     } finally {
@@ -399,70 +456,90 @@ function ConvertDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card border-border/20">
+      <DialogContent className="sm:max-w-2xl bg-card border-border/20">
         <DialogHeader>
           <DialogTitle className="text-[15px]">Convert to client</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <p className="text-[13px] text-muted-foreground">
-            This will create <strong>{prospect.name}</strong> as an active client and mark this prospect as won.
-          </p>
+        <div className="space-y-4 py-2 max-h-[75vh] overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-3">
+            <button type="button" onClick={() => setConvertMode('new')} className={`rounded-lg border p-4 text-left transition-colors ${convertMode === 'new' ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border/20 hover:bg-muted/20'}`}>
+              <div className="text-[13px] font-medium">Convert to new client</div>
+              <div className="mt-1 text-[12px] text-muted-foreground/70">Creates a brand new client from this prospect.</div>
+            </button>
+            <button type="button" onClick={() => setConvertMode('existing')} className={`rounded-lg border p-4 text-left transition-colors ${convertMode === 'existing' ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border/20 hover:bg-muted/20'}`}>
+              <div className="text-[13px] font-medium">Convert into existing client</div>
+              <div className="mt-1 text-[12px] text-muted-foreground/70">Use this for upsells or additional work without duplicating the client.</div>
+            </button>
+          </div>
 
-          {/* Summary */}
-          <div className="rounded-lg border border-border/20 bg-muted/10 p-3 space-y-2">
-            {services.length > 0 && (
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-muted-foreground">Services</span>
-                <div className="flex items-center gap-1.5">
-                  {services.map(s => {
-                    const style = getServiceStyle(s);
-                    return (
-                      <span key={s} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${style.bg} ${style.text}`}>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: style.dot }} />
-                        {style.label}
-                      </span>
-                    );
-                  })}
+          <div className="rounded-lg border border-border/20 bg-muted/10 p-4 space-y-2 text-[13px]">
+            <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Prospect</span><span>{prospect.name}</span></div>
+            <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Lead source</span><span>{prospect.source || '—'}</span></div>
+            <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Sale owner</span><span>{prospect.assignee || '—'}</span></div>
+          </div>
+
+          {convertMode === 'existing' && (
+            <div className="rounded-lg border border-border/20 p-4 space-y-3">
+              <div>
+                <label className="block text-[12px] text-muted-foreground mb-1">Existing client</label>
+                <Input value={clientSearch} onChange={e => setClientSearch(e.target.value)} placeholder="Search clients..." className="h-9 text-[13px] bg-secondary border-border/20" />
+              </div>
+              <div className="max-h-[220px] overflow-y-auto rounded-lg border border-border/20 divide-y divide-border/10">
+                {clientOptions.filter(client => client.name.toLowerCase().includes(clientSearch.toLowerCase())).map(client => (
+                  <button key={client.id} type="button" onClick={() => setConvertTargetClientId(client.id)} className={`w-full px-3 py-2.5 text-left transition-colors ${convertTargetClientId === client.id ? 'bg-emerald-500/10' : 'hover:bg-muted/20'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[13px] font-medium text-foreground">{client.name}</div>
+                        <div className="mt-0.5 text-[11px] text-muted-foreground/60">{client.team || 'No team'}{client.services?.length ? ` · ${client.services.map((service) => getServiceStyle(service).label).join(', ')}` : ''}</div>
+                      </div>
+                      {convertTargetClientId === client.id && <Check size={14} className="text-emerald-400 shrink-0" />}
+                    </div>
+                  </button>
+                ))}
+                {clientOptions.filter(client => client.name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                  <div className="px-3 py-4 text-[13px] text-muted-foreground/60">No matching clients</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <div>
+              <div className="text-[13px] font-medium">Billing items to move</div>
+              <div className="text-[12px] text-muted-foreground/60">Won prospects should keep showing their original billing items here after conversion. Only selected items are copied into the client.</div>
+            </div>
+            {convertLineItems.length === 0 ? (
+              <div className="text-[13px] text-muted-foreground/60">No line items to convert</div>
+            ) : convertLineItems.map((item, index) => (
+              <div key={item.id} className={`rounded-lg border p-4 space-y-3 ${item.selected ? 'border-border/20' : 'border-border/10 opacity-70'}`}>
+                <label className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+                  <input type="checkbox" checked={item.selected} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, selected: e.target.checked } : row))} />
+                  <span>{getServiceStyle(item.service).label}</span>
+                  <span className="text-[11px] text-muted-foreground/60">{item.billing_type === 'recurring' ? 'Recurring' : 'One-off'}</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[12px] text-muted-foreground mb-1">Amount</label>
+                    <Input value={item.monthly_value} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, monthly_value: e.target.value } : row))} className="h-9 text-[13px] bg-secondary border-border/20" />
+                  </div>
+                  <div>
+                    <label className="block text-[12px] text-muted-foreground mb-1">Start date</label>
+                    <DatePicker value={item.start_date} onChange={value => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, start_date: value } : row))} placeholder="DD/MM/YYYY" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[12px] text-muted-foreground mb-1">Description</label>
+                  <Input value={item.description} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, description: e.target.value } : row))} className="h-9 text-[13px] bg-secondary border-border/20" />
                 </div>
               </div>
-            )}
-            {totalRecurring > 0 && (
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="text-muted-foreground">Monthly retainer</span>
-                <span className="font-medium text-emerald-400">£{totalRecurring.toLocaleString()}/mo</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between text-[13px]">
-              <span className="text-muted-foreground">Line items</span>
-              <span>{lineItems.length}</span>
-            </div>
-          </div>
-
-          {/* Team selection */}
-          <div className="space-y-1.5">
-            <Label className="text-[13px] text-muted-foreground">Assign to team</Label>
-            <select
-              value={team}
-              onChange={e => setTeam(e.target.value)}
-              className="w-full h-9 px-3 text-[13px] bg-secondary border border-border/20 rounded-md"
-            >
-              <option value="">No team</option>
-              {teams.map(t => (
-                <option key={t.id} value={t.name.toLowerCase()}>{t.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Archive toggle */}
-          <div className="flex items-center gap-3">
-            <Switch checked={archiveProspect} onCheckedChange={setArchiveProspect} />
-            <Label className="text-[13px] text-muted-foreground">Archive prospect after conversion</Label>
+            ))}
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[13px] h-8 border-border/20">Cancel</Button>
-          <Button onClick={handleConvert} disabled={converting} className="text-[13px] h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
-            {converting ? 'Converting...' : 'Convert to client'}
+          <Button onClick={handleConvert} disabled={converting || (convertMode === 'existing' && !convertTargetClientId)} className="text-[13px] h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+            {converting ? 'Converting...' : convertMode === 'existing' ? 'Mark won and merge into client' : 'Mark won and create client'}
+            {!converting && <ArrowRight className="ml-1 h-4 w-4" />}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -491,6 +568,8 @@ export default function ProspectDetailPage() {
   const [editingLineItem, setEditingLineItem] = useState<ProspectLineItem | null>(null);
   const [deleteLineItem, setDeleteLineItem] = useState<ProspectLineItem | null>(null);
   const [deletingLineItem, setDeletingLineItem] = useState(false);
+  const [deleteProspectOpen, setDeleteProspectOpen] = useState(false);
+  const [deletingProspect, setDeletingProspect] = useState(false);
 
   // Convert dialog
   const [convertOpen, setConvertOpen] = useState(false);
@@ -600,8 +679,25 @@ export default function ProspectDetailPage() {
     }
   };
 
+  const handleDeleteProspect = async () => {
+    if (!prospect) return;
+    setDeletingProspect(true);
+    try {
+      const res = await fetch(`/api/prospects?id=${prospect.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete prospect');
+      toast.success('Prospect deleted');
+      router.push('/pipeline');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete prospect');
+    } finally {
+      setDeletingProspect(false);
+      setDeleteProspectOpen(false);
+    }
+  };
+
   if (loading) return (
-    <div className="animate-in fade-in duration-200 p-6">
+    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-y-auto p-6 pr-1 pb-6">
       <div className="h-6 w-32 bg-muted/30 rounded animate-pulse mb-4" />
       <div className="h-8 w-64 bg-muted/30 rounded animate-pulse mb-2" />
       <div className="h-4 w-48 bg-muted/20 rounded animate-pulse" />
@@ -609,7 +705,7 @@ export default function ProspectDetailPage() {
   );
 
   if (!prospect) return (
-    <div className="p-6 text-center">
+    <div className="h-full min-h-0 overflow-y-auto p-6 pr-1 pb-6 text-center">
       <p className="text-muted-foreground">Prospect not found</p>
       <Button variant="ghost" onClick={() => router.push('/pipeline')} className="mt-4">Back to pipeline</Button>
     </div>
@@ -618,9 +714,10 @@ export default function ProspectDetailPage() {
   const stageInfo = PIPELINE_STAGES.find(s => s.id === prospect.stage);
   const serviceStyle = prospect.service ? getServiceStyle(prospect.service) : null;
   const totalRecurring = lineItems.filter(i => i.is_active && i.billing_type === 'recurring').reduce((s, i) => s + i.monthly_value, 0);
+  const visibleBillingItems = lineItems;
 
   return (
-    <div className="animate-in fade-in duration-200">
+    <div className="animate-in fade-in duration-200 h-full min-h-0 overflow-y-auto pr-1 pb-6">
       {/* Header */}
       <button onClick={() => router.push('/pipeline')} className="flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground transition-colors mb-4">
         <ArrowLeft size={14} /> Back
@@ -648,11 +745,16 @@ export default function ProspectDetailPage() {
           </div>
         </div>
         {/* Convert to Client button — show when stage is won */}
-        {prospect.stage === 'won' && (
-          <Button onClick={() => setConvertOpen(true)} className="h-8 text-[13px] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
-            <ArrowRightLeft size={14} /> Convert to client
+        <div className="flex items-center gap-2">
+          {prospect.stage === 'won' && (
+            <Button onClick={() => setConvertOpen(true)} className="h-8 text-[13px] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
+              <ArrowRightLeft size={14} /> Convert to client
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => setDeleteProspectOpen(true)} className="h-8 text-[13px] gap-1.5 border-border/20 text-destructive hover:text-destructive hover:bg-destructive/10">
+            <Trash2 size={14} /> Delete prospect
           </Button>
-        )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -774,7 +876,7 @@ export default function ProspectDetailPage() {
               </Button>
             </div>
 
-            {lineItems.length === 0 ? (
+            {visibleBillingItems.length === 0 ? (
               <div className="px-4 py-8 text-center text-[13px] text-muted-foreground/40">
                 No billing line items. Add services to build the proposal.
               </div>
@@ -794,7 +896,7 @@ export default function ProspectDetailPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lineItems.map(item => (
+                    {visibleBillingItems.map(item => (
                       <TableRow key={item.id} className={`border-border/20 hover:bg-secondary/30 transition-colors ${!item.is_active ? 'opacity-50' : ''}`}>
                         <TableCell className="text-[13px] font-medium">{getServiceStyle(item.service).label}</TableCell>
                         <TableCell className="text-[13px] text-muted-foreground">{item.description || '—'}</TableCell>
@@ -927,6 +1029,23 @@ export default function ProspectDetailPage() {
         initialData={editingLineItem}
         onSave={handleSaveLineItem}
       />
+
+      <AlertDialog open={deleteProspectOpen} onOpenChange={setDeleteProspectOpen}>
+        <AlertDialogContent className="bg-card border-border/20 sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[15px]">Delete prospect?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-muted-foreground">
+              This will permanently delete {prospect.name}, including its billing items and activity history. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-[13px] h-8 border-border/20">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteProspect} disabled={deletingProspect} className="text-[13px] h-8 bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deletingProspect ? 'Deleting...' : 'Delete prospect'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Delete Line Item Confirm */}
       <AlertDialog open={!!deleteLineItem} onOpenChange={open => { if (!open) setDeleteLineItem(null); }}>

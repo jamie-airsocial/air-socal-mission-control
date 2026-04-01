@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { FilterPopover } from '@/components/ui/filter-popover';
+import { DatePicker } from '@/components/ui/date-picker';
 import { KanbanFrame } from '@/components/ui/kanban-frame';
 import { EnhancedDatePicker, formatRelativeDate } from '@/components/board/enhanced-date-picker';
 import { usePersistedState } from '@/hooks/use-persisted-state';
@@ -790,7 +791,7 @@ function ProspectSheet({
                       </div>
                       <div>
                         <label className="block text-[12px] text-muted-foreground mb-1">Start date</label>
-                        <input type="date" value={item.start_date} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, start_date: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                        <DatePicker value={item.start_date} onChange={value => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, start_date: value } : row))} placeholder="DD/MM/YYYY" />
                       </div>
                     </div>
                     <div>

@@ -116,11 +116,21 @@ export async function DELETE(request: NextRequest) {
 
   if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
 
+  const { data: prospect, error: prospectErr } = await supabaseAdmin
+    .from('prospects')
+    .select('id,name')
+    .eq('id', id)
+    .single();
+
+  if (prospectErr || !prospect) {
+    return NextResponse.json({ error: 'Prospect not found' }, { status: 404 });
+  }
+
   const { error } = await supabaseAdmin
     .from('prospects')
     .delete()
     .eq('id', id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, deleted_id: id, deleted_name: prospect.name });
 }
