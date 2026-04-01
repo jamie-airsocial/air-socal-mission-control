@@ -237,11 +237,11 @@ function ProspectLineItemDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-[13px] text-muted-foreground">Start date</label>
-              <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              <DatePicker value={form.start_date} onChange={value => setForm(f => ({ ...f, start_date: value }))} placeholder="DD/MM/YYYY" />
             </div>
             <div className="space-y-1.5">
               <label className="text-[13px] text-muted-foreground">End date</label>
-              <input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+              <DatePicker value={form.end_date} onChange={value => setForm(f => ({ ...f, end_date: value }))} placeholder="DD/MM/YYYY" />
             </div>
           </div>
 
@@ -294,6 +294,8 @@ function ProspectSheet({
   const [lineItemDialogOpen, setLineItemDialogOpen] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<ProspectLineItem | null>(null);
   const [deleteLineItem, setDeleteLineItem] = useState<ProspectLineItem | null>(null);
+  const [deleteProspectOpen, setDeleteProspectOpen] = useState(false);
+  const [deletingProspect, setDeletingProspect] = useState(false);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [convertMode, setConvertMode] = useState<'new' | 'existing'>('new');
   const [convertTargetClientId, setConvertTargetClientId] = useState('');
@@ -428,6 +430,24 @@ function ProspectSheet({
     setDeleteLineItem(null);
     await onCreated();
     toast.success('Line item deleted');
+  };
+
+  const handleDeleteProspect = async () => {
+    if (!prospect?.id) return;
+    setDeletingProspect(true);
+    try {
+      const res = await fetch(`/api/prospects?id=${prospect.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete prospect');
+      toast.success('Prospect deleted');
+      setDeleteProspectOpen(false);
+      onOpenChange(false);
+      await onCreated();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete prospect');
+    } finally {
+      setDeletingProspect(false);
+    }
   };
 
   const openConvertDialog = async () => {
@@ -689,6 +709,19 @@ function ProspectSheet({
       </Sheet>
 
       <ProspectLineItemDialog open={lineItemDialogOpen} onOpenChange={(v) => { setLineItemDialogOpen(v); if (!v) setEditingLineItem(null); }} initialData={editingLineItem} onSave={handleSaveLineItem} />
+
+      {prospect && (
+        <Sheet open={deleteProspectOpen} onOpenChange={setDeleteProspectOpen}>
+          <SheetContent side="right" className="top-2 bottom-2 right-2 h-auto rounded-l-2xl border border-border/20 bg-card p-0 shadow-2xl sm:max-w-[420px]">
+            <div className="px-5 py-4 border-b border-border/20"><h3 className="text-[15px] font-semibold">Delete prospect</h3></div>
+            <div className="px-5 py-4 text-[13px] text-muted-foreground/70">This will permanently delete {prospect.name}, including its billing items and activity history. This cannot be undone.</div>
+            <div className="px-5 py-3 border-t border-border/20 flex justify-end gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setDeleteProspectOpen(false)} disabled={deletingProspect}>Cancel</Button>
+              <Button size="sm" variant="destructive" onClick={handleDeleteProspect} disabled={deletingProspect}>{deletingProspect ? 'Deleting...' : 'Delete prospect'}</Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {deleteLineItem && (
         <Sheet open={!!deleteLineItem} onOpenChange={(open) => { if (!open) setDeleteLineItem(null); }}>
