@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -9,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Plus, Search, X, Kanban, Table2, BarChart3, Mail, Phone, Check, ChevronDown,
   PoundSterling, Trophy, Percent, TrendingUp, User, Globe, Tag, Calendar,
-  MessageSquare, Pencil, Trash2,
+  MessageSquare, Pencil, Trash2, ArrowRight,
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { FilterPopover } from '@/components/ui/filter-popover';
@@ -63,6 +64,24 @@ interface ProspectLineItem {
   created_at: string;
 }
 
+interface ClientOption {
+  id: string;
+  name: string;
+  status?: string | null;
+  team?: string | null;
+  services?: string[] | null;
+}
+
+interface ConversionLineItemDraft {
+  id: string;
+  service: string;
+  description: string;
+  monthly_value: string;
+  billing_type: 'recurring' | 'one-off';
+  start_date: string;
+  end_date: string;
+  selected: boolean;
+}
 
 interface Activity {
   id: string;
@@ -254,6 +273,7 @@ function ProspectSheet({
   assigneeOptions: { slug: string; full_name: string }[];
   leadSourceOptions: string[];
 }) {
+  const router = useRouter();
   const [form, setForm] = useState({
     name: '',
     stage: 'lead',
@@ -274,7 +294,11 @@ function ProspectSheet({
   const [editingLineItem, setEditingLineItem] = useState<ProspectLineItem | null>(null);
   const [deleteLineItem, setDeleteLineItem] = useState<ProspectLineItem | null>(null);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [convertLineItems, setConvertLineItems] = useState<Array<ProspectLineItem & { selected: boolean; edit_monthly_value: string; edit_start_date: string }>>([]);
+  const [convertMode, setConvertMode] = useState<'new' | 'existing'>('new');
+  const [convertTargetClientId, setConvertTargetClientId] = useState('');
+  const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [clientSearch, setClientSearch] = useState('');
+  const [convertLineItems, setConvertLineItems] = useState<ConversionLineItemDraft[]>([]);
   const [converting, setConverting] = useState(false);
   const [stageOpen, setStageOpen] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
@@ -308,6 +332,14 @@ function ProspectSheet({
     fetch(`/api/prospects/${prospect.id}/line-items`).then(r => r.json()).then(d => setLineItems(Array.isArray(d) ? d : [])).catch(() => setLineItems([]));
     fetch(`/api/prospects/${prospect.id}/activities`).then(r => r.json()).then(d => setActivities(Array.isArray(d) ? d : [])).catch(() => setActivities([]));
   }, [open, prospect?.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch('/api/clients')
+      .then(r => r.json())
+      .then(d => setClientOptions(Array.isArray(d) ? d : []))
+      .catch(() => setClientOptions([]));
+  }, [open]);
 
   const persistProspect = async () => {
     if (!form.name.trim()) {
@@ -403,11 +435,18 @@ function ProspectSheet({
 
     const latestItems = await fetch(`/api/prospects/${targetProspect.id}/line-items`).then(r => r.json()).catch(() => []);
     const mappedItems = (Array.isArray(latestItems) ? latestItems : []).map((item: ProspectLineItem) => ({
-      ...item,
-      selected: true,
-      edit_monthly_value: String(item.monthly_value || 0),
-      edit_start_date: toISODateString(item.start_date),
+      id: item.id,
+      service: item.service,
+      description: item.description || '',
+      monthly_value: String(item.monthly_value || 0),
+      billing_type: item.billing_type,
+      start_date: toISODateString(item.start_date),
+      end_date: toISODateString(item.end_date),
+      selected: item.is_active ?? true,
     }));
+    setConvertMode('new');
+    setConvertTargetClientId('');
+    setClientSearch('');
     setConvertLineItems(mappedItems);
     setConvertDialogOpen(true);
   };
@@ -415,50 +454,47 @@ function ProspectSheet({
   const handleConvert = async () => {
     const targetProspect = prospect || await persistProspect();
     if (!targetProspect?.id) return;
+
+    const selectedItems = convertLineItems
+      .filter(item => item.selected)
+      .map(item => ({
+        service: item.service,
+        description: item.description.trim() || null,
+        monthly_value: Number(item.monthly_value || 0),
+        billing_type: item.billing_type,
+        start_date: item.start_date || null,
+        end_date: item.end_date || null,
+        is_active: true,
+      }))
+      .filter(item => item.service && !Number.isNaN(item.monthly_value));
+
+    if (convertMode === 'existing' && !convertTargetClientId) {
+      toast.error('Choose an existing client');
+      return;
+    }
+
     setConverting(true);
     try {
-      for (const item of convertLineItems) {
-        if (!item.selected) {
-          await fetch(`/api/prospects/${targetProspect.id}/line-items`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: item.id,
-              service: item.service,
-              description: item.description || null,
-              monthly_value: item.monthly_value,
-              billing_type: item.billing_type,
-              start_date: item.start_date,
-              end_date: item.end_date,
-              is_active: false,
-            }),
-          });
-          continue;
-        }
+      const payload = {
+        mode: convertMode,
+        ...(convertMode === 'existing' ? { client_id: convertTargetClientId } : {}),
+        line_items: selectedItems,
+      };
 
-        await fetch(`/api/prospects/${targetProspect.id}/line-items`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: item.id,
-            service: item.service,
-            description: item.description || null,
-            monthly_value: Number(item.edit_monthly_value || 0),
-            billing_type: item.billing_type,
-            start_date: item.edit_start_date || null,
-            end_date: item.end_date,
-            is_active: true,
-          }),
-        });
-      }
-
-      const res = await fetch(`/api/prospects/${targetProspect.id}/convert`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+      const res = await fetch(`/api/prospects/${targetProspect.id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Failed to convert prospect');
       await onCreated();
       setConvertDialogOpen(false);
       onOpenChange(false);
-      toast.success('Prospect converted to client');
+      toast.success(convertMode === 'existing' ? 'Prospect merged into existing client' : 'Prospect converted to client');
+      if (data?.client?.id && convertMode === 'existing') {
+        router.push(`/clients/${data.client.id}`);
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to convert prospect');
     } finally {
@@ -668,33 +704,98 @@ function ProspectSheet({
           <div className="flex h-full flex-col">
             <div className="px-5 py-4 border-b border-border/20">
               <h3 className="text-[15px] font-semibold">Convert to client</h3>
-              <p className="mt-1 text-[13px] text-muted-foreground/70">Review which billing items should carry over, and adjust values or start dates before conversion.</p>
+              <p className="mt-1 text-[13px] text-muted-foreground/70">Choose whether this prospect becomes a new client or rolls into an existing one, then review the billing items you actually want to carry across.</p>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConvertMode('new')}
+                  className={`rounded-lg border p-4 text-left transition-colors ${convertMode === 'new' ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border/20 hover:bg-muted/20'}`}
+                >
+                  <div className="text-[13px] font-medium">Convert to new client</div>
+                  <div className="mt-1 text-[12px] text-muted-foreground/70">Creates a brand new client from this prospect.</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConvertMode('existing')}
+                  className={`rounded-lg border p-4 text-left transition-colors ${convertMode === 'existing' ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border/20 hover:bg-muted/20'}`}
+                >
+                  <div className="text-[13px] font-medium">Convert into existing client</div>
+                  <div className="mt-1 text-[12px] text-muted-foreground/70">Use this for upsells or additional work without duplicating the client.</div>
+                </button>
+              </div>
+
               <div className="rounded-lg border border-border/20 bg-muted/10 p-4 space-y-2 text-[13px]">
-                <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Client name</span><span>{form.name || '—'}</span></div>
+                <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Prospect</span><span>{form.name || '—'}</span></div>
                 <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Lead source</span><span>{form.source || '—'}</span></div>
                 <div className="flex items-center justify-between"><span className="text-muted-foreground/60">Sale owner</span><span>{assigneeOptions.find(a => a.slug === form.assignee)?.full_name || '—'}</span></div>
               </div>
 
+              {convertMode === 'existing' && (
+                <div className="rounded-lg border border-border/20 p-4 space-y-3">
+                  <div>
+                    <label className="block text-[12px] text-muted-foreground mb-1">Existing client</label>
+                    <input
+                      value={clientSearch}
+                      onChange={e => setClientSearch(e.target.value)}
+                      placeholder="Search clients..."
+                      className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50"
+                    />
+                  </div>
+                  <div className="max-h-[220px] overflow-y-auto rounded-lg border border-border/20 divide-y divide-border/10">
+                    {clientOptions
+                      .filter(client => client.name.toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(client => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => setConvertTargetClientId(client.id)}
+                          className={`w-full px-3 py-2.5 text-left transition-colors ${convertTargetClientId === client.id ? 'bg-emerald-500/10' : 'hover:bg-muted/20'}`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-[13px] font-medium text-foreground">{client.name}</div>
+                              <div className="mt-0.5 text-[11px] text-muted-foreground/60">{client.team || 'No team'}{client.services?.length ? ` · ${client.services.join(', ')}` : ''}</div>
+                            </div>
+                            {convertTargetClientId === client.id && <Check size={14} className="text-emerald-400 shrink-0" />}
+                          </div>
+                        </button>
+                      ))}
+                    {clientOptions.filter(client => client.name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                      <div className="px-3 py-4 text-[13px] text-muted-foreground/60">No matching clients</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
+                <div>
+                  <div className="text-[13px] font-medium">Billing items to move</div>
+                  <div className="text-[12px] text-muted-foreground/60">Only selected items will be copied into the client during conversion.</div>
+                </div>
                 {convertLineItems.length === 0 ? (
                   <div className="text-[13px] text-muted-foreground/60">No line items to convert</div>
                 ) : convertLineItems.map((item, index) => (
-                  <div key={item.id} className="rounded-lg border border-border/20 p-4 space-y-3">
+                  <div key={item.id} className={`rounded-lg border p-4 space-y-3 ${item.selected ? 'border-border/20' : 'border-border/10 opacity-70'}`}>
                     <label className="flex items-center gap-2 text-[13px] font-medium text-foreground">
                       <input type="checkbox" checked={item.selected} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, selected: e.target.checked } : row))} />
-                      {getServiceStyle(item.service).label}
+                      <span>{getServiceStyle(item.service).label}</span>
+                      <span className="text-[11px] text-muted-foreground/60">{item.billing_type === 'recurring' ? 'Recurring' : 'One-off'}</span>
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[12px] text-muted-foreground mb-1">Amount</label>
-                        <input value={item.edit_monthly_value} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, edit_monthly_value: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                        <input value={item.monthly_value} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, monthly_value: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
                       </div>
                       <div>
                         <label className="block text-[12px] text-muted-foreground mb-1">Start date</label>
-                        <input type="date" value={item.edit_start_date} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, edit_start_date: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                        <input type="date" value={item.start_date} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, start_date: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
                       </div>
+                    </div>
+                    <div>
+                      <label className="block text-[12px] text-muted-foreground mb-1">Description</label>
+                      <input value={item.description} onChange={e => setConvertLineItems(prev => prev.map((row, rowIndex) => rowIndex === index ? { ...row, description: e.target.value } : row))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
                     </div>
                   </div>
                 ))}
@@ -702,8 +803,9 @@ function ProspectSheet({
             </div>
             <div className="px-5 py-3 border-t border-border/20 flex items-center justify-between bg-card">
               <Button size="sm" variant="ghost" onClick={() => setConvertDialogOpen(false)} disabled={converting}>Cancel</Button>
-              <Button size="sm" onClick={handleConvert} disabled={converting || !form.name.trim()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                {converting ? 'Converting...' : 'Mark won and convert'}
+              <Button size="sm" onClick={handleConvert} disabled={converting || !form.name.trim() || (convertMode === 'existing' && !convertTargetClientId)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                {converting ? 'Converting...' : convertMode === 'existing' ? 'Mark won and merge into client' : 'Mark won and create client'}
+                {!converting && <ArrowRight className="ml-1 h-4 w-4" />}
               </Button>
             </div>
           </div>
