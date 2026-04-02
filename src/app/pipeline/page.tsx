@@ -1010,7 +1010,7 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange, statsCust
                 {statsCustomStart ? formatRelativeDate(new Date(statsCustomStart)) : 'Start date'}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto p-0 bg-card border border-border/20 rounded-lg shadow-lg" align="start">
               <EnhancedDatePicker
                 date={statsCustomStart ? new Date(statsCustomStart) : null}
                 time={''}
@@ -1027,7 +1027,7 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange, statsCust
                 {statsCustomEnd ? formatRelativeDate(new Date(statsCustomEnd)) : 'End date'}
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
+            <PopoverContent className="w-auto p-0 bg-card border border-border/20 rounded-lg shadow-lg" align="start">
               <EnhancedDatePicker
                 date={statsCustomEnd ? new Date(statsCustomEnd) : null}
                 time={''}
