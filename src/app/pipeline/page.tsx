@@ -543,11 +543,18 @@ function ProspectSheet({
                   {prospect?.updated_at ? ` · Updated ${formatTimestamp(prospect.updated_at)}` : ''}
                   {prospect?.won_at ? ` · Won ${new Date(prospect.won_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
                 </div>
-                {prospect && (
-                  <Button size="sm" onClick={openConvertDialog} disabled={converting} className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
-                    Convert to client
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {prospect && (
+                    <Button size="sm" variant="outline" onClick={() => setDeleteProspectOpen(true)} className="h-8 border-border/20 text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4 mr-1" /> Delete prospect
+                    </Button>
+                  )}
+                  {prospect && (
+                    <Button size="sm" onClick={openConvertDialog} disabled={converting} className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white">
+                      Convert to client
+                    </Button>
+                  )}
+                </div>
               </div>
               <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Prospect name" className="w-full bg-transparent text-[24px] font-semibold tracking-tight outline-none ring-0 border-0 shadow-none placeholder:text-muted-foreground/30 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none selection:bg-transparent" />
             </div>
