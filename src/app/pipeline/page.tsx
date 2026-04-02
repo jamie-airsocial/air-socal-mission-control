@@ -651,7 +651,7 @@ function ProspectSheet({
                       <Popover>
                         <PopoverTrigger asChild>
                           <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-background border border-border/20 rounded-lg flex items-center justify-between hover:bg-muted/20 transition-colors">
-                            <span>{lostReasonInputMode === 'custom' ? (lostReasonCustomInput || 'Add custom reason') : (form.lost_reason || 'Select lost reason')}</span>
+                            <span>{lostReasonInputMode === 'custom' ? (lostReasonCustomInput || 'New custom reason') : (form.lost_reason || 'Select lost reason')}</span>
                             <ChevronDown size={14} className="text-muted-foreground/40" />
                           </button>
                         </PopoverTrigger>
@@ -663,13 +663,13 @@ function ProspectSheet({
                               </button>
                             ))}
                             <button type="button" onClick={() => { setLostReasonInputMode('custom'); setForm(f => ({ ...f, lost_reason: '' })); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">
-                              Add custom reason
+                              + Add new custom option
                             </button>
                           </div>
                         </PopoverContent>
                       </Popover>
                       {lostReasonInputMode === 'custom' && (
-                        <input value={lostReasonCustomInput} onChange={e => setLostReasonCustomInput(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Enter custom lost reason" />
+                        <input value={lostReasonCustomInput} onChange={e => setLostReasonCustomInput(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Create new lost-reason option" />
                       )}
                     </div>
                   )}
@@ -1119,20 +1119,23 @@ export default function PipelinePage() {
     lastConfettiKeyRef.current = key;
 
     const base = {
-      spread: 72,
-      startVelocity: 26,
-      ticks: 150,
-      gravity: 0.88,
-      scalar: 0.92,
+      spread: 94,
+      startVelocity: 30,
+      ticks: 180,
+      gravity: 0.86,
+      scalar: 1,
       zIndex: 2000,
       colors: ['#34d399', '#60a5fa', '#fbbf24', '#ffffff'],
     };
 
-    confetti({ ...base, particleCount: 70, angle: 70, origin: { x: 0.32, y: 0.78 } });
-    confetti({ ...base, particleCount: 70, angle: 110, origin: { x: 0.68, y: 0.78 } });
+    confetti({ ...base, particleCount: 110, angle: 64, origin: { x: 0.18, y: 0.76 } });
+    confetti({ ...base, particleCount: 110, angle: 116, origin: { x: 0.82, y: 0.76 } });
     window.setTimeout(() => {
-      confetti({ ...base, particleCount: 40, spread: 88, startVelocity: 20, scalar: 0.8, origin: { x: 0.5, y: 0.72 } });
+      confetti({ ...base, particleCount: 70, spread: 110, startVelocity: 24, scalar: 0.9, origin: { x: 0.5, y: 0.68 } });
     }, 140);
+    window.setTimeout(() => {
+      confetti({ ...base, particleCount: 45, spread: 120, startVelocity: 18, scalar: 0.78, origin: { x: 0.5, y: 0.62 } });
+    }, 260);
   }, []);
 
   const persistHiddenLostReasons = useCallback((reasons: string[]) => {
@@ -1446,14 +1449,14 @@ export default function PipelinePage() {
                     </div>
                   ))}
                   <button type="button" onClick={() => setLossReason('__custom__')} className={`w-full rounded-lg border px-3 py-2 text-left text-[13px] ${lossReason === '__custom__' ? 'border-primary/50 bg-primary/10' : 'border-border/20 hover:bg-muted/20'}`}>
-                    Add custom reason
+                    + Add new custom option
                   </button>
                 </div>
               </div>
               {lossReason === '__custom__' && (
                 <div>
                   <label className="block text-[12px] text-muted-foreground mb-1">Custom reason</label>
-                  <input value={lossReasonCustom} onChange={e => setLossReasonCustom(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Enter lost reason" />
+                  <input value={lossReasonCustom} onChange={e => setLossReasonCustom(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Create new lost-reason option" />
                 </div>
               )}
             </div>
