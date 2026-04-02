@@ -970,7 +970,7 @@ function TableView({ prospects, onEdit }: { prospects: Prospect[]; onEdit: (pros
   );
 }
 
-function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats: { pipelineValue: number; wonValue: number; lostReasonCounts: Record<string, number>; prospectsInRange: Prospect[] }; prospects: Prospect[]; statsRange: '30d' | '90d' | '365d' | 'all'; onStatsRangeChange: (range: '30d' | '90d' | '365d' | 'all') => void; }) {
+function StatsView({ stats, prospects, statsRange, onStatsRangeChange, statsCustomStart, statsCustomEnd, onStatsCustomStartChange, onStatsCustomEndChange, onOpenProspect }: { stats: { pipelineValue: number; wonValue: number; lostReasonCounts: Record<string, number>; lostReasonProspects: Record<string, Prospect[]>; prospectsInRange: Prospect[] }; prospects: Prospect[]; statsRange: '30d' | '90d' | '365d' | 'all' | 'custom'; onStatsRangeChange: (range: '30d' | '90d' | '365d' | 'all' | 'custom') => void; statsCustomStart: string; statsCustomEnd: string; onStatsCustomStartChange: (value: string) => void; onStatsCustomEndChange: (value: string) => void; onOpenProspect: (prospect: Prospect) => void; }) {
   const rangeProspects = stats.prospectsInRange;
   const openCount = rangeProspects.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
   const wonCount = rangeProspects.filter(p => p.stage === 'won').length;
@@ -995,13 +995,20 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <span className="text-[12px] text-muted-foreground">Lost reason range</span>
-        {(['30d', '90d', '365d', 'all'] as const).map((range) => (
+        <span className="text-[12px] text-muted-foreground">Date range</span>
+        {(['30d', '90d', '365d', 'all', 'custom'] as const).map((range) => (
           <button key={range} onClick={() => onStatsRangeChange(range)} className={`px-2.5 py-1 rounded-md text-[12px] border transition-colors ${statsRange === range ? 'bg-card border-border text-foreground' : 'bg-secondary border-border/20 text-muted-foreground'}`}>
-            {range === 'all' ? 'All time' : range}
+            {range === 'all' ? 'All time' : range === 'custom' ? 'Custom' : range}
           </button>
         ))}
       </div>
+      {statsRange === 'custom' && (
+        <div className="flex items-center gap-2">
+          <input type="date" value={statsCustomStart} onChange={(e) => onStatsCustomStartChange(e.target.value)} className="h-8 rounded-lg border border-border/20 bg-background px-3 text-[12px]" />
+          <span className="text-[12px] text-muted-foreground">to</span>
+          <input type="date" value={statsCustomEnd} onChange={(e) => onStatsCustomEndChange(e.target.value)} className="h-8 rounded-lg border border-border/20 bg-background px-3 text-[12px]" />
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
@@ -1024,17 +1031,26 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[13px] text-muted-foreground/60">Lost reasons</p>
-            <p className="mt-1 text-[12px] text-muted-foreground/50">Range applies to all stats. Lost reasons use <span className="font-medium text-foreground/80">lost_at</span>, with <span className="font-medium text-foreground/80">updated_at</span> fallback for legacy lost prospects.</p>
+            <p className="mt-1 text-[12px] text-muted-foreground/50">Click a reason to see the exact prospects behind that feedback.</p>
           </div>
         </div>
         <div className="mt-4 space-y-2">
           {lostReasonEntries.length === 0 ? (
             <div className="text-[13px] text-muted-foreground/60">No lost reasons in this range</div>
           ) : lostReasonEntries.map(([reason, count]) => (
-            <div key={reason} className="flex items-center justify-between gap-3 text-[13px]">
-              <span className="text-foreground">{reason}</span>
-              <span className="text-muted-foreground/70">{count}</span>
-            </div>
+            <details key={reason} className="rounded-lg border border-border/10 px-3 py-2">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[13px]">
+                <span className="text-foreground">{reason}</span>
+                <span className="text-muted-foreground/70">{count}</span>
+              </summary>
+              <div className="mt-2 space-y-1">
+                {(stats.lostReasonProspects[reason] || []).map((prospect) => (
+                  <button key={prospect.id} type="button" onClick={() => onOpenProspect(prospect)} className="block w-full rounded-md px-2 py-1 text-left text-[12px] text-muted-foreground hover:bg-muted/20 hover:text-foreground">
+                    {prospect.name}
+                  </button>
+                ))}
+              </div>
+            </details>
           ))}
         </div>
       </div>
@@ -1151,7 +1167,9 @@ export default function PipelinePage() {
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
   const [filterStage, setFilterStage] = usePersistedState<string[]>('pipeline-filterStage', []);
   const [searchQuery, setSearchQuery] = usePersistedState('pipeline-search', '');
-  const [statsRange, setStatsRange] = usePersistedState<'30d' | '90d' | '365d' | 'all'>('pipeline-stats-range', '90d');
+  const [statsRange, setStatsRange] = usePersistedState<'30d' | '90d' | '365d' | 'all' | 'custom'>('pipeline-stats-range', '90d');
+  const [statsCustomStart, setStatsCustomStart] = usePersistedState('pipeline-stats-start', '');
+  const [statsCustomEnd, setStatsCustomEnd] = usePersistedState('pipeline-stats-end', '');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [sheetDefaultStage, setSheetDefaultStage] = useState<string>('lead');
@@ -1242,7 +1260,9 @@ export default function PipelinePage() {
     const now = new Date();
     const cutoff = new Date(now);
     const days = statsRange === '30d' ? 30 : statsRange === '90d' ? 90 : 365;
-    if (statsRange !== 'all') cutoff.setDate(cutoff.getDate() - days);
+    if (statsRange !== 'all' && statsRange !== 'custom') cutoff.setDate(cutoff.getDate() - days);
+    const customStart = statsCustomStart ? new Date(`${statsCustomStart}T00:00:00`) : null;
+    const customEnd = statsCustomEnd ? new Date(`${statsCustomEnd}T23:59:59`) : null;
 
     return prospects.filter((prospect) => {
       if (statsRange === 'all') return true;
@@ -1252,9 +1272,15 @@ export default function PipelinePage() {
           ? (prospect.lost_at || prospect.updated_at || prospect.created_at)
           : (prospect.created_at || prospect.updated_at);
       if (!relevantDate) return false;
-      return new Date(relevantDate) >= cutoff;
+      const date = new Date(relevantDate);
+      if (statsRange === 'custom') {
+        if (customStart && date < customStart) return false;
+        if (customEnd && date > customEnd) return false;
+        return true;
+      }
+      return date >= cutoff;
     });
-  }, [prospects, statsRange]);
+  }, [prospects, statsRange, statsCustomEnd, statsCustomStart]);
 
   const lostProspectsInRange = useMemo(() => statsProspectsInRange.filter((prospect) => prospect.stage === 'lost'), [statsProspectsInRange]);
 
@@ -1276,7 +1302,13 @@ export default function PipelinePage() {
       acc[reason] = (acc[reason] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    return { pipelineValue, wonValue, lostReasonCounts, prospectsInRange: statsProspectsInRange };
+    const lostReasonProspects = lostProspectsInRange.reduce((acc, prospect) => {
+      const reason = (prospect.lost_reason || prospect.lost_reason_custom || '').trim() || 'No reason set';
+      if (!acc[reason]) acc[reason] = [];
+      acc[reason].push(prospect);
+      return acc;
+    }, {} as Record<string, Prospect[]>);
+    return { pipelineValue, wonValue, lostReasonCounts, lostReasonProspects, prospectsInRange: statsProspectsInRange };
   }, [lostProspectsInRange, statsProspectsInRange]);
 
   const openNewProspect = useCallback((stage = 'lead') => {
@@ -1503,7 +1535,7 @@ export default function PipelinePage() {
           </div>
         ) : (
           <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-auto h-[calc(100vh-170px)]">
-            <StatsView stats={stats} prospects={filtered} statsRange={statsRange} onStatsRangeChange={setStatsRange} />
+            <StatsView stats={stats} prospects={filtered} statsRange={statsRange} onStatsRangeChange={setStatsRange} statsCustomStart={statsCustomStart} statsCustomEnd={statsCustomEnd} onStatsCustomStartChange={setStatsCustomStart} onStatsCustomEndChange={setStatsCustomEnd} onOpenProspect={openEditProspect} />
           </div>
         )}
 
