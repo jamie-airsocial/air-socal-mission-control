@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Plus, Search, X, Kanban, Table2, BarChart3, Mail, Phone, Check, ChevronDown,
@@ -16,7 +17,6 @@ import {
 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { FilterPopover } from '@/components/ui/filter-popover';
-import { DatePicker } from '@/components/ui/date-picker';
 import { KanbanFrame } from '@/components/ui/kanban-frame';
 import { EnhancedDatePicker, formatRelativeDate } from '@/components/board/enhanced-date-picker';
 import { usePersistedState } from '@/hooks/use-persisted-state';
@@ -1003,10 +1003,40 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange, statsCust
         ))}
       </div>
       {statsRange === 'custom' && (
-        <div className="flex items-center gap-2">
-          <DatePicker value={statsCustomStart} onChange={onStatsCustomStartChange} placeholder="Start date" />
+        <div className="flex items-center gap-2 rounded-lg border border-border/20 bg-card px-2.5 py-2 w-fit">
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={`text-[13px] whitespace-nowrap hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 ${!statsCustomStart ? 'text-muted-foreground/50' : ''}`}>
+                {statsCustomStart ? formatRelativeDate(new Date(statsCustomStart)) : 'Start date'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <EnhancedDatePicker
+                date={statsCustomStart ? new Date(statsCustomStart) : null}
+                time={''}
+                onDateChange={(date) => onStatsCustomStartChange(date ? date.toISOString().split('T')[0] : '')}
+                onTimeChange={() => {}}
+                onClear={() => onStatsCustomStartChange('')}
+              />
+            </PopoverContent>
+          </Popover>
           <span className="text-[12px] text-muted-foreground">to</span>
-          <DatePicker value={statsCustomEnd} onChange={onStatsCustomEndChange} placeholder="End date" />
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={`text-[13px] whitespace-nowrap hover:text-foreground/80 transition-colors duration-150 hover:bg-muted/40 rounded px-1.5 py-0.5 ${!statsCustomEnd ? 'text-muted-foreground/50' : ''}`}>
+                {statsCustomEnd ? formatRelativeDate(new Date(statsCustomEnd)) : 'End date'}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <EnhancedDatePicker
+                date={statsCustomEnd ? new Date(statsCustomEnd) : null}
+                time={''}
+                onDateChange={(date) => onStatsCustomEndChange(date ? date.toISOString().split('T')[0] : '')}
+                onTimeChange={() => {}}
+                onClear={() => onStatsCustomEndChange('')}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
