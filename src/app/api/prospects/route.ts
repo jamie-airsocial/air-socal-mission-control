@@ -16,7 +16,39 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+
+  const prospects = data || [];
+  if (prospects.length === 0) return NextResponse.json(prospects);
+
+  const prospectIds = prospects.map((prospect) => prospect.id);
+  const { data: lineItems, error: lineItemsError } = await supabaseAdmin
+    .from('prospect_line_items')
+    .select('prospect_id,service,monthly_value,is_active,created_at')
+    .in('prospect_id', prospectIds);
+
+  if (lineItemsError) return NextResponse.json({ error: lineItemsError.message }, { status: 500 });
+
+  const billingByProspect = new Map();
+  for (const item of lineItems || []) {
+    if (!item.is_active) continue;
+    const current = billingByProspect.get(item.prospect_id) || { total: 0, service: null, created_at: null };
+    current.total += Number(item.monthly_value || 0);
+    if (!current.service) current.service = item.service || null;
+    if (!current.created_at || (item.created_at && item.created_at < current.created_at)) current.created_at = item.created_at;
+    billingByProspect.set(item.prospect_id, current);
+  }
+
+  const enriched = prospects.map((prospect) => {
+    const billing = billingByProspect.get(prospect.id);
+    if (!billing) return prospect;
+    return {
+      ...prospect,
+      value: billing.total > 0 ? billing.total : prospect.value,
+      service: prospect.service || billing.service || null,
+    };
+  });
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(request: NextRequest) {
