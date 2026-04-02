@@ -48,6 +48,7 @@ interface Prospect {
   won_at?: string | null;
   lost_at?: string | null;
   lost_reason?: string | null;
+  lost_reason_custom?: string | null;
   updated_at?: string | null;
   created_at: string;
 }
@@ -969,14 +970,15 @@ function TableView({ prospects, onEdit }: { prospects: Prospect[]; onEdit: (pros
   );
 }
 
-function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats: { pipelineValue: number; wonValue: number; lostReasonCounts: Record<string, number> }; prospects: Prospect[]; statsRange: '30d' | '90d' | '365d' | 'all'; onStatsRangeChange: (range: '30d' | '90d' | '365d' | 'all') => void; }) {
-  const openCount = prospects.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
-  const wonCount = prospects.filter(p => p.stage === 'won').length;
-  const lostCount = prospects.filter(p => p.stage === 'lost').length;
+function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats: { pipelineValue: number; wonValue: number; lostReasonCounts: Record<string, number>; prospectsInRange: Prospect[] }; prospects: Prospect[]; statsRange: '30d' | '90d' | '365d' | 'all'; onStatsRangeChange: (range: '30d' | '90d' | '365d' | 'all') => void; }) {
+  const rangeProspects = stats.prospectsInRange;
+  const openCount = rangeProspects.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
+  const wonCount = rangeProspects.filter(p => p.stage === 'won').length;
+  const lostCount = rangeProspects.filter(p => p.stage === 'lost').length;
   const totalTracked = wonCount + lostCount;
   const winRate = totalTracked > 0 ? Math.round((wonCount / totalTracked) * 100) : 0;
-  const averageValue = prospects.length > 0
-    ? Math.round(prospects.reduce((sum, p) => sum + (p.value || 0), 0) / prospects.length)
+  const averageValue = rangeProspects.length > 0
+    ? Math.round(rangeProspects.reduce((sum, p) => sum + (p.value || 0), 0) / rangeProspects.length)
     : 0;
 
   const cards = [
@@ -1022,7 +1024,7 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-[13px] text-muted-foreground/60">Lost reasons</p>
-            <p className="mt-1 text-[12px] text-muted-foreground/50">Based on prospect <span className="font-medium text-foreground/80">lost_at</span> within the selected range.</p>
+            <p className="mt-1 text-[12px] text-muted-foreground/50">Range applies to all stats. Lost reasons use <span className="font-medium text-foreground/80">lost_at</span>, with <span className="font-medium text-foreground/80">updated_at</span> fallback for legacy lost prospects.</p>
           </div>
         </div>
         <div className="mt-4 space-y-2">
@@ -1236,18 +1238,25 @@ export default function PipelinePage() {
     return true;
   }), [prospects, searchQuery, filterService, filterStage]);
 
-  const lostProspectsInRange = useMemo(() => {
+  const statsProspectsInRange = useMemo(() => {
     const now = new Date();
+    const cutoff = new Date(now);
+    const days = statsRange === '30d' ? 30 : statsRange === '90d' ? 90 : 365;
+    if (statsRange !== 'all') cutoff.setDate(cutoff.getDate() - days);
+
     return prospects.filter((prospect) => {
-      if (prospect.stage !== 'lost' || !prospect.lost_at) return false;
       if (statsRange === 'all') return true;
-      const lostDate = new Date(prospect.lost_at);
-      const cutoff = new Date(now);
-      const days = statsRange === '30d' ? 30 : statsRange === '90d' ? 90 : 365;
-      cutoff.setDate(cutoff.getDate() - days);
-      return lostDate >= cutoff;
+      const relevantDate = prospect.stage === 'won'
+        ? (prospect.won_at || prospect.updated_at || prospect.created_at)
+        : prospect.stage === 'lost'
+          ? (prospect.lost_at || prospect.updated_at || prospect.created_at)
+          : (prospect.created_at || prospect.updated_at);
+      if (!relevantDate) return false;
+      return new Date(relevantDate) >= cutoff;
     });
   }, [prospects, statsRange]);
+
+  const lostProspectsInRange = useMemo(() => statsProspectsInRange.filter((prospect) => prospect.stage === 'lost'), [statsProspectsInRange]);
 
   const availableServices = useMemo(() => {
     const map = new Map<string, { value: string; label: string; dot?: string }>();
@@ -1260,15 +1269,15 @@ export default function PipelinePage() {
   }, [prospects]);
 
   const stats = useMemo(() => {
-    const pipelineValue = filtered.filter(p => p.stage !== 'won' && p.stage !== 'lost').reduce((sum, p) => sum + (p.value || 0), 0);
-    const wonValue = filtered.filter(p => p.stage === 'won').reduce((sum, p) => sum + (p.value || 0), 0);
+    const pipelineValue = statsProspectsInRange.filter(p => p.stage !== 'won' && p.stage !== 'lost').reduce((sum, p) => sum + (p.value || 0), 0);
+    const wonValue = statsProspectsInRange.filter(p => p.stage === 'won').reduce((sum, p) => sum + (p.value || 0), 0);
     const lostReasonCounts = lostProspectsInRange.reduce((acc, prospect) => {
-      const reason = prospect.lost_reason || 'No reason set';
+      const reason = (prospect.lost_reason || prospect.lost_reason_custom || '').trim() || 'No reason set';
       acc[reason] = (acc[reason] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
-    return { pipelineValue, wonValue, lostReasonCounts };
-  }, [filtered, lostProspectsInRange]);
+    return { pipelineValue, wonValue, lostReasonCounts, prospectsInRange: statsProspectsInRange };
+  }, [lostProspectsInRange, statsProspectsInRange]);
 
   const openNewProspect = useCallback((stage = 'lead') => {
     setEditingProspect(null);
