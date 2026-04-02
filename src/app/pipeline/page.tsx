@@ -267,6 +267,7 @@ function ProspectSheet({
   onCreated,
   prospect,
   onWon,
+  lostReasonOptions,
   stageOptions,
   assigneeOptions,
   leadSourceOptions,
@@ -277,6 +278,7 @@ function ProspectSheet({
   onCreated: () => Promise<void> | void;
   prospect: Prospect | null;
   onWon: (key: string) => void;
+  lostReasonOptions: string[];
   stageOptions: { id: string; label: string; color: string; dotClass?: string | null }[];
   assigneeOptions: { slug: string; full_name: string }[];
   leadSourceOptions: string[];
@@ -314,6 +316,8 @@ function ProspectSheet({
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceSearch, setSourceSearch] = useState('');
+  const [lostReasonInputMode, setLostReasonInputMode] = useState<'select' | 'custom'>('select');
+  const [lostReasonCustomInput, setLostReasonCustomInput] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -331,7 +335,11 @@ function ProspectSheet({
     });
     setSaving(false);
     setActiveTab('details');
-  }, [open, defaultStage, prospect]);
+    const existingLostReason = prospect?.lost_reason || '';
+    const isKnownReason = !existingLostReason || lostReasonOptions.includes(existingLostReason);
+    setLostReasonInputMode(isKnownReason ? 'select' : 'custom');
+    setLostReasonCustomInput(isKnownReason ? '' : existingLostReason);
+  }, [open, defaultStage, prospect, lostReasonOptions]);
 
   useEffect(() => {
     if (!open || !prospect?.id) {
@@ -372,7 +380,7 @@ function ProspectSheet({
         contact_email: form.contact_email.trim() || null,
         contact_phone: form.contact_phone.trim() || null,
         notes: form.notes || null,
-        lost_reason: form.stage === 'lost' ? (form.lost_reason.trim() || null) : null,
+        lost_reason: form.stage === 'lost' ? ((lostReasonInputMode === 'custom' ? lostReasonCustomInput : form.lost_reason).trim() || null) : null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -638,9 +646,31 @@ function ProspectSheet({
                     </div>
                   </div>
                   {form.stage === 'lost' && (
-                    <div>
+                    <div className="space-y-2">
                       <label className="block text-[12px] text-muted-foreground mb-1">Lost reason</label>
-                      <input value={form.lost_reason} onChange={e => setForm(f => ({ ...f, lost_reason: e.target.value }))} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button type="button" className="w-full h-9 px-3 text-left text-[13px] bg-background border border-border/20 rounded-lg flex items-center justify-between hover:bg-muted/20 transition-colors">
+                            <span>{lostReasonInputMode === 'custom' ? (lostReasonCustomInput || 'Add custom reason') : (form.lost_reason || 'Select lost reason')}</span>
+                            <ChevronDown size={14} className="text-muted-foreground/40" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
+                          <div className="max-h-[220px] overflow-y-auto">
+                            {lostReasonOptions.map((reason) => (
+                              <button key={reason} type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: reason })); setLostReasonCustomInput(''); }} className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${form.lost_reason === reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
+                                {reason}
+                              </button>
+                            ))}
+                            <button type="button" onClick={() => { setLostReasonInputMode('custom'); setForm(f => ({ ...f, lost_reason: '' })); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">
+                              Add custom reason
+                            </button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      {lostReasonInputMode === 'custom' && (
+                        <input value={lostReasonCustomInput} onChange={e => setLostReasonCustomInput(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Enter custom lost reason" />
+                      )}
                     </div>
                   )}
                   <div>
@@ -1087,16 +1117,22 @@ export default function PipelinePage() {
   const fireWonConfetti = useCallback((key: string) => {
     if (lastConfettiKeyRef.current === key) return;
     lastConfettiKeyRef.current = key;
-    confetti({
-      particleCount: 80,
-      spread: 60,
-      startVelocity: 24,
-      ticks: 140,
-      gravity: 0.9,
-      scalar: 0.9,
-      origin: { y: 0.72 },
-      colors: ['#34d399', '#60a5fa', '#fbbf24'],
-    });
+
+    const base = {
+      spread: 72,
+      startVelocity: 26,
+      ticks: 150,
+      gravity: 0.88,
+      scalar: 0.92,
+      zIndex: 2000,
+      colors: ['#34d399', '#60a5fa', '#fbbf24', '#ffffff'],
+    };
+
+    confetti({ ...base, particleCount: 70, angle: 70, origin: { x: 0.32, y: 0.78 } });
+    confetti({ ...base, particleCount: 70, angle: 110, origin: { x: 0.68, y: 0.78 } });
+    window.setTimeout(() => {
+      confetti({ ...base, particleCount: 40, spread: 88, startVelocity: 20, scalar: 0.8, origin: { x: 0.5, y: 0.72 } });
+    }, 140);
   }, []);
 
   const persistHiddenLostReasons = useCallback((reasons: string[]) => {
@@ -1358,6 +1394,7 @@ export default function PipelinePage() {
         assigneeOptions={users.map(user => ({ slug: user.full_name.toLowerCase().replace(/\s+/g, '-'), full_name: user.full_name }))}
         leadSourceOptions={[...new Set(prospects.map(prospect => prospect.source).filter((source): source is string => !!source && source.trim().length > 0))]}
         onWon={fireWonConfetti}
+        lostReasonOptions={lostReasonOptions}
       />
 
       {loading ? (
