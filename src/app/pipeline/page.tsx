@@ -322,6 +322,7 @@ function ProspectSheet({
   const [sourceSearch, setSourceSearch] = useState('');
   const [lostReasonInputMode, setLostReasonInputMode] = useState<'select' | 'custom'>('select');
   const [lostReasonCustomInput, setLostReasonCustomInput] = useState('');
+  const [lostReasonSearch, setLostReasonSearch] = useState('');
 
   useEffect(() => {
     if (!open) return;
@@ -343,6 +344,7 @@ function ProspectSheet({
     const isKnownReason = !existingLostReason || lostReasonOptions.includes(existingLostReason);
     setLostReasonInputMode(isKnownReason ? 'select' : 'custom');
     setLostReasonCustomInput(isKnownReason ? '' : existingLostReason);
+    setLostReasonSearch('');
   }, [open, defaultStage, prospect, lostReasonOptions]);
 
   useEffect(() => {
@@ -659,35 +661,34 @@ function ProspectSheet({
                             <ChevronDown size={14} className="text-muted-foreground/40" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
-                          <div className="max-h-[260px] overflow-y-auto space-y-1">
-                            <button type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: '' })); setLostReasonCustomInput(''); }} className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${!form.lost_reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
-                              No lost reason
-                            </button>
-                            {lostReasonOptions.map((reason) => (
-                              <div key={reason} className="flex items-center gap-2">
-                                <button type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: reason })); setLostReasonCustomInput(''); }} className={`flex-1 text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${form.lost_reason === reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
-                                  {reason}
-                                </button>
-                                {!DEFAULT_LOST_REASONS.includes(reason) && (
-                                  <button type="button" onClick={() => onRemoveLostReasonOption(reason)} className="px-2 py-1.5 rounded text-[12px] text-destructive hover:bg-destructive/10">
-                                    Remove
+                        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-2 bg-card border-border/20">
+                          <div className="space-y-2">
+                            <input value={lostReasonSearch} onChange={e => setLostReasonSearch(e.target.value)} placeholder="Search or create..." className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" />
+                            {lostReasonSearch.trim() && !lostReasonOptions.some((reason) => reason.toLowerCase() === lostReasonSearch.trim().toLowerCase()) && (
+                              <button type="button" onClick={() => { const trimmed = lostReasonSearch.trim(); setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: trimmed })); setLostReasonCustomInput(trimmed); onAddLostReasonOption(trimmed); setLostReasonSearch(''); }} className="w-full text-left px-2 py-2 rounded text-[13px] border border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10">
+                                + Create “{lostReasonSearch.trim()}”
+                              </button>
+                            )}
+                            <div className="max-h-[220px] overflow-y-auto space-y-1">
+                              <button type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: '' })); setLostReasonCustomInput(''); setLostReasonSearch(''); }} className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${!form.lost_reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
+                                No lost reason
+                              </button>
+                              {lostReasonOptions.filter((reason) => reason.toLowerCase().includes(lostReasonSearch.toLowerCase())).map((reason) => (
+                                <div key={reason} className="flex items-center gap-2">
+                                  <button type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: reason })); setLostReasonCustomInput(''); setLostReasonSearch(''); }} className={`flex-1 text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${form.lost_reason === reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
+                                    {reason}
                                   </button>
-                                )}
-                              </div>
-                            ))}
-                            <button type="button" onClick={() => { setLostReasonInputMode('custom'); setForm(f => ({ ...f, lost_reason: '' })); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">
-                              + Add new custom option
-                            </button>
+                                  {!DEFAULT_LOST_REASONS.includes(reason) && (
+                                    <button type="button" onClick={() => onRemoveLostReasonOption(reason)} className="px-2 py-1.5 rounded text-[12px] text-destructive hover:bg-destructive/10">
+                                      Remove
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         </PopoverContent>
                       </Popover>
-                      {lostReasonInputMode === 'custom' && (
-                        <div className="flex items-center gap-2">
-                          <input value={lostReasonCustomInput} onChange={e => setLostReasonCustomInput(e.target.value)} className="h-9 flex-1 rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Create new lost-reason option" />
-                          <Button type="button" size="sm" variant="outline" onClick={() => { const trimmed = lostReasonCustomInput.trim(); if (!trimmed) return; setForm(f => ({ ...f, lost_reason: trimmed })); setLostReasonInputMode('select'); onAddLostReasonOption(trimmed); }} className="h-9 border-border/20">Add</Button>
-                        </div>
-                      )}
                     </div>
                   )}
                   <div>
@@ -1157,6 +1158,7 @@ export default function PipelinePage() {
   const [lossModalProspect, setLossModalProspect] = useState<Prospect | null>(null);
   const [lossReason, setLossReason] = useState('');
   const [lossReasonCustom, setLossReasonCustom] = useState('');
+  const [lossReasonSearch, setLossReasonSearch] = useState('');
   const [customLostReasons, setCustomLostReasons] = useState<string[]>([]);
   const [hiddenLostReasons, setHiddenLostReasons] = useState<string[]>([]);
   const [savingLossReason, setSavingLossReason] = useState(false);
@@ -1299,6 +1301,7 @@ export default function PipelinePage() {
       setLossModalProspect(prospect);
       setLossReason(prospect.lost_reason || '');
       setLossReasonCustom('');
+      setLossReasonSearch('');
       return;
     }
 
@@ -1341,6 +1344,7 @@ export default function PipelinePage() {
       setLossModalProspect(null);
       setLossReason('');
       setLossReasonCustom('');
+      setLossReasonSearch('');
       await fetchProspects();
       toast.success('Prospect marked as lost');
     } catch (error) {
@@ -1495,7 +1499,7 @@ export default function PipelinePage() {
         )}
 
       {lossModalProspect && (
-        <Dialog open={!!lossModalProspect} onOpenChange={(open) => { if (!open) { setLossModalProspect(null); setLossReason(''); setLossReasonCustom(''); } }}>
+        <Dialog open={!!lossModalProspect} onOpenChange={(open) => { if (!open) { setLossModalProspect(null); setLossReason(''); setLossReasonCustom(''); setLossReasonSearch(''); } }}>
           <DialogContent className="sm:max-w-md bg-card border-border/20">
             <DialogHeader>
               <DialogTitle className="text-[15px]">Why was this prospect lost?</DialogTitle>
@@ -1517,7 +1521,7 @@ export default function PipelinePage() {
                     </div>
                   ))}
                   <button type="button" onClick={() => setLossReason('__custom__')} className={`w-full rounded-lg border px-3 py-2 text-left text-[13px] ${lossReason === '__custom__' ? 'border-primary/50 bg-primary/10' : 'border-border/20 hover:bg-muted/20'}`}>
-                    + Add new custom option
++ Add new custom option
                   </button>
                 </div>
               </div>
