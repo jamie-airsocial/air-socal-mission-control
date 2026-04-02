@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Plus, Search, X, Kanban, Table2, BarChart3, Mail, Phone, Check, ChevronDown,
@@ -51,6 +53,9 @@ interface Prospect {
 }
 
 type ViewMode = 'pipeline' | 'table' | 'stats';
+
+const DEFAULT_LOST_REASONS = ['Budget', 'No response', 'Timing not right', 'Chose another provider', 'In-house / existing supplier', 'Scope or fit mismatch'];
+const HIDDEN_LOST_REASONS_STORAGE_KEY = 'pipeline-hidden-lost-reasons';
 
 interface ProspectLineItem {
   id: string;
@@ -261,6 +266,7 @@ function ProspectSheet({
   defaultStage,
   onCreated,
   prospect,
+  onWon,
   stageOptions,
   assigneeOptions,
   leadSourceOptions,
@@ -270,6 +276,7 @@ function ProspectSheet({
   defaultStage: string;
   onCreated: () => Promise<void> | void;
   prospect: Prospect | null;
+  onWon: (key: string) => void;
   stageOptions: { id: string; label: string; color: string; dotClass?: string | null }[];
   assigneeOptions: { slug: string; full_name: string }[];
   leadSourceOptions: string[];
@@ -513,6 +520,7 @@ function ProspectSheet({
       setConvertDialogOpen(false);
       onOpenChange(false);
       toast.success(convertMode === 'existing' ? 'Prospect merged into existing client' : 'Prospect converted to client');
+      onWon(`convert-win-${targetProspect.id}-${Date.now()}`);
       if (data?.client?.id && convertMode === 'existing') {
         router.push(`/clients/${data.client.id}`);
       }
@@ -856,7 +864,7 @@ function ProspectSheet({
   );
 }
 
-function TableView({ prospects }: { prospects: Prospect[] }) {
+function TableView({ prospects, onEdit }: { prospects: Prospect[]; onEdit: (prospect: Prospect) => void }) {
   return (
     <div className="rounded-lg border border-border/20 bg-card overflow-hidden h-[calc(100vh-170px)]">
       <div className="overflow-auto h-full">
@@ -879,7 +887,7 @@ function TableView({ prospects }: { prospects: Prospect[] }) {
             ) : prospects.map((prospect) => {
               const serviceStyle = prospect.service ? getServiceStyle(prospect.service) : null;
               return (
-                <tr key={prospect.id} className="border-b border-border/10 last:border-b-0 hover:bg-muted/20 transition-colors duration-150">
+                <tr key={prospect.id} onClick={() => onEdit(prospect)} className="border-b border-border/10 last:border-b-0 hover:bg-muted/20 transition-colors duration-150 cursor-pointer">
                   <td className="px-5 py-3">
                     <div className="min-w-0">
                       <div className="text-[13px] font-medium text-foreground truncate">{prospect.name}</div>
@@ -1071,11 +1079,64 @@ export default function PipelinePage() {
   const [lossModalProspect, setLossModalProspect] = useState<Prospect | null>(null);
   const [lossReason, setLossReason] = useState('');
   const [lossReasonCustom, setLossReasonCustom] = useState('');
+  const [customLostReasons, setCustomLostReasons] = useState<string[]>([]);
+  const [hiddenLostReasons, setHiddenLostReasons] = useState<string[]>([]);
+  const [savingLossReason, setSavingLossReason] = useState(false);
+  const lastConfettiKeyRef = useRef<string | null>(null);
+
+  const fireWonConfetti = useCallback((key: string) => {
+    if (lastConfettiKeyRef.current === key) return;
+    lastConfettiKeyRef.current = key;
+    confetti({
+      particleCount: 80,
+      spread: 60,
+      startVelocity: 24,
+      ticks: 140,
+      gravity: 0.9,
+      scalar: 0.9,
+      origin: { y: 0.72 },
+      colors: ['#34d399', '#60a5fa', '#fbbf24'],
+    });
+  }, []);
+
+  const persistHiddenLostReasons = useCallback((reasons: string[]) => {
+    setHiddenLostReasons(reasons);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(HIDDEN_LOST_REASONS_STORAGE_KEY, JSON.stringify(reasons));
+    }
+  }, []);
+
+  const lostReasonOptions = useMemo(() => {
+    const merged = [...DEFAULT_LOST_REASONS, ...customLostReasons];
+    return Array.from(new Set(merged.filter(Boolean))).filter((reason) => !hiddenLostReasons.includes(reason));
+  }, [customLostReasons, hiddenLostReasons]);
+
+  const refreshLostReasons = useCallback(async () => {
+    const res = await fetch('/api/prospects');
+    const data = await res.json().catch(() => []);
+    const allProspects = Array.isArray(data) ? data : [];
+    const existingCustom = Array.from(new Set(allProspects.map((prospect) => prospect.lost_reason).filter((reason) => reason && !DEFAULT_LOST_REASONS.includes(reason))));
+    setCustomLostReasons(existingCustom as string[]);
+  }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage.getItem(HIDDEN_LOST_REASONS_STORAGE_KEY);
+        setHiddenLostReasons(stored ? JSON.parse(stored) : []);
+      } catch {
+        setHiddenLostReasons([]);
+      }
+    }
+
     fetch('/api/prospects')
       .then(r => r.ok ? r.json() : [])
-      .then(data => setProspects(Array.isArray(data) ? data : []))
+      .then(data => {
+        const prospectsData = Array.isArray(data) ? data : [];
+        setProspects(prospectsData);
+        const existingCustom = Array.from(new Set(prospectsData.map((prospect) => prospect.lost_reason).filter((reason) => reason && !DEFAULT_LOST_REASONS.includes(reason))));
+        setCustomLostReasons(existingCustom as string[]);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -1116,7 +1177,10 @@ export default function PipelinePage() {
   const fetchProspects = useCallback(async () => {
     const res = await fetch('/api/prospects');
     const data = await res.json();
-    setProspects(Array.isArray(data) ? data : []);
+    const prospectsData = Array.isArray(data) ? data : [];
+    setProspects(prospectsData);
+    const existingCustom = Array.from(new Set(prospectsData.map((prospect) => prospect.lost_reason).filter((reason) => reason && !DEFAULT_LOST_REASONS.includes(reason))));
+    setCustomLostReasons(existingCustom as string[]);
   }, []);
 
   const onDragEnd = useCallback(async (result: DropResult) => {
@@ -1125,13 +1189,67 @@ export default function PipelinePage() {
     const prospect = filtered.filter(p => p.stage === result.source.droppableId)[result.source.index];
     if (!prospect) return;
     const newStage = result.destination.droppableId;
+
+    if (newStage === 'lost') {
+      setLossModalProspect(prospect);
+      setLossReason(prospect.lost_reason || '');
+      setLossReasonCustom('');
+      return;
+    }
+
     setProspects(prev => prev.map(p => p.id === prospect.id ? { ...p, stage: newStage } : p));
-    await fetch(`/api/prospects`, {
+    const res = await fetch(`/api/prospects`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: prospect.id, stage: newStage }),
     });
-  }, [filtered]);
+    if (!res.ok) {
+      await fetchProspects();
+      return;
+    }
+    await fetchProspects();
+    if (newStage === 'won') {
+      fireWonConfetti(`drag-win-${prospect.id}-${Date.now()}`);
+    }
+  }, [fetchProspects, filtered, fireWonConfetti]);
+
+  const handleConfirmLost = useCallback(async () => {
+    if (!lossModalProspect) return;
+    const finalReason = (lossReason === '__custom__' ? lossReasonCustom : lossReason).trim();
+    if (!finalReason) {
+      toast.error('Select a lost reason');
+      return;
+    }
+
+    setSavingLossReason(true);
+    try {
+      const res = await fetch('/api/prospects', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: lossModalProspect.id, stage: 'lost', lost_reason: finalReason, lost_reason_custom: lossReason === '__custom__' ? finalReason : null }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to mark prospect as lost');
+      if (!DEFAULT_LOST_REASONS.includes(finalReason)) {
+        setCustomLostReasons((prev) => Array.from(new Set([...prev, finalReason])));
+      }
+      setLossModalProspect(null);
+      setLossReason('');
+      setLossReasonCustom('');
+      await fetchProspects();
+      toast.success('Prospect marked as lost');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark prospect as lost');
+    } finally {
+      setSavingLossReason(false);
+    }
+  }, [fetchProspects, lossModalProspect, lossReason, lossReasonCustom]);
+
+  const handleRemoveLostReasonOption = useCallback((reason: string) => {
+    if (DEFAULT_LOST_REASONS.includes(reason)) return;
+    persistHiddenLostReasons(Array.from(new Set([...hiddenLostReasons, reason])));
+    toast.success('Lost reason removed from future selections');
+  }, [hiddenLostReasons, persistHiddenLostReasons]);
 
   const PAGE_SHORTCUTS = [
     { key: 'N', description: 'New prospect' },
@@ -1239,6 +1357,7 @@ export default function PipelinePage() {
         stageOptions={PIPELINE_STAGES}
         assigneeOptions={users.map(user => ({ slug: user.full_name.toLowerCase().replace(/\s+/g, '-'), full_name: user.full_name }))}
         leadSourceOptions={[...new Set(prospects.map(prospect => prospect.source).filter((source): source is string => !!source && source.trim().length > 0))]}
+        onWon={fireWonConfetti}
       />
 
       {loading ? (
@@ -1259,7 +1378,7 @@ export default function PipelinePage() {
           </div>
         ) : viewMode === 'table' ? (
           <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-hidden h-[calc(100vh-170px)]">
-            <TableView prospects={filtered} />
+            <TableView prospects={filtered} onEdit={openEditProspect} />
           </div>
         ) : (
           <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-auto h-[calc(100vh-170px)]">
@@ -1267,7 +1386,47 @@ export default function PipelinePage() {
           </div>
         )}
 
-      {lossModalProspect && <div />}
+      {lossModalProspect && (
+        <Dialog open={!!lossModalProspect} onOpenChange={(open) => { if (!open) { setLossModalProspect(null); setLossReason(''); setLossReasonCustom(''); } }}>
+          <DialogContent className="sm:max-w-md bg-card border-border/20">
+            <DialogHeader>
+              <DialogTitle className="text-[15px]">Why was this prospect lost?</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="block text-[12px] text-muted-foreground">Lost reason</label>
+                <div className="space-y-2">
+                  {lostReasonOptions.map((reason) => (
+                    <div key={reason} className="flex items-center gap-2">
+                      <button type="button" onClick={() => setLossReason(reason)} className={`flex-1 rounded-lg border px-3 py-2 text-left text-[13px] ${lossReason === reason ? 'border-primary/50 bg-primary/10' : 'border-border/20 hover:bg-muted/20'}`}>
+                        {reason}
+                      </button>
+                      {!DEFAULT_LOST_REASONS.includes(reason) && (
+                        <Button type="button" size="sm" variant="ghost" onClick={() => handleRemoveLostReasonOption(reason)} className="h-8 px-2 text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setLossReason('__custom__')} className={`w-full rounded-lg border px-3 py-2 text-left text-[13px] ${lossReason === '__custom__' ? 'border-primary/50 bg-primary/10' : 'border-border/20 hover:bg-muted/20'}`}>
+                    Add custom reason
+                  </button>
+                </div>
+              </div>
+              {lossReason === '__custom__' && (
+                <div>
+                  <label className="block text-[12px] text-muted-foreground mb-1">Custom reason</label>
+                  <input value={lossReasonCustom} onChange={e => setLossReasonCustom(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Enter lost reason" />
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setLossModalProspect(null); setLossReason(''); setLossReasonCustom(''); }} className="h-8 text-[13px] border-border/20">Cancel</Button>
+              <Button onClick={handleConfirmLost} disabled={savingLossReason} className="h-8 text-[13px]">{savingLossReason ? 'Saving...' : 'Mark as lost'}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
       <ShortcutsDialog open={showShortcuts} onClose={() => setShowShortcuts(false)} shortcuts={PAGE_SHORTCUTS} pageName="Pipeline" />
     </div>
   );
