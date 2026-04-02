@@ -1004,9 +1004,9 @@ function StatsView({ stats, prospects, statsRange, onStatsRangeChange, statsCust
       </div>
       {statsRange === 'custom' && (
         <div className="flex items-center gap-2">
-          <input type="date" value={statsCustomStart} onChange={(e) => onStatsCustomStartChange(e.target.value)} className="h-8 rounded-lg border border-border/20 bg-background px-3 text-[12px]" />
+          <DatePicker value={statsCustomStart} onChange={onStatsCustomStartChange} placeholder="Start date" />
           <span className="text-[12px] text-muted-foreground">to</span>
-          <input type="date" value={statsCustomEnd} onChange={(e) => onStatsCustomEndChange(e.target.value)} className="h-8 rounded-lg border border-border/20 bg-background px-3 text-[12px]" />
+          <DatePicker value={statsCustomEnd} onChange={onStatsCustomEndChange} placeholder="End date" />
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
