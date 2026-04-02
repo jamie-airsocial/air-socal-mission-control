@@ -194,10 +194,15 @@ export async function POST(
     }
   }
 
+  const prospectBillingValue = activeLineItems.reduce((sum, item) => sum + (item.monthly_value || 0), 0);
+  const prospectPrimaryService = activeLineItems.find((item) => item.service)?.service || prospect.service || null;
+
   const prospectUpdate: Record<string, unknown> = {
     stage: 'won',
     won_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    value: prospectBillingValue > 0 ? prospectBillingValue : prospect.value || null,
+    service: prospectPrimaryService,
   };
 
   if (archive_prospect) {
