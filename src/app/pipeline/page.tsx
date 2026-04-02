@@ -268,6 +268,8 @@ function ProspectSheet({
   prospect,
   onWon,
   lostReasonOptions,
+  onAddLostReasonOption,
+  onRemoveLostReasonOption,
   stageOptions,
   assigneeOptions,
   leadSourceOptions,
@@ -279,6 +281,8 @@ function ProspectSheet({
   prospect: Prospect | null;
   onWon: (key: string) => void;
   lostReasonOptions: string[];
+  onAddLostReasonOption: (reason: string) => void;
+  onRemoveLostReasonOption: (reason: string) => void;
   stageOptions: { id: string; label: string; color: string; dotClass?: string | null }[];
   assigneeOptions: { slug: string; full_name: string }[];
   leadSourceOptions: string[];
@@ -656,11 +660,21 @@ function ProspectSheet({
                           </button>
                         </PopoverTrigger>
                         <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-1 bg-card border-border/20">
-                          <div className="max-h-[220px] overflow-y-auto">
+                          <div className="max-h-[260px] overflow-y-auto space-y-1">
+                            <button type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: '' })); setLostReasonCustomInput(''); }} className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${!form.lost_reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
+                              No lost reason
+                            </button>
                             {lostReasonOptions.map((reason) => (
-                              <button key={reason} type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: reason })); setLostReasonCustomInput(''); }} className={`w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${form.lost_reason === reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
-                                {reason}
-                              </button>
+                              <div key={reason} className="flex items-center gap-2">
+                                <button type="button" onClick={() => { setLostReasonInputMode('select'); setForm(f => ({ ...f, lost_reason: reason })); setLostReasonCustomInput(''); }} className={`flex-1 text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60 ${form.lost_reason === reason && lostReasonInputMode === 'select' ? 'bg-muted/40' : ''}`}>
+                                  {reason}
+                                </button>
+                                {!DEFAULT_LOST_REASONS.includes(reason) && (
+                                  <button type="button" onClick={() => onRemoveLostReasonOption(reason)} className="px-2 py-1.5 rounded text-[12px] text-destructive hover:bg-destructive/10">
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
                             ))}
                             <button type="button" onClick={() => { setLostReasonInputMode('custom'); setForm(f => ({ ...f, lost_reason: '' })); }} className="w-full text-left px-2 py-1.5 rounded text-[13px] hover:bg-muted/60">
                               + Add new custom option
@@ -669,7 +683,10 @@ function ProspectSheet({
                         </PopoverContent>
                       </Popover>
                       {lostReasonInputMode === 'custom' && (
-                        <input value={lostReasonCustomInput} onChange={e => setLostReasonCustomInput(e.target.value)} className="h-9 w-full rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Create new lost-reason option" />
+                        <div className="flex items-center gap-2">
+                          <input value={lostReasonCustomInput} onChange={e => setLostReasonCustomInput(e.target.value)} className="h-9 flex-1 rounded-lg border border-border/20 bg-background px-3 text-[13px] outline-none focus:border-primary/50" placeholder="Create new lost-reason option" />
+                          <Button type="button" size="sm" variant="outline" onClick={() => { const trimmed = lostReasonCustomInput.trim(); if (!trimmed) return; setForm(f => ({ ...f, lost_reason: trimmed })); setLostReasonInputMode('select'); onAddLostReasonOption(trimmed); }} className="h-9 border-border/20">Add</Button>
+                        </div>
                       )}
                     </div>
                   )}
@@ -951,7 +968,7 @@ function TableView({ prospects, onEdit }: { prospects: Prospect[]; onEdit: (pros
   );
 }
 
-function StatsView({ stats, prospects }: { stats: { pipelineValue: number; wonValue: number }; prospects: Prospect[] }) {
+function StatsView({ stats, prospects, statsRange, onStatsRangeChange }: { stats: { pipelineValue: number; wonValue: number; lostReasonCounts: Record<string, number> }; prospects: Prospect[]; statsRange: '30d' | '90d' | '365d' | 'all'; onStatsRangeChange: (range: '30d' | '90d' | '365d' | 'all') => void; }) {
   const openCount = prospects.filter(p => p.stage !== 'won' && p.stage !== 'lost').length;
   const wonCount = prospects.filter(p => p.stage === 'won').length;
   const lostCount = prospects.filter(p => p.stage === 'lost').length;
@@ -970,8 +987,19 @@ function StatsView({ stats, prospects }: { stats: { pipelineValue: number; wonVa
     { label: 'Lost prospects', value: String(lostCount), icon: X },
   ];
 
+  const lostReasonEntries = Object.entries(stats.lostReasonCounts).sort((a, b) => b[1] - a[1]);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="text-[12px] text-muted-foreground">Lost reason range</span>
+        {(['30d', '90d', '365d', 'all'] as const).map((range) => (
+          <button key={range} onClick={() => onStatsRangeChange(range)} className={`px-2.5 py-1 rounded-md text-[12px] border transition-colors ${statsRange === range ? 'bg-card border-border text-foreground' : 'bg-secondary border-border/20 text-muted-foreground'}`}>
+            {range === 'all' ? 'All time' : range}
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {cards.map((card) => {
         const Icon = card.icon;
         return (
@@ -988,6 +1016,25 @@ function StatsView({ stats, prospects }: { stats: { pipelineValue: number; wonVa
           </div>
         );
       })}
+      </div>
+      <div className="rounded-lg border border-border/20 bg-card p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[13px] text-muted-foreground/60">Lost reasons</p>
+            <p className="mt-1 text-[12px] text-muted-foreground/50">Based on prospect <span className="font-medium text-foreground/80">lost_at</span> within the selected range.</p>
+          </div>
+        </div>
+        <div className="mt-4 space-y-2">
+          {lostReasonEntries.length === 0 ? (
+            <div className="text-[13px] text-muted-foreground/60">No lost reasons in this range</div>
+          ) : lostReasonEntries.map(([reason, count]) => (
+            <div key={reason} className="flex items-center justify-between gap-3 text-[13px]">
+              <span className="text-foreground">{reason}</span>
+              <span className="text-muted-foreground/70">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1101,6 +1148,7 @@ export default function PipelinePage() {
   const [filterService, setFilterService] = usePersistedState<string[]>('pipeline-filterService', []);
   const [filterStage, setFilterStage] = usePersistedState<string[]>('pipeline-filterStage', []);
   const [searchQuery, setSearchQuery] = usePersistedState('pipeline-search', '');
+  const [statsRange, setStatsRange] = usePersistedState<'30d' | '90d' | '365d' | 'all'>('pipeline-stats-range', '90d');
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingProspect, setEditingProspect] = useState<Prospect | null>(null);
   const [sheetDefaultStage, setSheetDefaultStage] = useState<string>('lead');
@@ -1186,6 +1234,19 @@ export default function PipelinePage() {
     return true;
   }), [prospects, searchQuery, filterService, filterStage]);
 
+  const lostProspectsInRange = useMemo(() => {
+    const now = new Date();
+    return prospects.filter((prospect) => {
+      if (prospect.stage !== 'lost' || !prospect.lost_at) return false;
+      if (statsRange === 'all') return true;
+      const lostDate = new Date(prospect.lost_at);
+      const cutoff = new Date(now);
+      const days = statsRange === '30d' ? 30 : statsRange === '90d' ? 90 : 365;
+      cutoff.setDate(cutoff.getDate() - days);
+      return lostDate >= cutoff;
+    });
+  }, [prospects, statsRange]);
+
   const availableServices = useMemo(() => {
     const map = new Map<string, { value: string; label: string; dot?: string }>();
     prospects.forEach(p => {
@@ -1199,8 +1260,13 @@ export default function PipelinePage() {
   const stats = useMemo(() => {
     const pipelineValue = filtered.filter(p => p.stage !== 'won' && p.stage !== 'lost').reduce((sum, p) => sum + (p.value || 0), 0);
     const wonValue = filtered.filter(p => p.stage === 'won').reduce((sum, p) => sum + (p.value || 0), 0);
-    return { pipelineValue, wonValue };
-  }, [filtered]);
+    const lostReasonCounts = lostProspectsInRange.reduce((acc, prospect) => {
+      const reason = prospect.lost_reason || 'No reason set';
+      acc[reason] = (acc[reason] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    return { pipelineValue, wonValue, lostReasonCounts };
+  }, [filtered, lostProspectsInRange]);
 
   const openNewProspect = useCallback((stage = 'lead') => {
     setEditingProspect(null);
@@ -1398,6 +1464,8 @@ export default function PipelinePage() {
         leadSourceOptions={[...new Set(prospects.map(prospect => prospect.source).filter((source): source is string => !!source && source.trim().length > 0))]}
         onWon={fireWonConfetti}
         lostReasonOptions={lostReasonOptions}
+        onAddLostReasonOption={(reason) => setCustomLostReasons(prev => Array.from(new Set([...prev, reason])))}
+        onRemoveLostReasonOption={handleRemoveLostReasonOption}
       />
 
       {loading ? (
@@ -1422,7 +1490,7 @@ export default function PipelinePage() {
           </div>
         ) : (
           <div className="animate-in fade-in duration-200 min-h-0 flex-1 overflow-auto h-[calc(100vh-170px)]">
-            <StatsView stats={stats} prospects={filtered} />
+            <StatsView stats={stats} prospects={filtered} statsRange={statsRange} onStatsRangeChange={setStatsRange} />
           </div>
         )}
 
